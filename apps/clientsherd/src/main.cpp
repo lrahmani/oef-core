@@ -2,14 +2,12 @@
 // Author: Jerome Maloberti
 // Creation: 09/01/18
 //
-// This file will create an Agent that users can use to send custom messages
-
 #include <iostream>
-
-// FETCH.ai
 #include "client.h"
 #include "clara.hpp"
 #include <future>
+
+using fetch::oef::Client;
 
 int main(int argc, char* argv[])
 {
@@ -19,9 +17,9 @@ int main(int argc, char* argv[])
   std::string prefix = "Agent_";
   
   auto parser = clara::Help(showHelp)
-    + clara::Opt(nbClients, "nbClients")["--nbClients"]["-n"]("Number of clients. Default 100.")
-    + clara::Opt(prefix, "prefix")["--prefix"]["-p"]("Prefix used for all agents name. Default: Agent_")
-    + clara::Opt(host, "host")["--host"]["-h"]("Host address to connect. Default: 127.0.0.1");
+    | clara::Opt(nbClients, "nbClients")["--nbClients"]["-n"]("Number of clients. Default 100.")
+    | clara::Opt(prefix, "prefix")["--prefix"]["-p"]("Prefix used for all agents name. Default: Agent_")
+    | clara::Opt(host, "host")["--host"]["-h"]("Host address to connect. Default: 127.0.0.1");
   auto result = parser.parse(clara::Args(argc, argv));
 
   if(showHelp || argc == 1) {
