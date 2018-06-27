@@ -13,6 +13,13 @@ using asio::ip::tcp;
 using Buffer = std::vector<uint8_t>;
 
 template <typename T>
+T from_string(const std::string &s) {
+  T t;
+  t.ParseFromString(s);
+  return t;
+}
+
+template <typename T>
 std::shared_ptr<Buffer> serialize(const T &t) {
   size_t size = t.ByteSize();
   Buffer data;

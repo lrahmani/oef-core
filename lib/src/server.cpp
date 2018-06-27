@@ -1,6 +1,17 @@
 #include "server.h"
 #include <iostream>
 #include <google/protobuf/text_format.h>
+#include <sstream>
+#include <iomanip>
+
+static std::string hexStr(const Buffer &data)
+{
+    std::stringstream ss;
+    //    ss << std::hex;
+    for(auto c : data)
+      ss << int(c) << " ";
+    return ss.str();
+}
 
 namespace fetch {
   namespace oef {
@@ -12,6 +23,7 @@ namespace fetch {
       AgentDiscovery &_ad;
       ServiceDirectory &_sd;
       tcp::socket _socket;
+      
     public:
       explicit AgentSession(const std::string &id, AgentDiscovery &ad, ServiceDirectory &sd, tcp::socket socket)
         : _id{id}, _ad{ad}, _sd{sd}, _socket(std::move(socket)) {}
@@ -102,13 +114,15 @@ namespace fetch {
       }
       void processMessage(const fetch::oef::pb::Agent_Message &msg) {
         auto session = _ad.session(msg.destination());
+        std::cerr << "Server::processMessage to " << msg.destination() << " from " << _id << std::endl;
         if(session) {
           fetch::oef::pb::Server_AgentMessage message;
           message.set_uuid(msg.cid());
           auto content = message.mutable_content();
           content->set_origin(_id);
           content->set_content(msg.content());
-          auto buffer = serialize(msg);
+          auto buffer = serialize(message);
+          fetch::oef::pb::Server_AgentMessage msg2 = deserialize<fetch::oef::pb::Server_AgentMessage>(*buffer); 
           asyncWriteBuffer(session->_socket, buffer, 5, [this](std::error_code ec, std::size_t length) {
               fetch::oef::pb::Server_AgentMessage status;
               status.set_uuid("");
@@ -150,6 +164,7 @@ namespace fetch {
         asyncReadBuffer(_socket, 5, [this, self](std::error_code ec, std::shared_ptr<Buffer> buffer) {
                                 if(ec) {
                                   _ad.remove(_id);
+                                  _sd.unregisterAll(_id);
                                   std::cerr << "error! do_read remove " << _id << "\n";
                                   std::cerr << "error code:" << ec << "\n";
                                 } else {

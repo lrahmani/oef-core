@@ -87,15 +87,26 @@ class Conversation {
   Conversation(const std::string &dest, Proxy &proxy)
     : _uuid{Uuid::uuid4()}, _dest{dest}, _queue{proxy.getQueue(_uuid.to_string())},
       _proxy{proxy} {}
-  bool send(std::shared_ptr<Buffer> buffer);
-  std::unique_ptr<fetch::oef::pb::Server_AgentMessage> popBuffer() {
+  bool send(const std::string &s);
+  std::unique_ptr<fetch::oef::pb::Server_AgentMessage> pop() {
     return _queue.pop();
   }
+  std::string popContent() {
+    auto msg = pop();
+    assert(msg->has_content());
+    return msg->content().content();
+  }
   template <typename T>
-  bool sendMsg(const T &t) {
-    return send(serialize<T>(t));
+  T popMsg() {
+    T t;
+    t.ParseFromString(popContent());
+    return t;
+  }
+  bool send(const google::protobuf::MessageLite &t) {
+    return send(t.SerializeAsString());
   }
   size_t nbMsgs() const { return _queue.size(); }
   std::string dest() const { return _dest; }
+  std::string uuid() const { return _uuid.to_string(); }
 };
 

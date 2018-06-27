@@ -602,3 +602,32 @@ class SchemaDirectory {
     return _schemas[key].add(version, schema);
   }
 };
+
+class Data {
+ private:
+  std::string _name;
+  std::string _type;
+  std::vector<std::string> _values;
+  fetch::oef::pb::Data _data;
+ public:
+  explicit Data(const std::string &name, const std::string &type, const std::vector<std::string> &values)
+    : _name{name}, _type{type}, _values{values} {
+    _data.set_name(name);
+    _data.set_type(type);
+    for(auto &s : values) {
+      _data.add_values(s);
+    }
+  }
+  explicit Data(const std::string &buffer) {
+    _data.ParseFromString(buffer);
+    _name = _data.name();
+    _type = _data.type();
+    for(auto &s : _data.values())
+      _values.emplace_back(s);
+  }
+  const fetch::oef::pb::Data &handle() { return _data; }
+  std::string name() const { return _name; }
+  std::string type() const { return _type; }
+  std::vector<std::string> values() const { return _values; }
+  
+};

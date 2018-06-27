@@ -2,21 +2,16 @@
 // Author: Jerome Maloberti
 // Creation: 09/01/18
 //
-// This file is used for unit testing. It is similar to the meteostation demo except that instances
-// of the meteostation will be randomised
-
 #include <iostream>
 #include "clara.hpp"
-
-// FETCH.ai
 #include "client.h"
-#include "messages.h"
+#include <google/protobuf/text_format.h>
+
+using fetch::oef::Client;
 
 class MeteoStation : public Client
 {
-
 public:
-
   MeteoStation(const std::string &id, const char *host) : Client{id, host, [this](std::unique_ptr<Conversation> c) { _conversations.push(std::move(c));}}
   {
     static std::vector<std::string> properties = { "true", "true", "true", "false"};
@@ -27,7 +22,7 @@ public:
     static Attribute air{"air_pressure", Type::Bool, true};
     static Attribute humidity{"humidity", Type::Bool, true};
     static std::vector<Attribute> attributes{wind,temp,air,humidity};
-    static DataModel weather{"weather_data", attributes, stde::optional<std::string>{"All possible weather data."}};
+    static DataModel weather{"weather_data", attributes, "All possible weather data."};
 
     std::shuffle(properties.begin(), properties.end(), g);
     static std::normal_distribution<float> dist{1.0, 0.1}; // mean,stddev
@@ -35,8 +30,7 @@ public:
     std::cerr << id << " " << _unitPrice << std::endl;
     std::unordered_map<std::string,std::string> props;
     int i = 0;
-    for(auto &a : attributes)
-    {
+    for(auto &a : attributes) {
       props[a.name()] = properties[i];
       ++i;
     }
@@ -61,26 +55,24 @@ private:
 
   void process(std::unique_ptr<Conversation> conversation)
   {
-    AgentMessage am = conversation->pop();
-    std::cerr << "From " << am.origin() << " content " << am.content() << std::endl;
-    conversation->sendMsg<Price>(Price{_unitPrice});
+    std::unique_ptr<fetch::oef::pb::Server_AgentMessage> agentMsg = conversation->pop();
+    Data price{"price", "float", {std::to_string(_unitPrice)}};
+    conversation->send(price.handle());
     std::cerr << "Price sent\n";
-    auto a = conversation->popMsg<Accepted>();
-    if(a.status())
-    {
+    auto accepted = conversation->popMsg<fetch::oef::pb::Boolean>();
+    if(accepted.status()) {
       // let's send the data
       std::cerr << "I won!\n";
       std::random_device rd;
       std::mt19937 g(rd());
       std::normal_distribution<float> dist{15.0, 2.0};
       Data temp{"temperature", "float", {std::to_string(dist(g))}};
-      conversation->sendMsg<Data>(temp);
+      conversation->send(temp.handle());
       Data air{"air pressure", "float", {std::to_string(dist(g))}};
-      conversation->sendMsg<Data>(air);
+      conversation->send(air.handle());
       Data humid{"humidity", "float", {std::to_string(dist(g))}};
-      conversation->sendMsg<Data>(humid);
-    } else
-    {
+      conversation->send(humid.handle());
+    } else {
       // too bad
       std::cerr << "I lost\n";
     }
@@ -98,8 +90,8 @@ int main(int argc, char* argv[])
   std::string host;
 
   auto parser = clara::Help(showHelp)
-    + clara::Arg(host, "host")("Host address to connect.")
-    + clara::Opt(nbStations, "stations")["--stations"]["-n"]("Number of meteo stations to simulate.");
+    | clara::Arg(host, "host")("Host address to connect.")
+    | clara::Opt(nbStations, "stations")["--stations"]["-n"]("Number of meteo stations to simulate.");
 
   auto result = parser.parse(clara::Args(argc, argv));
   if(showHelp || argc == 1)
@@ -114,8 +106,7 @@ int main(int argc, char* argv[])
         std::string name = "Station_" + std::to_string(i);
         stations.emplace_back(std::unique_ptr<MeteoStation>(new MeteoStation{name, host.c_str()}));
       }
-    } catch(std::exception &e)
-    {
+    } catch(std::exception &e) {
       std::cerr << "Exception " << e.what() << std::endl;
     }
   }

@@ -2,51 +2,6 @@ syntax = "proto2";
 
 package fetch.oef.pb;
 
-message Agent {
-    message Server {
-        message ID {
-            required string id = 1;
-        }       
-        message Answer {
-            required string answer = 1;
-        }
-    }
-    message Message {
-        required string cid = 1; // conversation ID
-        required string destination = 2;
-        required string content = 3; // or bytes ?
-    }
-}
-
-message Server {
-    message Phrase {
-        required string phrase = 1;
-    }
-    message Connected {
-        required bool status = 1;
-    }
-    message Delivered {
-        required string uuid = 1;
-        required bool status = 2;
-    }
-    message QueryAnswer {
-        repeated string agents = 1;
-    }
-    
-    message AgentMessage {
-        message Content {
-            required string origin = 1;
-            required string content = 2;
-        }
-        required string uuid = 1;
-        oneof payload {
-            Content content = 2;
-            bool status = 3;
-            QueryAnswer agents = 4;
-        }
-    }
-}
-
 message Query {
     message Attribute {
         enum Type {
@@ -161,6 +116,51 @@ message Query {
     }
 }
 
+message Agent {
+    message Server {
+        message ID {
+            required string id = 1;
+        }       
+        message Answer {
+            required string answer = 1;
+        }
+    }
+    message Message {
+        required string cid = 1; // conversation ID
+        required string destination = 2;
+        required bytes content = 3; // or bytes ?
+    }
+}
+
+message Server {
+    message Phrase {
+        required string phrase = 1;
+    }
+    message Connected {
+        required bool status = 1;
+    }
+    message Delivered {
+        required string uuid = 1;
+        required bool status = 2;
+    }
+    message QueryAnswer {
+        repeated string agents = 1;
+    }
+    
+    message AgentMessage {
+        required string uuid = 1;
+        message Content {
+            required string origin = 5;
+            required string content = 6;
+        }
+        oneof payload {
+            Content content = 2;
+            bool status = 3;
+            QueryAnswer agents = 4;
+        }
+    }
+}
+
 message AgentDescription {
     required Query.Instance description = 1; 
 }
@@ -180,6 +180,15 @@ message Envelope {
     }
 }
 
+message Data {
+    required string name = 1;
+    required string type = 2; // should be enum
+    repeated string values = 3;
+}
+
+message Boolean {
+    required bool status = 1;
+}
 
 // option optimize_for = LITE_RUNTIME;
 option optimize_for = SPEED;

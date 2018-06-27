@@ -19,10 +19,6 @@ class Agents {
     };      
     ar.parseObjects(f);
   }
-  /* template <typename Archive> */
-  /* void serialize(Archive &ar) const { */
-  /*   ar.write(_agents.begin(), _agents.end()); */
-  /* } */
   bool insert(const std::string &agent) {
     return _agents.insert(agent).second;
   }
@@ -57,6 +53,12 @@ public:
       _data.erase(instance);
     }
     return res;
+  }
+  void unregisterAll(const std::string &agent) {
+    std::lock_guard<std::mutex> lock(_lock);
+    for(auto &p : _data) {
+      p.second.erase(agent);
+    }
   }
   size_t size() const {
     std::lock_guard<std::mutex> lock(_lock);

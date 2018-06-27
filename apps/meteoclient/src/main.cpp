@@ -2,13 +2,10 @@
 // Author: Jerome Maloberti
 // Creation: 09/01/18
 //
-// This file is used for the 'meteoclient' demo. It instantiates an instance of an AEA that wants to get weather data as cheaply as possible
-
 #include <iostream>
-
-// FETCH.ai
-#include "messages.h"
 #include "client.h"
+
+using fetch::oef::Client;
 
 int main(int argc, char* argv[])
 {
@@ -27,65 +24,67 @@ int main(int argc, char* argv[])
     Attribute air         { "air_pressure", Type::Bool, true};
     Attribute humidity    { "humidity",     Type::Bool, true};
     std::vector<Attribute> attributes{wind,temperature,air,humidity};
-    DataModel weather{"weather_data", attributes, stde::optional<std::string>{"All possible weather data."}};
+    DataModel weather{"weather_data", attributes, "All possible weather data."};
 
     // Create constraints against our Attributes (whether the station CAN provide them)
-    ConstraintType eqTrue{ConstraintType::ValueType{Relation{Relation::Op::Eq, true}}};
+    ConstraintType eqTrue{Relation{Relation::Op::Eq, true}};
     Constraint temperature_c { temperature, eqTrue};
     Constraint air_c         { air,         eqTrue};
     Constraint humidity_c    { humidity,    eqTrue};
 
     // Construct a Query schema and send it to the Node
-    QueryModel q1{{temperature_c,air_c,humidity_c}, stde::optional<DataModel>{weather}};
+    QueryModel q1{{temperature_c,air_c,humidity_c}, weather};
     std::vector<std::string> candidates = client.query(q1);
 
     // The return value should be a vector of strings (AEAs). Note this will crash if there are no matching AEAs
     // We now create conversations with these AEAs
     std::cout << "Candidates:\n";
     std::vector<Conversation> conversations;
-    for(auto &c : candidates)
-    {
+    for(auto &c : candidates) {
       std::cout << c << std::endl;
       conversations.emplace_back(client.newConversation(c));
     }
 
-    for(auto &c : conversations)
-    {
-      c.send("What price ?");
+    for(auto &c : conversations) {
+      std::cerr << "Debug client cuid " << c.uuid() << " to " << c.dest() << std::endl;
+      c.send("");
     }
 
     // Note: Since this executes sequentially, it will hang if any AEA does not respond
     std::string best_station;
     float best_price = -1.0;
-    for(auto &c : conversations)
-    {
-      auto p = c.popMsg<Price>();
-      if(best_price == -1.0 || best_price > p.price())
-      {
-        best_price = p.price();
+    for(auto &c : conversations) {
+      auto p = c.pop();
+      assert(p->has_content());
+      Data price{p->content().content()};
+      assert(price.values().size() == 1);
+      float current_price = std::stof(price.values().front());
+      if(best_price == -1.0 || best_price > current_price) {
+        best_price = current_price;
         best_station = c.dest();
       }
     }
 
     // Note: the client needs to tell the AEA whether its accepted or the AEA will hang forever
     std::cerr << "Best station " << best_station << " price " << best_price << std::endl;
-    for(auto &c : conversations)
-    {
-      c.sendMsg<Accepted>(Accepted{c.dest() == best_station});
+    fetch::oef::pb::Boolean accepted;
+    for(auto &c : conversations) {
+      accepted.set_status(c.dest() == best_station);
+      c.send(accepted);
     }
 
     auto iter = std::find_if(conversations.begin(), conversations.end(), [&](const Conversation &c){return c.dest() == best_station;});
-    assert(iter != conversations.end());
-
-    Data temp = iter->popMsg<Data>();
-    std::cerr << "**Received temp: " << temp.name() << " = " << temp.values().front() << std::endl;
-    Data air_data = iter->popMsg<Data>();
-    std::cerr << "**Received air_data: " << air_data.name() << " = " << air_data.values().front() << std::endl;
-    Data humid = iter->popMsg<Data>();
-    std::cerr << "**Received humidity: " << humid.name() << " = " << humid.values().front() << std::endl;
-  }
-  catch (std::exception& e)
-  {
+    if(iter != conversations.end()) {
+      Data temp{iter->popContent()};
+      std::cerr << "**Received temp: " << temp.name() << " = " << temp.values().front() << std::endl;
+      Data air_data{iter->popContent()};
+      std::cerr << "**Received air_data: " << air_data.name() << " = " << air_data.values().front() << std::endl;
+      Data humid{iter->popContent()};
+      std::cerr << "**Received humidity: " << humid.name() << " = " << humid.values().front() << std::endl;
+    } else {
+      std::cerr << "No station available.\n";
+    }
+  } catch (std::exception& e) {
     std::cerr << "Exception: " << e.what() << "\n";
   }
 

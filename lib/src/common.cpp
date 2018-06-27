@@ -8,10 +8,8 @@ void asyncReadBuffer(asio::ip::tcp::socket &socket, uint32_t timeout, std::funct
         handler(ec, std::make_shared<Buffer>());
       } else {
         assert(length == sizeof(uint32_t));
-        std::cerr << "asyncRead len " << length << " val " << *len << std::endl; 
         auto buffer = std::make_shared<Buffer>(*len);
         asio::async_read(socket, asio::buffer(buffer->data(), *len), [buffer,handler](std::error_code ec, std::size_t length) {
-            std::cerr << "asyncRead2 " << length << std::endl;
             if(ec) {
               std::cerr << "asyncRead2 error " << ec.value() << std::endl;
             }

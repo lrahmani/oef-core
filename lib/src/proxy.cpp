@@ -3,6 +3,7 @@
 // Creation: 09/01/18
 
 #include "proxy.h"
+#include <google/protobuf/text_format.h>
 
 bool syncWrite(tcp::socket &socket, const Buffer &buffer) {
   std::vector<asio::const_buffer> buffers;
@@ -44,9 +45,7 @@ void Proxy::read()
     } else {
       std::cerr << "Proxy::read " << std::endl;
       try {
-        std::cerr << "Proxy::deserialize AgentMessage\n";
         auto msg = deserialize<fetch::oef::pb::Server_AgentMessage>(*buffer);
-        std::cerr << "Proxy::has_uuid " << msg.has_uuid() << std::endl;
         std::string uuid = msg.uuid();
         if(uuid == "") { // coming from OEF
           std::unique_lock<std::mutex> mlock(_mutex);
@@ -113,24 +112,26 @@ bool Proxy::secretHandshake()
 }
 
 
-bool Conversation::send(std::shared_ptr<Buffer> buffer)
+bool Conversation::send(const std::string &msg)
 {
-  // auto env = Envelope::makeMessage(_uuid, _dest, message);
-  // std::string s = toJsonString<Envelope>(env);
-  // std::cerr << "Conveersation::send from " << _uuid.to_string() << " to " << _dest << " msg: " << s << std::endl;
-  // _proxy.push(s);
-  // // wait for delivered
-  // std::string delivered = _queue.pop();
-  // try
-  // {
-  //   std::cerr << "Conversation::debug to " << _uuid.to_string() << " received " << delivered << "\n";
-  //   auto d = fromJsonString<Delivered>(delivered);
-  //   return d.status();
-  // } catch(std::exception &e)
-  // {
-  //   std::cerr << "Conversation::send " << _uuid.to_string() << " no delivered\n";
-  //   return false;
-  // }
-  return true;
+  fetch::oef::pb::Envelope env;
+  auto *message = env.mutable_message();
+  message->set_cid(_uuid.to_string());
+  message->set_destination(_dest);
+  message->set_content(msg);
+  std::string output;
+  assert(google::protobuf::TextFormat::PrintToString(env, &output));
+  std::cerr << "Conversation::send from " << _uuid.to_string() << " to " << _dest << " msg: " << msg << " [" << output << "]\n";
+  _proxy.push(serialize(env));
+  // wait for delivered
+  auto delivered = _proxy.pop("");
+  std::cerr << "Received delivered\n";
+  try {
+    assert(delivered->has_status());
+    return delivered->status();
+  } catch(std::exception &e) {
+    std::cerr << "Agent::delivered from " << _uuid.to_string() << " not delivered\n";
+  }
+  return false;
 }
 
