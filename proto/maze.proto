@@ -1,0 +1,54 @@
+syntax = "proto2";
+
+package fetch.oef.pb;
+
+message Maze {
+    message Position {
+        required int64 row = 1;
+        required int64 col = 2;
+    }
+    message Dimension {
+        required int64 rows = 1;
+        required int64 cols = 2;
+    }
+    enum Response {
+        WALL = 0;
+        NOT_NOW = 1;
+        OK = 2;
+        EXIT = 3;
+        OUT = 4;
+    }
+    message Registered {
+        required Position pos = 1;
+        required Dimension dim = 2;
+    }
+    message Moved {
+        required Response resp = 1;
+    }
+    message Message {
+        oneof msg {
+            Registered registered = 1;
+            Moved moved = 2;
+        }
+    }
+}
+
+message Explorer {
+    enum Direction {
+        N = 0;
+        S = 1;
+        E = 2;
+        W = 3;
+    }
+    message Register {
+    }
+    message Move {
+        required Direction dir = 1;
+    }
+    message Message {
+        oneof msg {
+            Register register = 1;
+            Move move = 2;
+        }
+    }
+}
