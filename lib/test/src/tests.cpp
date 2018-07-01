@@ -6,9 +6,11 @@
 #include <chrono>
 #include <future>
 #include "sd.h"
+#include "multiclient.h"
 
 using fetch::oef::Server;
 using fetch::oef::Client;
+using fetch::oef::MultiClient;
 
 TEST_CASE("testing register", "[ServiceDiscovery]") {
   fetch::oef::Server as;
@@ -145,6 +147,65 @@ TEST_CASE( "testing Server", "[Server]" ) {
       std::cerr << "BUG " << e.what() << "\n";
     }
     REQUIRE(as.nbAgents() == nbClients);
+  }
+  std::this_thread::sleep_for(std::chrono::seconds{1});
+  REQUIRE(as.nbAgents() == 0);
+  
+  as.stop();
+  std::cerr << "Server stopped\n";
+}
+
+TEST_CASE( "testing multiclient", "[Client]" ) {
+  fetch::oef::Server as;
+  std::cerr << "Server created\n";
+  as.run();
+  std::cerr << "Server started\n";
+  REQUIRE(as.nbAgents() == 0);
+  SECTION("1 agent") {
+    fetch::oef::IoContextPool pool(1);
+    pool.run();
+    MultiClient c1(pool.getIoContext(), "Agent1", "127.0.0.1");
+    std::cerr << "Debug1 before stop" << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds{1});
+    REQUIRE(as.nbAgents() == 1);
+    pool.stop();
+    //    c1.stop();
+    std::cerr << "Debug1 after stop" << std::endl;
+  }
+  std::this_thread::sleep_for(std::chrono::seconds{1});
+  REQUIRE(as.nbAgents() == 0);
+  //too fast ?
+  
+  SECTION("1000 agents") {
+    // need to increase max nb file open
+    // > ulimit -n 8000
+    // ulimit -n 1048576
+    fetch::oef::IoContextPool pool(10);
+    pool.run();
+
+    std::vector<std::unique_ptr<MultiClient>> clients;
+    std::vector<std::future<std::unique_ptr<MultiClient>>> futures;
+    size_t nbClients = 10;
+    try {
+      for(size_t i = 1; i <= nbClients; ++i) {
+        std::string name = "Agent_";
+        name += std::to_string(i);
+        futures.push_back(std::async(std::launch::async,
+                                     [&pool](const std::string &n){
+                                       return std::make_unique<MultiClient>(pool.getIoContext(), n, "127.0.0.1");
+                                     }, name));
+      }
+      std::cerr << "Futures created\n";
+      for(auto &fut : futures) {
+        clients.emplace_back(fut.get());
+      }
+      std::cerr << "Futures got\n";
+    } catch(std::exception &e) {
+      std::cerr << "BUG " << e.what() << "\n";
+    }
+    std::this_thread::sleep_for(std::chrono::seconds{1});
+    REQUIRE(as.nbAgents() == nbClients);
+    pool.stop();
   }
   std::this_thread::sleep_for(std::chrono::seconds{1});
   REQUIRE(as.nbAgents() == 0);
