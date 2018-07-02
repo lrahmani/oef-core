@@ -112,7 +112,7 @@ private:
     uint32_t row = pos.first;
     uint32_t col = pos.second;
     if(row >= _nbRows || col >= _nbCols)
-      return fetch::oef::pb::Maze_Response_OUT;
+      return fetch::oef::pb::Maze_Response_WALL;
     if(row == _exitRow && col == _exitCol)
       return fetch::oef::pb::Maze_Response_EXIT;
     if(_grid.get(row, col))
@@ -129,7 +129,7 @@ private:
     switch(mv.dir()) {
     case fetch::oef::pb::Explorer_Direction_N:
       if(pos.first == 0) {
-        response = fetch::oef::pb::Maze_Response_OUT;
+        response = fetch::oef::pb::Maze_Response_WALL;
       } else {
         --pos.first;
         response = checkPosition(pos);
@@ -145,7 +145,7 @@ private:
       break;
     case fetch::oef::pb::Explorer_Direction_W:
       if(pos.second == 0) {
-        response = fetch::oef::pb::Maze_Response_OUT;
+        response = fetch::oef::pb::Maze_Response_WALL;
       } else {
         --pos.second;
         response = checkPosition(pos);

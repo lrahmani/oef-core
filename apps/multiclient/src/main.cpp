@@ -3,7 +3,7 @@
 
 int main(int argc, char* argv[])
 {
-  fetch::oef::IoContextPool pool(2);
+  IoContextPool pool(2);
   pool.run();
   try
   {
@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
       std::cerr << "Usage: client <agentID> <host>\n";
       return 1;
     }
-    fetch::oef::MultiClient client(pool.getIoContext(), argv[1], argv[2]);
+    fetch::oef::MultiClient<bool> client(pool.getIoContext(), argv[1], argv[2]);
     // std::cout << "Enter destination: ";
     // std::string destId;
     // std::getline(std::cin, destId);

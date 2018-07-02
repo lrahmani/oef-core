@@ -28,18 +28,18 @@ int main(int argc, char* argv[])
   // need to increase max nb file open
   // > ulimit -n 8000
   // ulimit -n 1048576
-  fetch::oef::IoContextPool pool(1);
+  IoContextPool pool(1);
   pool.run();
 
-  std::vector<std::unique_ptr<MultiClient>> clients;
-  std::vector<std::future<std::unique_ptr<MultiClient>>> futures;
+  std::vector<std::unique_ptr<MultiClient<bool>>> clients;
+  std::vector<std::future<std::unique_ptr<MultiClient<bool>>>> futures;
   try {
     for(size_t i = 1; i <= nbClients; ++i) {
       std::string name = prefix;
       name += std::to_string(i);
       futures.push_back(std::async(std::launch::async,
                                    [&host,&pool](const std::string &n){
-                                     return std::make_unique<MultiClient>(pool.getIoContext(),n, host.c_str());
+                                     return std::make_unique<MultiClient<bool>>(pool.getIoContext(),n, host.c_str());
                                    }, name));
     }
     std::cerr << "Futures created\n";

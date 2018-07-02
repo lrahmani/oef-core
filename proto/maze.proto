@@ -16,7 +16,6 @@ message Maze {
         NOT_NOW = 1;
         OK = 2;
         EXIT = 3;
-        OUT = 4;
     }
     message Registered {
         required Position pos = 1;

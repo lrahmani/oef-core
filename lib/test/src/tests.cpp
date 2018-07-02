@@ -162,9 +162,9 @@ TEST_CASE( "testing multiclient", "[Client]" ) {
   std::cerr << "Server started\n";
   REQUIRE(as.nbAgents() == 0);
   SECTION("1 agent") {
-    fetch::oef::IoContextPool pool(1);
+    IoContextPool pool(1);
     pool.run();
-    MultiClient c1(pool.getIoContext(), "Agent1", "127.0.0.1");
+    MultiClient<bool> c1(pool.getIoContext(), "Agent1", "127.0.0.1");
     std::cerr << "Debug1 before stop" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds{1});
     REQUIRE(as.nbAgents() == 1);
@@ -180,11 +180,11 @@ TEST_CASE( "testing multiclient", "[Client]" ) {
     // need to increase max nb file open
     // > ulimit -n 8000
     // ulimit -n 1048576
-    fetch::oef::IoContextPool pool(10);
+    IoContextPool pool(10);
     pool.run();
 
-    std::vector<std::unique_ptr<MultiClient>> clients;
-    std::vector<std::future<std::unique_ptr<MultiClient>>> futures;
+    std::vector<std::unique_ptr<MultiClient<bool>>> clients;
+    std::vector<std::future<std::unique_ptr<MultiClient<bool>>>> futures;
     size_t nbClients = 10;
     try {
       for(size_t i = 1; i <= nbClients; ++i) {
@@ -192,7 +192,7 @@ TEST_CASE( "testing multiclient", "[Client]" ) {
         name += std::to_string(i);
         futures.push_back(std::async(std::launch::async,
                                      [&pool](const std::string &n){
-                                       return std::make_unique<MultiClient>(pool.getIoContext(), n, "127.0.0.1");
+                                       return std::make_unique<MultiClient<bool>>(pool.getIoContext(), n, "127.0.0.1");
                                      }, name));
       }
       std::cerr << "Futures created\n";
