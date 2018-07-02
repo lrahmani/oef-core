@@ -155,6 +155,14 @@ TEST_CASE( "testing Server", "[Server]" ) {
   std::cerr << "Server stopped\n";
 }
 
+class SimpleMultiClient : public MultiClient<bool,SimpleMultiClient> {
+public:
+  SimpleMultiClient(asio::io_context &io_context, const std::string &id, const std::string &host) :
+    fetch::oef::MultiClient<bool,SimpleMultiClient>{io_context, id, host} {}
+  void onMsg(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<bool> &Conversation) {
+  }
+};
+
 TEST_CASE( "testing multiclient", "[Client]" ) {
   fetch::oef::Server as;
   std::cerr << "Server created\n";
@@ -164,7 +172,7 @@ TEST_CASE( "testing multiclient", "[Client]" ) {
   SECTION("1 agent") {
     IoContextPool pool(1);
     pool.run();
-    MultiClient<bool> c1(pool.getIoContext(), "Agent1", "127.0.0.1");
+    SimpleMultiClient c1(pool.getIoContext(), "Agent1", "127.0.0.1");
     std::cerr << "Debug1 before stop" << std::endl;
     std::this_thread::sleep_for(std::chrono::seconds{1});
     REQUIRE(as.nbAgents() == 1);
@@ -183,8 +191,8 @@ TEST_CASE( "testing multiclient", "[Client]" ) {
     IoContextPool pool(10);
     pool.run();
 
-    std::vector<std::unique_ptr<MultiClient<bool>>> clients;
-    std::vector<std::future<std::unique_ptr<MultiClient<bool>>>> futures;
+    std::vector<std::unique_ptr<SimpleMultiClient>> clients;
+    std::vector<std::future<std::unique_ptr<SimpleMultiClient>>> futures;
     size_t nbClients = 10;
     try {
       for(size_t i = 1; i <= nbClients; ++i) {
@@ -192,7 +200,7 @@ TEST_CASE( "testing multiclient", "[Client]" ) {
         name += std::to_string(i);
         futures.push_back(std::async(std::launch::async,
                                      [&pool](const std::string &n){
-                                       return std::make_unique<MultiClient<bool>>(pool.getIoContext(), n, "127.0.0.1");
+                                       return std::make_unique<SimpleMultiClient>(pool.getIoContext(), n, "127.0.0.1");
                                      }, name));
       }
       std::cerr << "Futures created\n";

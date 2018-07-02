@@ -59,7 +59,7 @@ namespace fetch {
       
       // Careful: order matters.
       asio::io_context _io_context;
-      std::unique_ptr<std::thread> _thread;
+      std::vector<std::unique_ptr<std::thread>> _threads;
       tcp::acceptor _acceptor;
       AgentDiscovery _ad;
       ServiceDirectory _sd;
@@ -68,9 +68,10 @@ namespace fetch {
       void newSession(tcp::socket socket);
       void do_accept();
     public:
-      explicit Server(uint32_t backlog = 256) :
+      explicit Server(uint32_t nbThreads = 4, uint32_t backlog = 256) :
       _acceptor(_io_context, tcp::endpoint(tcp::v4(), static_cast<int>(Ports::Agents))) {
         _acceptor.listen(backlog); // pending connections
+        _threads.resize(nbThreads);
       }
 
       Server(const Server &) = delete;

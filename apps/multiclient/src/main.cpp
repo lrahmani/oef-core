@@ -1,6 +1,13 @@
 #include <iostream>
 #include "multiclient.h"
 
+class SimpleMultiClient : public fetch::oef::MultiClient<bool,SimpleMultiClient> {
+public:
+  SimpleMultiClient(asio::io_context &io_context, const std::string &id, const std::string &host) :
+    fetch::oef::MultiClient<bool,SimpleMultiClient>{io_context, id, host} {}
+  void onMsg(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<bool> &Conversation) {
+  }
+};
 int main(int argc, char* argv[])
 {
   IoContextPool pool(2);
@@ -12,7 +19,7 @@ int main(int argc, char* argv[])
       std::cerr << "Usage: client <agentID> <host>\n";
       return 1;
     }
-    fetch::oef::MultiClient<bool> client(pool.getIoContext(), argv[1], argv[2]);
+    SimpleMultiClient client(pool.getIoContext(), argv[1], argv[2]);
     // std::cout << "Enter destination: ";
     // std::string destId;
     // std::getline(std::cin, destId);

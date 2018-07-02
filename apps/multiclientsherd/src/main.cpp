@@ -9,6 +9,14 @@
 
 using fetch::oef::MultiClient;
 
+class SimpleMultiClient : public MultiClient<bool,SimpleMultiClient> {
+public:
+  SimpleMultiClient(asio::io_context &io_context, const std::string &id, const std::string &host) :
+    fetch::oef::MultiClient<bool,SimpleMultiClient>{io_context, id, host} {}
+  void onMsg(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<bool> &Conversation) {
+  }
+};
+
 int main(int argc, char* argv[])
 {
   bool showHelp = false;
@@ -28,18 +36,18 @@ int main(int argc, char* argv[])
   // need to increase max nb file open
   // > ulimit -n 8000
   // ulimit -n 1048576
-  IoContextPool pool(1);
+  IoContextPool pool(4);
   pool.run();
 
-  std::vector<std::unique_ptr<MultiClient<bool>>> clients;
-  std::vector<std::future<std::unique_ptr<MultiClient<bool>>>> futures;
+  std::vector<std::unique_ptr<SimpleMultiClient>> clients;
+  std::vector<std::future<std::unique_ptr<SimpleMultiClient>>> futures;
   try {
     for(size_t i = 1; i <= nbClients; ++i) {
       std::string name = prefix;
       name += std::to_string(i);
       futures.push_back(std::async(std::launch::async,
                                    [&host,&pool](const std::string &n){
-                                     return std::make_unique<MultiClient<bool>>(pool.getIoContext(),n, host.c_str());
+                                     return std::make_unique<SimpleMultiClient>(pool.getIoContext(),n, host.c_str());
                                    }, name));
     }
     std::cerr << "Futures created\n";
@@ -50,5 +58,9 @@ int main(int argc, char* argv[])
   } catch(std::exception &e) {
     std::cerr << "BUG " << e.what() << "\n";
   }
+  std::cerr << "Start sleeping ...\n";
+  std::this_thread::sleep_for(std::chrono::seconds{(nbClients / 500) + 2});
+  std::cerr << "Stopped sleeping ...\n";
+  pool.stop();
   return 0;
 }

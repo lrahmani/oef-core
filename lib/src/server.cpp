@@ -267,13 +267,16 @@ namespace fetch {
       _ad.clear();
       //    _acceptor.close();
       std::cerr << "~Server2\n";
-      if(_thread)
-        _thread->join();
+      for(auto &t : _threads)
+        if(t)
+          t->join();
       std::cerr << "~Server3\n";
     }
     void Server::run() {
-      if(!_thread) {
-        _thread = std::unique_ptr<std::thread>(new std::thread([this]() {do_accept(); _io_context.run();}));
+      for(auto &t : _threads) {
+        if(!t) {
+          t = std::unique_ptr<std::thread>(new std::thread([this]() {do_accept(); _io_context.run();}));
+        }
       }
     }
     void Server::run_in_thread() {
