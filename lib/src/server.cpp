@@ -4,15 +4,6 @@
 #include <sstream>
 #include <iomanip>
 
-static std::string hexStr(const Buffer &data)
-{
-    std::stringstream ss;
-    //    ss << std::hex;
-    for(auto c : data)
-      ss << int(c) << " ";
-    return ss.str();
-}
-
 namespace fetch {
   namespace oef {
     class AgentSession : public std::enable_shared_from_this<AgentSession>
