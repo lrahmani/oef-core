@@ -50,7 +50,7 @@ namespace fetch {
       std::cerr << "Received registered\n";
       try {
         assert(registered->has_status());
-        return registered->status();
+        return registered->status().status();
       } catch(std::exception &e) {
         std::cerr << "Agent::register " << _id << " not registered\n";
       }
@@ -68,7 +68,7 @@ namespace fetch {
       std::cerr << "Received registered\n";
       try {
         assert(registered->has_status());
-        return registered->status();
+        return registered->status().status();
       } catch(std::exception &e) {
         std::cerr << "Agent::unregister " << _id << " not unregistered\n";
       }
@@ -107,7 +107,7 @@ namespace fetch {
       std::cerr << "Received delivered\n";
       try {
         assert(delivered->has_status());
-        return delivered->status();
+        return delivered->status().status();
       } catch(std::exception &e) {
         std::cerr << "Agent::delivered from " << _id << " not delivered\n";
       }
@@ -146,7 +146,7 @@ namespace fetch {
       std::cerr << "Received registered\n";
       try {
         assert(registered->has_status());
-        return registered->status();
+        return registered->status().status();
       } catch(std::exception &e) {
         std::cerr << "Agent::register " << _id << " not registered\n";
       }

@@ -23,6 +23,17 @@ namespace fetch {
       void incrementMsgId() { ++_msgId; }
       const T getState() const { return _state; }
       void setState(const T& t) { _state = t; }
+      std::shared_ptr<Buffer> envelope(const std::string &outgoing) {
+        fetch::oef::pb::Envelope env;
+        auto *message = env.mutable_message();
+        message->set_cid(_uuid.to_string());
+        message->set_destination(_dest);
+        message->set_content(outgoing);
+        return serialize(env);
+      }
+      std::shared_ptr<Buffer> envelope(const google::protobuf::MessageLite &t) {
+        return envelope(t.SerializeAsString());
+      }
     };
 
     template <typename State,typename T>
@@ -44,23 +55,25 @@ namespace fetch {
               std::cerr << "MultiClient::read " << std::endl;
               try {
                 auto msg = deserialize<fetch::oef::pb::Server_AgentMessage>(*buffer);
-                std::string uuid = msg.uuid();
-                auto iter = _conversations.find(uuid);
+                std::string cid = ""; // oef
+                if(msg.has_content())
+                  cid = msg.content().cid();
+                auto iter = _conversations.find(cid);
                 if(iter == _conversations.end()) {
                   std::string dest = "";
                   if(msg.has_content())
                     dest = msg.content().origin();
-                  _conversations[uuid] = std::make_shared<Conversation<State>>(uuid, dest);
+                  _conversations[cid] = std::make_shared<Conversation<State>>(cid, dest);
                 }
-                auto &c = _conversations[uuid];
+                auto &c = _conversations[cid];
                 c->incrementMsgId();
+                std::cerr << "Read::cid " << c->uuid() << " msgId " << c->msgId() << " dest " << c->dest() << std::endl;
                 underlying().onMsg(msg, *c);
               } catch(std::exception &e) {
                 std::cerr << "Wrong message sent\n";
               }
               read();
             }
-      
           });
       }
       void secretHandshake() {
@@ -80,8 +93,8 @@ namespace fetch {
                 answer.set_answer(answer_s);
                 asyncWriteBuffer(_socket, serialize(answer), 5, [this](std::error_code, std::size_t length){
                     asyncReadBuffer(_socket, 5, [this](std::error_code ec,std::shared_ptr<Buffer> buffer) {
-                        std::cerr << "MultiClient::secretHandshake received connected\n";
                         auto c = deserialize<fetch::oef::pb::Server_Connected>(*buffer);
+                        std::cerr << "MultiClient::secretHandshake received connected " << c.status() << std::endl;
                         if(c.status())
                           read();
                       });

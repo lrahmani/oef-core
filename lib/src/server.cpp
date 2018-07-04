@@ -47,31 +47,31 @@ namespace fetch {
         std::string output;
         google::protobuf::TextFormat::PrintToString(_description->handle(), &output);
         std::cerr << "Setting description to agent " << _id << " : " << output << std::endl;
-        fetch::oef::pb::Server_AgentMessage status;
-        status.set_uuid("");
-        status.set_status(bool(_description));
-        std::cerr << "Server::Sending registered " << status.status() << std::endl;
-        send(status);
+        fetch::oef::pb::Server_AgentMessage answer;
+        auto *status = answer.mutable_status();
+        status->set_status(bool(_description));
+        std::cerr << "Server::Sending registered " << status->status() << std::endl;
+        send(answer);
       }
       void processRegister(const fetch::oef::pb::AgentDescription &desc) {
         std::string output;
         google::protobuf::TextFormat::PrintToString(desc, &output);
         std::cerr << "Registering agent " << _id << " : " << output << std::endl;
-        fetch::oef::pb::Server_AgentMessage status;
-        status.set_uuid("");
-        status.set_status(_sd.registerAgent(Instance(desc.description()), _id));
-        std::cerr << "Server::Sending registered " << status.status() << std::endl;
-        send(status);
+        fetch::oef::pb::Server_AgentMessage answer;
+        auto *status = answer.mutable_status();
+        status->set_status(_sd.registerAgent(Instance(desc.description()), _id));
+        std::cerr << "Server::Sending registered " << status->status() << std::endl;
+        send(answer);
       }
       void processUnregister(const fetch::oef::pb::AgentDescription &desc) {
         std::string output;
         google::protobuf::TextFormat::PrintToString(desc, &output);
         std::cerr << "Unregistering agent " << _id << " : " << output << std::endl;
-        fetch::oef::pb::Server_AgentMessage status;
-        status.set_uuid("");
-        status.set_status(_sd.unregisterAgent(Instance(desc.description()), _id));
-        std::cerr << "Server::Sending registered " << status.status() << std::endl;
-        send(status);
+        fetch::oef::pb::Server_AgentMessage answer;
+        auto *status = answer.mutable_status();
+        status->set_status(_sd.unregisterAgent(Instance(desc.description()), _id));
+        std::cerr << "Server::Sending registered " << status->status() << std::endl;
+        send(answer);
       }
       void processSearch(const fetch::oef::pb::AgentSearch &search) {
         QueryModel model{search.query()};
@@ -80,7 +80,6 @@ namespace fetch {
         std::cerr << "processSearch " << output << std::endl;
         auto agents_vec = _ad.search(model);
         fetch::oef::pb::Server_AgentMessage answer;
-        answer.set_uuid("");
         auto agents = answer.mutable_agents();
         for(auto &a : agents_vec) {
           agents->add_agents(a);
@@ -95,7 +94,6 @@ namespace fetch {
         std::cerr << "processQuery " << output << std::endl;
         auto agents_vec = _sd.query(model);
         fetch::oef::pb::Server_AgentMessage answer;
-        answer.set_uuid("");
         auto agents = answer.mutable_agents();
         for(auto &a : agents_vec) {
           agents->add_agents(a);
@@ -108,18 +106,20 @@ namespace fetch {
         std::cerr << "Server::processMessage to " << msg.destination() << " from " << _id << std::endl;
         if(session) {
           fetch::oef::pb::Server_AgentMessage message;
-          message.set_uuid(msg.cid());
           auto content = message.mutable_content();
+          std::string cid = msg.cid();
+          content->set_cid(cid);
           content->set_origin(_id);
           content->set_content(msg.content());
           auto buffer = serialize(message);
           fetch::oef::pb::Server_AgentMessage msg2 = deserialize<fetch::oef::pb::Server_AgentMessage>(*buffer); 
-          asyncWriteBuffer(session->_socket, buffer, 5, [this](std::error_code ec, std::size_t length) {
-              fetch::oef::pb::Server_AgentMessage status;
-              status.set_uuid("");
-              status.set_status(true);
-              std::cerr << "Server::Sending delivered " << status.status() << std::endl;
-              send(status);
+          asyncWriteBuffer(session->_socket, buffer, 5, [this,cid](std::error_code ec, std::size_t length) {
+              fetch::oef::pb::Server_AgentMessage answer;
+              auto *status = answer.mutable_status();
+              status->set_cid(cid);
+              status->set_status(true);
+              std::cerr << "Server::Sending delivered " << status->status() << std::endl;
+              send(answer);
             });
         }
       }

@@ -46,22 +46,22 @@ void Proxy::read()
       std::cerr << "Proxy::read " << std::endl;
       try {
         auto msg = deserialize<fetch::oef::pb::Server_AgentMessage>(*buffer);
-        std::string uuid = msg.uuid();
-        if(uuid == "") { // coming from OEF
+        if(!msg.has_content()) { // coming from OEF
           std::unique_lock<std::mutex> mlock(_mutex);
           _inMsgBox[""].push(std::make_unique<fetch::oef::pb::Server_AgentMessage>(msg));
         } else {           
-          bool newUuid = false;
+          assert(msg.has_content());
+          std::string cid = msg.content().cid();
+          bool newCid = false;
           {
             std::unique_lock<std::mutex> mlock(_mutex);
-            newUuid = _inMsgBox.find(uuid) == _inMsgBox.end();
-            _inMsgBox[uuid].push(std::make_unique<fetch::oef::pb::Server_AgentMessage>(msg));
+            newCid = _inMsgBox.find(cid) == _inMsgBox.end();
+            _inMsgBox[cid].push(std::make_unique<fetch::oef::pb::Server_AgentMessage>(msg));
           }
-          if(newUuid) {
-            std::cerr << "New Uuid " << uuid << std::endl;
-            assert(msg.has_content());
+          if(newCid) {
+            std::cerr << "New Cid " << cid << std::endl;
             std::string dest = msg.content().origin();
-            _onNew(std::make_unique<Conversation>(uuid, dest, getQueue(uuid), *this));
+            _onNew(std::make_unique<Conversation>(cid, dest, getQueue(cid), *this));
           }
         }
       } catch(std::exception &e) {
@@ -128,7 +128,7 @@ bool Conversation::send(const std::string &msg)
   std::cerr << "Received delivered\n";
   try {
     assert(delivered->has_status());
-    return delivered->status();
+    return delivered->status().status();
   } catch(std::exception &e) {
     std::cerr << "Agent::delivered from " << _uuid.to_string() << " not delivered\n";
   }

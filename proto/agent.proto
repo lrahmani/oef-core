@@ -148,15 +148,20 @@ message Server {
     }
     
     message AgentMessage {
-        required string uuid = 1;
         message Content {
-            required string origin = 5;
-            required string content = 6;
+            required string cid = 1;
+            required string origin = 2;
+            required string content = 3;
+        }
+        message Status {
+            optional string cid = 1;
+            optional int64 msgId = 2;
+            required bool status = 3;
         }
         oneof payload {
-            Content content = 2;
-            bool status = 3;
-            QueryAnswer agents = 4;
+            Content content = 2; // from agent
+            Status status = 3;   // from oef
+            QueryAnswer agents = 4; // from oef
         }
     }
 }
