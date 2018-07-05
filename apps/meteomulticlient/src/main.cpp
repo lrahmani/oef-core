@@ -97,7 +97,7 @@ private:
 public:
   MeteoMultiClient(asio::io_context &io_context, const std::string &id, const std::string &host) :
     fetch::oef::MultiClient<MeteoClientState,MeteoMultiClient>{io_context, id, host} {
-    std::this_thread::sleep_for(std::chrono::seconds{1});
+    //    std::this_thread::sleep_for(std::chrono::seconds{1});
     
     // Build up our DataModel (this is identical to the meteostations DataModel, wouldn't work if not)
     Attribute wind        { "wind_speed",   Type::Bool, true};

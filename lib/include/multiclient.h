@@ -4,6 +4,8 @@
 #include "uuid.h"
 #include "agent.pb.h"
 #include <unordered_map>
+#include <mutex>
+#include <condition_variable>
 
 namespace fetch {
   namespace oef {
@@ -43,7 +45,10 @@ namespace fetch {
       const std::string _id;
       tcp::socket _socket;
       std::unordered_map<std::string,std::shared_ptr<Conversation<State>>> _conversations;
-
+      bool _connected = false;
+      std::mutex _lock;
+      std::condition_variable _condVar;
+      
       T &underlying() { return static_cast<T&>(*this); }
       T const &underlying() const { return static_cast<T const &>(*this); }
       
@@ -95,12 +100,20 @@ namespace fetch {
                     asyncReadBuffer(_socket, 5, [this](std::error_code ec,std::shared_ptr<Buffer> buffer) {
                         auto c = deserialize<fetch::oef::pb::Server_Connected>(*buffer);
                         std::cerr << "MultiClient::secretHandshake received connected " << c.status() << std::endl;
-                        if(c.status())
+                        if(c.status()) {
+                          std::unique_lock<std::mutex> lck(_lock);
+                          _connected = true;
+                          _condVar.notify_all();
                           read();
+                        }
                       });
                   });
               });
           });
+        std::unique_lock<std::mutex> lck(_lock);
+        while(!_connected) {
+          _condVar.wait(lck);
+        }
       }
     public:
       explicit MultiClient(asio::io_context &io_context, const std::string &id, const std::string &host)
