@@ -119,8 +119,10 @@ public:
     uint32_t col = pos.second;
     if(row >= _nbRows || col >= _nbCols)
       return fetch::oef::pb::Maze_Response_WALL;
-    if(row == _exitRow && col == _exitCol)
+    if(row == _exitRow && col == _exitCol) {
+      std::cerr << "Someone found the exit " << _exitRow << ":" << _exitCol << std::endl << _grid.to_string() << std::endl;
       return fetch::oef::pb::Maze_Response_EXIT;
+    }
     if(_grid.get(row, col))
       return fetch::oef::pb::Maze_Response_WALL;
     return fetch::oef::pb::Maze_Response_OK;
