@@ -40,11 +40,11 @@ public:
     static Attribute version{"version", Type::Int, true};
     static std::vector<Attribute> attributes{version};
     static std::unordered_map<std::string,std::string> props{{"version", "1"}};
-    static DataModel weather{"maze", attributes, "Just a maze demo."};
+    static DataModel maze{"maze", attributes, "Just a maze demo."};
 
     initExit();
     //    std::cerr << "Grid:\n" << _grid.to_string();
-    Instance instance{weather, props};
+    Instance instance{maze, props};
     Register reg{instance};
     Conversation<MazeState> c{"",""};
     c.setState(MazeState::OEF_WAITING_FOR_REGISTER);
@@ -111,7 +111,7 @@ public:
     dimension->set_rows(_nbRows);
     dimension->set_cols(_nbCols);
     conversation.setState(MazeState::OEF_WAITING_FOR_DELIVERED);
-    asyncWriteBuffer(_socket, serialize(outgoing), 5);
+    asyncWriteBuffer(_socket, conversation.envelope(outgoing), 5);
   }
   
   fetch::oef::pb::Maze_Response checkPosition(const Position &pos) {
@@ -167,7 +167,7 @@ public:
     auto *moved = outgoing.mutable_moved();
     moved->set_resp(response);
     conversation.setState(MazeState::OEF_WAITING_FOR_MOVE_DELIVERED);
-    asyncWriteBuffer(_socket, serialize(outgoing), 5);
+    asyncWriteBuffer(_socket, conversation.envelope(outgoing), 5);
   }
   void processOEFStatus(const fetch::oef::pb::Server_AgentMessage &msg) {
     std::shared_ptr<Conversation<MazeState>> conv;
@@ -203,13 +203,13 @@ public:
     incoming.ParseFromString(msg.content().content());
     std::cerr << "Message from " << msg.content().origin() << " == " << conversation.dest() << std::endl;
     auto explorer_case = incoming.msg_case();
-    switch(conversation.getState()) {
-    case MazeState::MAZE_WAITING_FOR_REGISTER:
-      assert(explorer_case == fetch::oef::pb::Explorer_Message::kRegister);
+    switch(explorer_case) {
+    case fetch::oef::pb::Explorer_Message::kRegister:
+      conversation.setState(MazeState::MAZE_WAITING_FOR_REGISTER);
       processRegister(incoming.register_(), conversation);
       break;
-    case MazeState::MAZE_WAITING_FOR_MOVE:
-      assert(explorer_case == fetch::oef::pb::Explorer_Message::kMove);
+    case fetch::oef::pb::Explorer_Message::kMove:
+      assert(conversation.getState() == MazeState::MAZE_WAITING_FOR_MOVE);
       processMove(incoming.move(), conversation);
       break;
     default:
