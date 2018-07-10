@@ -57,18 +57,18 @@ private:
       std::cerr << "Error processOEFStatus " << static_cast<int>(conv->getState()) << " msgId " << conv->msgId() << std::endl;
     }
   }
-  std::vector<fetch::oef::pb::Explorer_Direction> filterMove(GridState val) const {
+  std::vector<fetch::oef::pb::Explorer_Direction> filterMove(const Position &pos, GridState val) const {
     std::vector<fetch::oef::pb::Explorer_Direction> res;
-    if((_current.first > 0) && (_grid->get(_current.first - 1, _current.second) == val)) {
+    if((pos.first > 0) && (_grid->get(pos.first - 1, pos.second) == val)) {
       res.push_back(fetch::oef::pb::Explorer_Direction_N);
     }
-    if((_current.first < (_grid->rows() - 1)) && (_grid->get(_current.first + 1, _current.second) == val)) {
+    if((pos.first < (_grid->rows() - 1)) && (_grid->get(pos.first + 1, pos.second) == val)) {
       res.push_back(fetch::oef::pb::Explorer_Direction_S);
     }
-    if((_current.second > 0) && (_grid->get(_current.first, _current.second - 1) == val)) {
+    if((pos.second > 0) && (_grid->get(pos.first, pos.second - 1) == val)) {
       res.push_back(fetch::oef::pb::Explorer_Direction_W);
     }
-    if((_current.second < (_grid->cols() - 1)) && (_grid->get(_current.first, _current.second + 1) == val)) {
+    if((pos.second < (_grid->cols() - 1)) && (_grid->get(pos.first, pos.second + 1) == val)) {
       res.push_back(fetch::oef::pb::Explorer_Direction_E);
     }
     return res;
@@ -81,10 +81,9 @@ private:
     return vals[r];
   }
   fetch::oef::pb::Explorer_Direction generateMove() {
-    auto unknowns = filterMove(GridState::UNKNOWN);
-    if(unknowns.size() > 0)
-      return choose(unknowns);
-    auto rooms = filterMove(GridState::ROOM);
+    auto unknowns = filterMove(_current, GridState::UNKNOWN);
+    assert(unknowns.size() == 0);
+    auto rooms = filterMove(_current, GridState::ROOM);
     return choose(rooms);
   }
   void sendMove(Conversation<ExplorerState> &conversation) {
@@ -96,9 +95,9 @@ private:
     conversation.setState(ExplorerState::OEF_WAITING_FOR_MOVE_DELIVERED);
     asyncWriteBuffer(_socket, conversation.envelope(outgoing), 5);
   }
-  Position newPos() const {
-    Position pos = _current;
-    switch(_dir) {
+  Position newPos(const Position &oldpos, fetch::oef::pb::Explorer_Direction dir) const {
+    Position pos = oldpos;
+    switch(dir) {
     case fetch::oef::pb::Explorer_Direction_N:
       --pos.first; break;
     case fetch::oef::pb::Explorer_Direction_S:
@@ -110,8 +109,23 @@ private:
     }
     return pos;
   }
+  void updateGrid(fetch::oef::pb::Maze_Cell cell, const Position &pos, int deltaRow, int deltaCol) {
+    if((deltaRow < 0 && pos.first < abs(deltaRow)) || (deltaCol < 0 && pos.second < abs(deltaCol)))
+      return ;
+    Position newPos = std::make_pair(pos.first + deltaRow, pos.second + deltaCol);
+    if(newPos.first >= _grid->rows() || newPos.second >= _grid->cols()) 
+      return ;
+    auto gridCell = cell == fetch::oef::pb::Maze_Cell::Maze_Cell_WALL ? GridState::WALL : GridState::ROOM;
+    auto current = _grid->get(newPos.first, newPos.second);
+    assert(current == GridState::UNKNOWN || current == gridCell);
+    _grid->set(newPos.first, newPos.second, gridCell);
+  }
   void updateGrid(const fetch::oef::pb::Maze_Environment &env, const Position &pos) {
     // set the grid appropriately and check that it is consistent with previous info
+    updateGrid(env.north(), pos, -1, 0);
+    updateGrid(env.south(), pos, 1, 0);
+    updateGrid(env.west(), pos, 0, -1);
+    updateGrid(env.east(), pos, 0, 1);
   }
   void processMoved(const fetch::oef::pb::Maze_Moved &mv, Conversation<ExplorerState> &conversation) {
     assert(conversation.getState() == ExplorerState::MAZE_WAITING_FOR_MOVE);
@@ -122,19 +136,19 @@ private:
     switch(response) {
     case fetch::oef::pb::Maze_Response_IMPOSSIBLE: // should not happen, unless the agent is dumb.
       {
-        Position pos = newPos();
+        Position pos = newPos(_current, _dir);
         _grid->set(pos.first, pos.second, GridState::WALL);
         sendMove(conversation);
       }
       break;
     case fetch::oef::pb::Maze_Response_OK:
-        _current = newPos();
-        _grid->set(_current.first, _current.second, GridState::ROOM);
-        sendMove(conversation);
+      _current = newPos(_current, _dir);
+      updateGrid(mv.env(), _current);
+      sendMove(conversation);
       break;
     case fetch::oef::pb::Maze_Response_EXITED:
-      _current = newPos();
-      _grid->set(_current.first, _current.second, GridState::ROOM);
+      _current = newPos(_current, _dir);
+      updateGrid(mv.env(), _current);
       std::cerr << "Youhou, exit is " << _current.first << ":" << _current.second << std::endl << _grid->to_string() << std::endl;
       break;
     case fetch::oef::pb::Maze_Response_NOT_NOW:
@@ -151,7 +165,7 @@ private:
     auto &dim = reg.dim();
     _grid = std::unique_ptr<Grid<GridState>>(new Grid<GridState>(dim.rows(), dim.cols()));
     _current = std::make_pair<uint32_t, uint32_t>(pos.row(), pos.col());
-    _grid->set(_current.first, _current.second, GridState::ROOM);
+    updateGrid(reg.env(), _current);
     std::cerr << "Grid:\n" << _grid->to_string() << std::endl;
     sendMove(conversation);
   }
