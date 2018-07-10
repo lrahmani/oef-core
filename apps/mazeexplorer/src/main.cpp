@@ -138,6 +138,7 @@ private:
     default:
       std::cerr << "Error processMoved " << static_cast<int>(conversation.getState()) << " msgId " << conversation.msgId() << std::endl;
     }
+    std::cerr << "Moved\n" << _grid->to_string() << std::endl;
   }
   void processRegistered(const fetch::oef::pb::Maze_Registered &reg, Conversation<ExplorerState> &conversation) {
     std::string output;

@@ -10,6 +10,7 @@
 #include "maze.pb.h"
 #include "schema.h"
 #include "clientmsg.h"
+#include "maze_gen.hpp"
 
 using fetch::oef::MultiClient;
 using fetch::oef::Conversation;
@@ -27,7 +28,6 @@ class Maze : public MultiClient<MazeState,Maze>
 private:
   uint32_t _nbRows, _nbCols;
   Grid<bool> _grid;
-  uint32_t _exitRow, _exitCol;
   std::unordered_map<std::string,Position> _explorers;
   std::random_device _rd;
   std::mt19937 _gen;
@@ -35,15 +35,15 @@ private:
 public:
   Maze(asio::io_context &io_context, const std::string &id, const std::string &host, uint32_t nbRows, uint32_t nbCols)
     : MultiClient<MazeState,Maze>(io_context, id, host),
-      _nbRows{nbRows}, _nbCols{nbCols}, _grid{nbRows, nbCols}, _gen{_rd()}
+      _nbRows{nbRows}, _nbCols{nbCols}, _grid{std::move(fetch_maze::recursive_maze(nbRows, nbCols))}, _gen{_rd()}
   {
     static Attribute version{"version", Type::Int, true};
     static std::vector<Attribute> attributes{version};
     static std::unordered_map<std::string,std::string> props{{"version", "1"}};
     static DataModel maze{"maze", attributes, "Just a maze demo."};
 
-    initExit();
-    //    std::cerr << "Grid:\n" << _grid.to_string();
+    //    initExit();
+    std::cerr << "Grid:\n" << _grid.to_string();
     Instance instance{maze, props};
     Register reg{instance};
     Conversation<MazeState> c{"",""};
@@ -56,36 +56,11 @@ public:
   Maze operator=(const Maze &) = delete;
 
  private:
-  void initExit() {
-    std::uniform_int_distribution<> sides(0, 3);
-    std::uniform_int_distribution<> colsDist(0, _nbCols - 1);
-    std::uniform_int_distribution<> rowsDist(0, _nbRows - 1);
-    int side = sides(_gen);
-    switch(side) {
-    case 0:
-      _exitRow = 0;
-    case 1:
-      _exitRow = _nbRows - 1;
-      _exitCol = colsDist(_gen);
-      break;
-    case 2:
-      _exitCol = 0;
-    case 3:
-      _exitCol = _nbCols - 1;
-      _exitRow = rowsDist(_gen);
-      break;
-    default:
-      assert(false);
-    }
-  }
-
   Position randomPosition() {
-    std::uniform_int_distribution<> colsDist(0, _nbCols - 1);
-    std::uniform_int_distribution<> rowsDist(0, _nbRows - 1);
+    std::uniform_int_distribution<> colsDist(1, _nbCols - 2);
+    std::uniform_int_distribution<> rowsDist(1, _nbRows - 2);
     uint32_t row = rowsDist(_gen);
     uint32_t col = colsDist(_gen);
-    if(row == _exitRow && col == _exitCol)
-      return randomPosition();
     if(_grid.get(row,col)) // it's a wall
       return randomPosition();
     return std::make_pair(row,col);
@@ -119,8 +94,8 @@ public:
     uint32_t col = pos.second;
     if(row >= _nbRows || col >= _nbCols)
       return fetch::oef::pb::Maze_Response_WALL;
-    if(row == _exitRow && col == _exitCol) {
-      std::cerr << "Someone found the exit " << _exitRow << ":" << _exitCol << std::endl << _grid.to_string() << std::endl;
+    if(!_grid.get(row, col) && (row == 0 || row == _nbRows - 1 || col == 0 || col == _nbCols - 1)) {
+      std::cerr << "Someone found the exit " << row << ":" << col << std::endl << _grid.to_string() << std::endl;
       return fetch::oef::pb::Maze_Response_EXIT;
     }
     if(_grid.get(row, col))

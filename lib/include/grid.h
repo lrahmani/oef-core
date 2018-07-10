@@ -12,6 +12,7 @@ class Grid {
   explicit Grid(uint32_t rows, uint32_t cols) : _rows{rows}, _cols{cols} {
     _data.resize(_rows * _cols);
   }
+  Grid(Grid<T> &&other) : _rows{other._rows}, _cols{other._cols}, _data{std::move(other._data)} {}
   uint32_t rows() const { return _rows; }
   uint32_t cols() const { return _cols; }
   T get(uint32_t row, uint32_t col) const {
