@@ -110,6 +110,9 @@ private:
     }
     return pos;
   }
+  void updateGrid(const fetch::oef::pb::Maze_Environment &env, const Position &pos) {
+    // set the grid appropriately and check that it is consistent with previous info
+  }
   void processMoved(const fetch::oef::pb::Maze_Moved &mv, Conversation<ExplorerState> &conversation) {
     assert(conversation.getState() == ExplorerState::MAZE_WAITING_FOR_MOVE);
     std::string output;
@@ -117,19 +120,19 @@ private:
     std::cerr << "Moved " << output << std::endl;
     auto response = mv.resp();
     switch(response) {
-    case fetch::oef::pb::Maze_Response_WALL:
+    case fetch::oef::pb::Maze_Response_IMPOSSIBLE: // should not happen, unless the agent is dumb.
       {
         Position pos = newPos();
         _grid->set(pos.first, pos.second, GridState::WALL);
         sendMove(conversation);
-      }      
+      }
       break;
     case fetch::oef::pb::Maze_Response_OK:
         _current = newPos();
         _grid->set(_current.first, _current.second, GridState::ROOM);
         sendMove(conversation);
       break;
-    case fetch::oef::pb::Maze_Response_EXIT:
+    case fetch::oef::pb::Maze_Response_EXITED:
       _current = newPos();
       _grid->set(_current.first, _current.second, GridState::ROOM);
       std::cerr << "Youhou, exit is " << _current.first << ":" << _current.second << std::endl << _grid->to_string() << std::endl;

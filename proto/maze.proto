@@ -12,17 +12,30 @@ message Maze {
         required int64 cols = 2;
     }
     enum Response {
-        WALL = 0;
+        IMPOSSIBLE = 0;
         NOT_NOW = 1;
         OK = 2;
-        EXIT = 3;
+        EXITED = 3;
+    }
+    enum Cell {
+        WALL = 0;
+        ROOM = 1;
+        EXIT = 2;
+    }
+    message Environment {
+        required Cell north = 1;
+        required Cell south = 2;
+        required Cell east = 3;
+        required Cell west = 4;
     }
     message Registered {
         required Position pos = 1;
         required Dimension dim = 2;
+        required Environment env = 3;
     }
     message Moved {
         required Response resp = 1;
+        required Environment env = 2;
     }
     message Message {
         oneof msg {

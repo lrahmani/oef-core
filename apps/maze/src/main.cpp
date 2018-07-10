@@ -11,6 +11,7 @@
 #include "schema.h"
 #include "clientmsg.h"
 #include "maze_gen.hpp"
+#include <cstdlib>
 
 using fetch::oef::MultiClient;
 using fetch::oef::Conversation;
@@ -65,7 +66,25 @@ public:
       return randomPosition();
     return std::make_pair(row,col);
   }
-
+  fetch::oef::pb::Maze_Cell cellStatus(const Position &pos, int deltaRow, int deltaCol) const {
+    if((deltaRow < 0 && pos.first < abs(deltaRow)) || (deltaCol < 0 && pos.second < abs(deltaCol)))
+      return fetch::oef::pb::Maze_Cell::Maze_Cell_WALL;
+    Position newPos = std::make_pair(pos.first + deltaRow, pos.second + deltaCol);
+    if(newPos.first >= _nbRows || newPos.second >= _nbCols) 
+      return fetch::oef::pb::Maze_Cell::Maze_Cell_WALL;
+    bool wall = _grid.get(newPos.first, newPos.second);
+    if(!wall && (newPos.first == 0 || newPos.second == 0 || newPos.first == _nbRows - 1 || newPos.second == _nbCols - 1))
+      return fetch::oef::pb::Maze_Cell::Maze_Cell_EXIT;
+    if(wall)
+      return fetch::oef::pb::Maze_Cell::Maze_Cell_WALL;
+    return fetch::oef::pb::Maze_Cell::Maze_Cell_ROOM;
+  }
+  void setEnv(const Position &pos, fetch::oef::pb::Maze_Environment &env) const {
+    env.set_north(cellStatus(pos, -1 , 0));
+    env.set_south(cellStatus(pos, 1 , 0));
+    env.set_west(cellStatus(pos, 0, -1));
+    env.set_east(cellStatus(pos, 0, 1));
+  }
   void processRegister(const fetch::oef::pb::Explorer_Register &msg, Conversation<MazeState> &conversation) {
     std::uniform_int_distribution<> colsDist(0, _nbCols - 1);
     std::uniform_int_distribution<> rowsDist(0, _nbRows - 1);
@@ -85,6 +104,8 @@ public:
     auto dimension = registered->mutable_dim();
     dimension->set_rows(_nbRows);
     dimension->set_cols(_nbCols);
+    auto *env = registered->mutable_env();
+    setEnv(pos, *env);
     conversation.setState(MazeState::OEF_WAITING_FOR_DELIVERED);
     asyncWriteBuffer(_socket, conversation.envelope(outgoing), 5);
   }
@@ -93,13 +114,13 @@ public:
     uint32_t row = pos.first;
     uint32_t col = pos.second;
     if(row >= _nbRows || col >= _nbCols)
-      return fetch::oef::pb::Maze_Response_WALL;
+      return fetch::oef::pb::Maze_Response_IMPOSSIBLE;
     if(!_grid.get(row, col) && (row == 0 || row == _nbRows - 1 || col == 0 || col == _nbCols - 1)) {
       std::cerr << "Someone found the exit " << row << ":" << col << std::endl << _grid.to_string() << std::endl;
-      return fetch::oef::pb::Maze_Response_EXIT;
+      return fetch::oef::pb::Maze_Response_EXITED;
     }
     if(_grid.get(row, col))
-      return fetch::oef::pb::Maze_Response_WALL;
+      return fetch::oef::pb::Maze_Response_IMPOSSIBLE;
     return fetch::oef::pb::Maze_Response_OK;
   }
   
@@ -112,7 +133,7 @@ public:
     switch(mv.dir()) {
     case fetch::oef::pb::Explorer_Direction_N:
       if(pos.first == 0) {
-        response = fetch::oef::pb::Maze_Response_WALL;
+        response = fetch::oef::pb::Maze_Response_IMPOSSIBLE;
       } else {
         --pos.first;
         response = checkPosition(pos);
@@ -128,7 +149,7 @@ public:
       break;
     case fetch::oef::pb::Explorer_Direction_W:
       if(pos.second == 0) {
-        response = fetch::oef::pb::Maze_Response_WALL;
+        response = fetch::oef::pb::Maze_Response_IMPOSSIBLE;
       } else {
         --pos.second;
         response = checkPosition(pos);
@@ -137,12 +158,14 @@ public:
     default:
       assert(false);
     }
-    if(response == fetch::oef::pb::Maze_Response_EXIT
+    if(response == fetch::oef::pb::Maze_Response_EXITED
        || response == fetch::oef::pb::Maze_Response_OK)
       _explorers[explorer] = pos;
     fetch::oef::pb::Maze_Message outgoing;
     auto *moved = outgoing.mutable_moved();
     moved->set_resp(response);
+    auto *env = moved->mutable_env();
+    setEnv(pos, *env);
     conversation.setState(MazeState::OEF_WAITING_FOR_MOVE_DELIVERED);
     asyncWriteBuffer(_socket, conversation.envelope(outgoing), 5);
   }
@@ -225,7 +248,7 @@ int main(int argc, char* argv[])
     | clara::Opt(nbCols, "cols")["--cols"]["-c"]("Number of columns in the mazes.");
 
   auto result = parser.parse(clara::Args(argc, argv));
-  if(showHelp || argc == 1)
+  if(!result || showHelp || argc == 1)
     std::cout << parser << std::endl;
   else
   {
