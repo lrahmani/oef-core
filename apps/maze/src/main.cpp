@@ -16,8 +16,6 @@
 using fetch::oef::MultiClient;
 using fetch::oef::Conversation;
 
-using Position = std::pair<uint32_t,uint32_t>;
-
 enum class MazeState {OEF_WAITING_FOR_REGISTER = 1,
                       OEF_WAITING_FOR_DELIVERED,
                       MAZE_WAITING_FOR_REGISTER,
@@ -72,7 +70,7 @@ public:
     Position newPos = std::make_pair(pos.first + deltaRow, pos.second + deltaCol);
     if(newPos.first >= _nbRows || newPos.second >= _nbCols) 
       return fetch::oef::pb::Maze_Cell::Maze_Cell_WALL;
-    bool wall = _grid.get(newPos.first, newPos.second);
+    bool wall = _grid.get(newPos);
     if(!wall && (newPos.first == 0 || newPos.second == 0 || newPos.first == _nbRows - 1 || newPos.second == _nbCols - 1))
       return fetch::oef::pb::Maze_Cell::Maze_Cell_EXIT;
     if(wall)
@@ -115,11 +113,11 @@ public:
     uint32_t col = pos.second;
     if(row >= _nbRows || col >= _nbCols)
       return fetch::oef::pb::Maze_Response_IMPOSSIBLE;
-    if(!_grid.get(row, col) && (row == 0 || row == _nbRows - 1 || col == 0 || col == _nbCols - 1)) {
+    if(!_grid.get(pos) && (row == 0 || row == _nbRows - 1 || col == 0 || col == _nbCols - 1)) {
       std::cerr << "Someone found the exit " << row << ":" << col << std::endl << _grid.to_string() << std::endl;
       return fetch::oef::pb::Maze_Response_EXITED;
     }
-    if(_grid.get(row, col))
+    if(_grid.get(pos))
       return fetch::oef::pb::Maze_Response_IMPOSSIBLE;
     return fetch::oef::pb::Maze_Response_OK;
   }

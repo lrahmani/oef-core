@@ -2,6 +2,8 @@
 #include <vector>
 #include <sstream>
 
+using Position = std::pair<uint32_t,uint32_t>;
+
 template <typename T>
 class Grid {
  private:
@@ -20,10 +22,16 @@ class Grid {
     assert(col < _cols);
     return _data[row * _cols + col];
   }
+  T get(const Position &pos) const {
+    return get(pos.first, pos.second);
+  }
   void set(uint32_t row, uint32_t col, const T &t) {
     assert(row < _rows);
     assert(col < _cols);
     _data[row * _cols + col] = t;
+  }
+  void set(const Position &pos, const T &t) {
+    set(pos.first, pos.second, t);
   }
   std::string to_string() const {
     std::stringstream ss;
