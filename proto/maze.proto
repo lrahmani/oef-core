@@ -57,10 +57,40 @@ message Explorer {
     message Move {
         required Direction dir = 1;
     }
+    message Resource {
+        message Cell {
+            required Maze.Position pos = 1;
+            required Maze.Cell cell = 2;
+        }
+        repeated Cell cells = 1;
+    }
+    message Item {
+        message UnitCell {
+            message Unit {
+                required Maze.Position pos = 1;
+                required uint64 cost = 2;
+            }
+            repeated Unit cells = 1;
+        }
+        message BlockCell {
+            repeated Maze.Position pos = 1;
+            required uint64 cost = 2;
+        }
+        message Block {
+            required uint32 number = 1;
+            required uint64 cost = 2;
+        }
+        oneof item {
+            UnitCell unitcells = 1;
+            BlockCell blockcells = 2;
+            Block block = 3;
+        }
+    }
     message Message {
         oneof msg {
             Register register = 1;
             Move move = 2;
+            Resource resource = 3;
         }
     }
 }

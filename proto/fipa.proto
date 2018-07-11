@@ -1,0 +1,20 @@
+syntax = "proto2";
+
+package fetch.oef.pb;
+
+import "query.proto";
+
+message Fipa {
+    message Cfp {
+        optional Query.Model query = 1;
+    }
+    message Propose {
+        repeated Query.Instance objects = 1;
+    }
+    message Accept {
+        repeated Query.Instance objects = 1;
+    }
+    message Refuse {
+    }
+}
+
