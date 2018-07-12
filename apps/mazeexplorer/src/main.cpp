@@ -12,6 +12,9 @@
 #include "schema.h"
 #include "clientmsg.h"
 #include <stack>
+#include "mapbox/variant.hpp"
+
+namespace var = mapbox::util; // for the variant
 
 using fetch::oef::MultiClient;
 using fetch::oef::Conversation;
@@ -36,10 +39,23 @@ enum class BuyerState {OEF_WAITING_FOR_AGENTS = 1,
                        WAITING_FOR_TRANSACTION,
                        WAITING_FOR_RESOURCES};
                         
+using VariantState = var::variant<ExplorerState,SellerState,BuyerState>;
+
+std::string to_string(const VariantState &s) {
+  std::string res;
+  s.match([&res](ExplorerState state) {
+            res = "ExplorerState " + std::to_string(static_cast<int>(state));
+          }, [&res](SellerState state) {
+            res = "SellerState " + std::to_string(static_cast<int>(state));
+          }, [&res](BuyerState state) {
+            res = "BuyerState " + std::to_string(static_cast<int>(state));
+             });
+  return res;
+}
 
 enum class GridState : uint8_t { UNKNOWN, WALL, ROOM, VISITED_ROOM };
 
-class Explorer : public MultiClient<ExplorerState,Explorer>
+class Explorer : public MultiClient<VariantState,Explorer>
 {
 private:
   uint64_t _account;
@@ -56,7 +72,7 @@ private:
   void processOEFStatus(const fetch::oef::pb::Server_AgentMessage &msg) {
     // it is getting complicated with sellers and buyers, then oef messages for maze and trades are mixed.
     // not clear how to disembiguate. Maybe just ignore for now.
-    std::shared_ptr<Conversation<ExplorerState>> conv;
+    std::shared_ptr<Conversation<VariantState>> conv;
     if(msg.status().has_cid()) {
       auto iter = _conversations.find(msg.status().cid());
       assert(iter != _conversations.end());
@@ -64,17 +80,19 @@ private:
     } else {
       conv = _conversations[""];
     }
-    switch(conv->getState()) {
-    case ExplorerState::OEF_WAITING_FOR_REGISTER:
-      assert(conv->msgId() == 0);
-      conv->setState(ExplorerState::MAZE_WAITING_FOR_REGISTER);
-      break;
-    case ExplorerState::OEF_WAITING_FOR_MOVE_DELIVERED:
-      conv->setState(ExplorerState::MAZE_WAITING_FOR_MOVE);
-      break;
-    default:
-      std::cerr << "Error processOEFStatus " << static_cast<int>(conv->getState()) << " msgId " << conv->msgId() << std::endl;
-    }
+    conv->getState().match([&conv](ExplorerState s) {
+                             switch(s) {
+                             case ExplorerState::OEF_WAITING_FOR_REGISTER:
+                               assert(conv->msgId() == 0);
+                               conv->setState(ExplorerState::MAZE_WAITING_FOR_REGISTER);
+                               break;
+                             case ExplorerState::OEF_WAITING_FOR_MOVE_DELIVERED:
+                               conv->setState(ExplorerState::MAZE_WAITING_FOR_MOVE);
+                               break;
+                             default:
+                               std::cerr << "Error processOEFStatus ExplorerState " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
+                             }},[](SellerState s) {
+                                }, [](BuyerState s) {});
   }
   std::vector<fetch::oef::pb::Explorer_Direction> filterMove(const Position &pos, GridState val) const {
     std::vector<fetch::oef::pb::Explorer_Direction> res;
@@ -129,7 +147,7 @@ private:
     _path.push(rooms.front());
     return rooms.front();
   }
-  void sendMove(Conversation<ExplorerState> &conversation) {
+  void sendMove(Conversation<VariantState> &conversation) {
     _dir = generateMove();
     std::cerr << "Sending move " << static_cast<int>(_dir);
     fetch::oef::pb::Explorer_Message outgoing;
@@ -187,8 +205,9 @@ private:
       asyncWriteBuffer(_socket, serialize(reg.handle()), 5);
     }
   }
-  void processMoved(const fetch::oef::pb::Maze_Moved &mv, Conversation<ExplorerState> &conversation) {
-    assert(conversation.getState() == ExplorerState::MAZE_WAITING_FOR_MOVE);
+  void processMoved(const fetch::oef::pb::Maze_Moved &mv, Conversation<VariantState> &conversation) {
+    auto state = conversation.getState().get<ExplorerState>();
+    assert(state == ExplorerState::MAZE_WAITING_FOR_MOVE);
     std::string output;
     assert(google::protobuf::TextFormat::PrintToString(mv, &output));
     std::cerr << "Moved " << output << std::endl;
@@ -216,12 +235,12 @@ private:
       break;
     case fetch::oef::pb::Maze_Response_NOT_NOW:
     default:
-      std::cerr << "Error processMoved " << static_cast<int>(conversation.getState()) << " msgId " << conversation.msgId() << std::endl;
+      std::cerr << "Error processMoved " << static_cast<int>(state) << " msgId " << conversation.msgId() << std::endl;
     }
     registerSeller();
     std::cerr << "Moved\n" << _grid->to_string() << std::endl;
   }
-  void processRegistered(const fetch::oef::pb::Maze_Registered &reg, Conversation<ExplorerState> &conversation) {
+  void processRegistered(const fetch::oef::pb::Maze_Registered &reg, Conversation<VariantState> &conversation) {
     std::string output;
     assert(google::protobuf::TextFormat::PrintToString(reg, &output));
     std::cerr << "Registered " << output << std::endl;
@@ -234,27 +253,30 @@ private:
     std::cerr << "Grid:\n" << _grid->to_string() << std::endl;
     sendMove(conversation);
   }
-  void processClients(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<ExplorerState> &conversation) {
+  void processClients(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<VariantState> &conversation) {
     assert(msg.has_content());
     assert(msg.content().has_origin());
-    fetch::oef::pb::Maze_Message incoming;
-    incoming.ParseFromString(msg.content().content());
-    std::cerr << "Message from " << msg.content().origin() << " == " << conversation.dest() << std::endl;
-    auto maze_case = incoming.msg_case();
-    switch(maze_case) {
-    case fetch::oef::pb::Maze_Message::kRegistered:
-      assert(conversation.getState() == ExplorerState::MAZE_WAITING_FOR_REGISTER);
-      processRegistered(incoming.registered(), conversation);
-      break;
-    case fetch::oef::pb::Maze_Message::kMoved:
-      assert(conversation.getState() == ExplorerState::MAZE_WAITING_FOR_MOVE);
-      processMoved(incoming.moved(), conversation);
-      break;
-    default:
-      std::cerr << "Error processClients " << static_cast<int>(conversation.getState()) << " msgId " << conversation.msgId() << std::endl;
-    }
+    conversation.getState().match([&msg, &conversation, this](ExplorerState state) {
+                                    fetch::oef::pb::Maze_Message incoming;
+                                    incoming.ParseFromString(msg.content().content());
+                                    std::cerr << "Message from " << msg.content().origin() << " == " << conversation.dest() << std::endl;
+                                    auto maze_case = incoming.msg_case();
+                                    switch(maze_case) {
+                                    case fetch::oef::pb::Maze_Message::kRegistered:
+                                      assert(state == ExplorerState::MAZE_WAITING_FOR_REGISTER);
+                                      processRegistered(incoming.registered(), conversation);
+                                      break;
+                                    case fetch::oef::pb::Maze_Message::kMoved:
+                                      assert(state == ExplorerState::MAZE_WAITING_FOR_MOVE);
+                                      processMoved(incoming.moved(), conversation);
+                                      break;
+                                    default:
+                                      std::cerr << "Error processClients " << static_cast<int>(state) << " msgId " << conversation.msgId() << std::endl;
+                                    }
+                                  },[](SellerState s) {
+                                }, [](BuyerState s) {});
   }
-  void processAgents(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<ExplorerState> &conversation) {
+  void processAgents(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<VariantState> &conversation) {
     assert(_maze == "");
     assert(msg.has_agents());
     if(msg.agents().agents_size() == 0) { // no answer yet, let's try again 
@@ -264,15 +286,15 @@ private:
     std::cerr << "Found maze " << _maze << std::endl;
     fetch::oef::pb::Explorer_Message outgoing;
     (void)outgoing.mutable_register_();
-    Conversation<ExplorerState> maze_conversation{_maze};
+    Conversation<VariantState> maze_conversation{_maze};
     maze_conversation.setState(ExplorerState::OEF_WAITING_FOR_REGISTER);
-    _conversations.insert({maze_conversation.uuid(), std::make_shared<Conversation<ExplorerState>>(maze_conversation)});
+    _conversations.insert({maze_conversation.uuid(), std::make_shared<Conversation<VariantState>>(maze_conversation)});
     asyncWriteBuffer(_socket, maze_conversation.envelope(outgoing),5);
   }
   
 public:
   Explorer(asio::io_context &io_context, const std::string &id, const std::string &host, uint64_t account)
-    : MultiClient<ExplorerState,Explorer>{io_context, id, host}, _account{account}, _gen{_rd()}
+    : MultiClient<VariantState,Explorer>{io_context, id, host}, _account{account}, _gen{_rd()}
   {
     static Attribute version{"version", Type::Int, true};
     static std::vector<Attribute> attributes{version};
@@ -284,15 +306,15 @@ public:
 
     _mazeQuery = std::unique_ptr<Query>(new Query{ql});
 
-    Conversation<ExplorerState> c{"", ""};
-    c.setState(ExplorerState::OEF_WAITING_FOR_MAZE);
-    _conversations.insert({"", std::make_shared<Conversation<ExplorerState>>(c)});
+    Conversation<VariantState> c{"", ""};
+    c.setState(VariantState{ExplorerState::OEF_WAITING_FOR_MAZE});
+    _conversations.insert({"", std::make_shared<Conversation<VariantState>>(c)});
     asyncWriteBuffer(_socket, serialize(_mazeQuery->handle()), 5);
   }
   Explorer(const Explorer &) = delete;
   Explorer operator=(const Explorer &) = delete;
 
-  void onMsg(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<ExplorerState> &conversation) {
+  void onMsg(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<VariantState> &conversation) {
     std::string output;
     assert(google::protobuf::TextFormat::PrintToString(msg, &output));
     std::cerr << "OnMsg cid " << conversation.uuid() << " dest " << conversation.dest() << " id " << conversation.msgId() << ": " << output << std::endl;
@@ -308,7 +330,7 @@ public:
       break;
     case fetch::oef::pb::Server_AgentMessage::PAYLOAD_NOT_SET:
     default:
-      std::cerr << "Error onMsg " << static_cast<int>(conversation.getState()) << " msgId " << conversation.msgId() << std::endl;
+      std::cerr << "Error onMsg " << to_string(conversation.getState()) << " msgId " << conversation.msgId() << std::endl;
     }
   }  
 };
