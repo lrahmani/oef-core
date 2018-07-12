@@ -22,12 +22,29 @@ enum class ExplorerState {OEF_WAITING_FOR_MAZE = 1,
                           OEF_WAITING_FOR_MOVE_DELIVERED,
                           MAZE_WAITING_FOR_MOVE};
 
+enum class SellerState {WAITING_FOR_CFP = 1,
+                        OEF_WAITING_FOR_PROPOSE,
+                        WAITING_FOR_AGREEMENT,
+                        OEF_WAITING_FOR_TRANSACTION,
+                        OEF_WAITING_FOR_RESOURCES};
+
+enum class BuyerState {OEF_WAITING_FOR_AGENTS = 1,
+                       OEF_WAITING_FOR_CFP,
+                       WAITING_FOR_PROPOSE,
+                       OEF_WAITING_FOR_ACCEPT,
+                       OEF_WAITING_FOR_REFUSE,
+                       WAITING_FOR_TRANSACTION,
+                       WAITING_FOR_RESOURCES};
+                        
+
 enum class GridState : uint8_t { UNKNOWN, WALL, ROOM, VISITED_ROOM };
 
 class Explorer : public MultiClient<ExplorerState,Explorer>
 {
 private:
-  std::unique_ptr<Query> _query;
+  uint64_t _account;
+  uint32_t _steps = 0;
+  std::unique_ptr<Query> _mazeQuery;
   std::unique_ptr<Grid<GridState>> _grid;
   Position _current;
   fetch::oef::pb::Explorer_Direction _dir;
@@ -37,6 +54,8 @@ private:
   std::stack<fetch::oef::pb::Explorer_Direction> _path;
 
   void processOEFStatus(const fetch::oef::pb::Server_AgentMessage &msg) {
+    // it is getting complicated with sellers and buyers, then oef messages for maze and trades are mixed.
+    // not clear how to disembiguate. Maybe just ignore for now.
     std::shared_ptr<Conversation<ExplorerState>> conv;
     if(msg.status().has_cid()) {
       auto iter = _conversations.find(msg.status().cid());
@@ -155,6 +174,19 @@ private:
     updateGrid(env.west(), pos, 0, -1);
     updateGrid(env.east(), pos, 0, 1);
   }
+  void registerSeller() {
+    static Attribute mazeName{"maze_name", Type::String, true};
+    static std::vector<Attribute> attributes{mazeName};
+    static DataModel seller{"maze_seller", attributes, "Just a maze demo."};
+    static bool registered = false;
+    if(_steps == 10 && !registered) {
+      registered = true;
+      std::unordered_map<std::string,std::string> props{{"maze_name", _maze}};
+      Instance instance{seller, props};
+      Register reg{instance};
+      asyncWriteBuffer(_socket, serialize(reg.handle()), 5);
+    }
+  }
   void processMoved(const fetch::oef::pb::Maze_Moved &mv, Conversation<ExplorerState> &conversation) {
     assert(conversation.getState() == ExplorerState::MAZE_WAITING_FOR_MOVE);
     std::string output;
@@ -174,16 +206,19 @@ private:
       _grid->set(_current, GridState::VISITED_ROOM);
       updateGrid(mv.env(), _current);
       sendMove(conversation);
+      ++_steps;
       break;
     case fetch::oef::pb::Maze_Response_EXITED:
       _current = newPos(_current, _dir);
       updateGrid(mv.env(), _current);
+      ++_steps;
       std::cerr << "Youhou, exit is " << _current.first << ":" << _current.second << std::endl << _grid->to_string() << std::endl;
       break;
     case fetch::oef::pb::Maze_Response_NOT_NOW:
     default:
       std::cerr << "Error processMoved " << static_cast<int>(conversation.getState()) << " msgId " << conversation.msgId() << std::endl;
     }
+    registerSeller();
     std::cerr << "Moved\n" << _grid->to_string() << std::endl;
   }
   void processRegistered(const fetch::oef::pb::Maze_Registered &reg, Conversation<ExplorerState> &conversation) {
@@ -223,7 +258,7 @@ private:
     assert(_maze == "");
     assert(msg.has_agents());
     if(msg.agents().agents_size() == 0) { // no answer yet, let's try again 
-      asyncWriteBuffer(_socket, serialize(_query->handle()), 5);
+      asyncWriteBuffer(_socket, serialize(_mazeQuery->handle()), 5);
     }
     _maze = msg.agents().agents(0);
     std::cerr << "Found maze " << _maze << std::endl;
@@ -236,23 +271,23 @@ private:
   }
   
 public:
-  Explorer(asio::io_context &io_context, const std::string &id, const std::string &host)
-    : MultiClient<ExplorerState,Explorer>{io_context, id, host}, _gen{_rd()}
+  Explorer(asio::io_context &io_context, const std::string &id, const std::string &host, uint64_t account)
+    : MultiClient<ExplorerState,Explorer>{io_context, id, host}, _account{account}, _gen{_rd()}
   {
-    Attribute version{"version", Type::Int, true};
-    std::vector<Attribute> attributes{version};
-    std::unordered_map<std::string,std::string> props{{"version", "1"}};
-    DataModel maze{"maze", attributes, "Just a maze demo."};
-    ConstraintType eqOne{Relation{Relation::Op::Eq, 1}};
-    Constraint version_c{version, eqOne};
-    QueryModel ql{{version_c}, maze};
+    static Attribute version{"version", Type::Int, true};
+    static std::vector<Attribute> attributes{version};
+    static std::unordered_map<std::string,std::string> props{{"version", "1"}};
+    static DataModel maze{"maze", attributes, "Just a maze demo."};
+    static ConstraintType eqOne{Relation{Relation::Op::Eq, 1}};
+    static Constraint version_c{version, eqOne};
+    static QueryModel ql{{version_c}, maze};
 
-    _query = std::unique_ptr<Query>(new Query{ql});
+    _mazeQuery = std::unique_ptr<Query>(new Query{ql});
 
     Conversation<ExplorerState> c{"", ""};
     c.setState(ExplorerState::OEF_WAITING_FOR_MAZE);
     _conversations.insert({"", std::make_shared<Conversation<ExplorerState>>(c)});
-    asyncWriteBuffer(_socket, serialize(_query->handle()), 5);
+    asyncWriteBuffer(_socket, serialize(_mazeQuery->handle()), 5);
   }
   Explorer(const Explorer &) = delete;
   Explorer operator=(const Explorer &) = delete;
@@ -284,9 +319,11 @@ int main(int argc, char* argv[])
   std::string host = "127.0.0.1";
   uint32_t nbClients = 100;
   std::string prefix = "Agent_";
+  uint64_t account = 0;
   
   auto parser = clara::Help(showHelp)
     | clara::Opt(nbClients, "nbClients")["--nbClients"]["-n"]("Number of clients. Default 100.")
+    | clara::Opt(account, "account")["--account"]["-a"]("Initial amount of tokens. Default 0.")
     | clara::Opt(prefix, "prefix")["--prefix"]["-p"]("Prefix used for all agents name. Default: Agent_")
     | clara::Opt(host, "host")["--host"]["-h"]("Host address to connect. Default: 127.0.0.1");
   auto result = parser.parse(clara::Args(argc, argv));
@@ -307,8 +344,8 @@ int main(int argc, char* argv[])
       std::string name = prefix;
       name += std::to_string(i);
       futures.push_back(std::async(std::launch::async,
-                                   [&host,&pool](const std::string &n){
-                                     return std::make_unique<Explorer>(pool.getIoContext(),n, host);
+                                   [&host,&pool,&account](const std::string &n){
+                                     return std::make_unique<Explorer>(pool.getIoContext(),n, host, account);
                                    }, name));
     }
     std::cerr << "Futures created\n";
