@@ -23,6 +23,7 @@ enum class OEFState {OEF_WAITING_FOR_MAZE = 1,
                      OEF_WAITING_FOR_NOTHING,
                      OEF_WAITING_FOR_REGISTER,
                      OEF_WAITING_FOR_SELLERS};
+
 enum class ExplorerState {OEF_WAITING_FOR_REGISTER = 1,
                           MAZE_WAITING_FOR_REGISTER,
                           OEF_WAITING_FOR_MOVE_DELIVERED,
@@ -68,6 +69,8 @@ private:
   std::unique_ptr<Query> _mazeQuery;
   std::unique_ptr<Grid<GridState>> _grid;
   Position _current;
+  bool _registered = false;
+  std::vector<std::string> _sellers;
   fetch::oef::pb::Explorer_Direction _dir;
   std::string _maze;
   std::random_device _rd;
@@ -210,9 +213,8 @@ private:
     static Attribute mazeName{"maze_name", Type::String, true};
     static std::vector<Attribute> attributes{mazeName};
     static DataModel seller{"maze_seller", attributes, "Just a maze demo."};
-    static bool registered = false;
-    if(_steps == 10 && !registered) {
-      registered = true;
+    if(_steps == 10 && !_registered) {
+      _registered = true;
       std::unordered_map<std::string,std::string> props{{"maze_name", _maze}};
       Instance instance{seller, props};
       Register reg{instance};
@@ -221,6 +223,22 @@ private:
       conv->setState(OEFState::OEF_WAITING_FOR_REGISTER);
       asyncWriteBuffer(_socket, serialize(reg.handle()), 5);
     }
+  }
+  void searchSeller() {
+    static Attribute mazeName{"maze_name", Type::String, true};
+    static std::vector<Attribute> attributes{mazeName};
+    static DataModel seller{"maze_seller", attributes, "Just a maze demo."};
+    if(_account == 0 || _sellers.size() > 0) // no money or already buying
+      return;
+
+    ConstraintType eqMaze{Relation{Relation::Op::Eq, _maze}};
+    Constraint mazeName_c{mazeName, eqMaze};
+    QueryModel ql{{mazeName_c}, seller};
+    Query query{ql};
+    
+    auto conv = _conversations[""];
+    conv->setState(OEFState::OEF_WAITING_FOR_SELLERS);
+    asyncWriteBuffer(_socket, serialize(query.handle()), 5);
   }
   void processMoved(const fetch::oef::pb::Maze_Moved &mv, Conversation<VariantState> &conversation) {
     auto state = conversation.getState().get<ExplorerState>();
@@ -255,6 +273,7 @@ private:
       std::cerr << "Error processMoved " << static_cast<int>(state) << " msgId " << conversation.msgId() << std::endl;
     }
     registerSeller();
+    searchSeller();
     std::cerr << "Moved\n" << _grid->to_string() << std::endl;
   }
   void processRegistered(const fetch::oef::pb::Maze_Registered &reg, Conversation<VariantState> &conversation) {
@@ -310,19 +329,27 @@ private:
   }
   void processSellers(const fetch::oef::pb::Server_AgentMessage &msg) {
     if(msg.agents().agents_size() > 0) { // no answer yet, let's try again
+      std::cerr << "Found Sellers " << msg.agents().agents_size() << std::endl;
+      for(auto s : msg.agents().agents()) {
+        if(s != _id) {
+          std::cerr << "Buyer " << _id << " Seller " << s << std::endl;
+          _sellers.emplace_back(s);
       // TODO store the sellers and send CFP to each, create conversations too.
+        }
+      }
     }
   }
   void processAgents(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<VariantState> &conversation) {
-    assert(_maze == "");
     assert(msg.has_agents());
     conversation.getState().match([&msg,&conversation,this](OEFState s) {
                                     switch(s) {
                                     case OEFState::OEF_WAITING_FOR_MAZE:
+                                      assert(_maze == "");
                                       processMaze(msg);
                                       conversation.setState(OEFState::OEF_WAITING_FOR_NOTHING);
                                       break;
                                     case OEFState::OEF_WAITING_FOR_SELLERS:
+                                      assert(_sellers.size() == 0);
                                       processSellers(msg);
                                       conversation.setState(OEFState::OEF_WAITING_FOR_NOTHING);
                                       break;
@@ -349,7 +376,6 @@ public:
   {
     static Attribute version{"version", Type::Int, true};
     static std::vector<Attribute> attributes{version};
-    static std::unordered_map<std::string,std::string> props{{"version", "1"}};
     static DataModel maze{"maze", attributes, "Just a maze demo."};
     static ConstraintType eqOne{Relation{Relation::Op::Eq, 1}};
     static Constraint version_c{version, eqOne};
