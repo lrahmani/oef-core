@@ -20,8 +20,9 @@ using fetch::oef::MultiClient;
 using fetch::oef::Conversation;
 
 enum class OEFState {OEF_WAITING_FOR_MAZE = 1,
-                     
-};
+                     OEF_WAITING_FOR_NOTHING,
+                     OEF_WAITING_FOR_REGISTER,
+                     OEF_WAITING_FOR_SELLERS};
 enum class ExplorerState {OEF_WAITING_FOR_REGISTER = 1,
                           MAZE_WAITING_FOR_REGISTER,
                           OEF_WAITING_FOR_MOVE_DELIVERED,
@@ -95,7 +96,15 @@ private:
                                break;
                              default:
                                std::cerr << "Error processOEFStatus ExplorerState " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
-                             }},[](OEFState s) {
+                             }},[&conv](OEFState s) {
+                                  switch(s) {
+                                  case OEFState::OEF_WAITING_FOR_REGISTER:
+                                    std::cerr << "Seller registered\n";
+                                    conv->setState(OEFState::OEF_WAITING_FOR_NOTHING);
+                                    break;
+                                  default:
+                                    std::cerr << "Error processOEFStatus OEFState " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
+                                  }
                                 },[](SellerState s) {
                                   }, [](BuyerState s) {});
   }
@@ -208,6 +217,8 @@ private:
       Instance instance{seller, props};
       Register reg{instance};
       std::cerr << "Registering seller " << _id << std::endl;
+      auto conv = _conversations[""];
+      conv->setState(OEFState::OEF_WAITING_FOR_REGISTER);
       asyncWriteBuffer(_socket, serialize(reg.handle()), 5);
     }
   }
@@ -297,13 +308,28 @@ private:
       asyncWriteBuffer(_socket, maze_conversation.envelope(outgoing),5);
     }
   }
+  void processSellers(const fetch::oef::pb::Server_AgentMessage &msg) {
+    if(msg.agents().agents_size() > 0) { // no answer yet, let's try again
+      // TODO store the sellers and send CFP to each, create conversations too.
+    }
+  }
   void processAgents(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<VariantState> &conversation) {
     assert(_maze == "");
     assert(msg.has_agents());
-    conversation.getState().match([&msg,this](OEFState s) {
+    conversation.getState().match([&msg,&conversation,this](OEFState s) {
                                     switch(s) {
                                     case OEFState::OEF_WAITING_FOR_MAZE:
                                       processMaze(msg);
+                                      conversation.setState(OEFState::OEF_WAITING_FOR_NOTHING);
+                                      break;
+                                    case OEFState::OEF_WAITING_FOR_SELLERS:
+                                      processSellers(msg);
+                                      conversation.setState(OEFState::OEF_WAITING_FOR_NOTHING);
+                                      break;
+                                    case OEFState::OEF_WAITING_FOR_NOTHING:
+                                    case OEFState::OEF_WAITING_FOR_REGISTER:
+                                      std::cerr << "Error processAgents " << to_string(s) << std::endl;
+                                      assert(false);
                                     }
                                   }, [](ExplorerState s) {
                                        std::cerr << "Error processAgents " << to_string(s) << std::endl;
