@@ -19,8 +19,10 @@ namespace var = mapbox::util; // for the variant
 using fetch::oef::MultiClient;
 using fetch::oef::Conversation;
 
-enum class ExplorerState {OEF_WAITING_FOR_MAZE = 1,
-                          OEF_WAITING_FOR_REGISTER,
+enum class OEFState {OEF_WAITING_FOR_MAZE = 1,
+                     
+};
+enum class ExplorerState {OEF_WAITING_FOR_REGISTER = 1,
                           MAZE_WAITING_FOR_REGISTER,
                           OEF_WAITING_FOR_MOVE_DELIVERED,
                           MAZE_WAITING_FOR_MOVE};
@@ -39,12 +41,14 @@ enum class BuyerState {OEF_WAITING_FOR_AGENTS = 1,
                        WAITING_FOR_TRANSACTION,
                        WAITING_FOR_RESOURCES};
                         
-using VariantState = var::variant<ExplorerState,SellerState,BuyerState>;
+using VariantState = var::variant<OEFState,ExplorerState,SellerState,BuyerState>;
 
 std::string to_string(const VariantState &s) {
   std::string res;
   s.match([&res](ExplorerState state) {
             res = "ExplorerState " + std::to_string(static_cast<int>(state));
+          }, [&res](OEFState state) {
+            res = "OEFState " + std::to_string(static_cast<int>(state));
           }, [&res](SellerState state) {
             res = "SellerState " + std::to_string(static_cast<int>(state));
           }, [&res](BuyerState state) {
@@ -91,8 +95,9 @@ private:
                                break;
                              default:
                                std::cerr << "Error processOEFStatus ExplorerState " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
-                             }},[](SellerState s) {
-                                }, [](BuyerState s) {});
+                             }},[](OEFState s) {
+                                },[](SellerState s) {
+                                  }, [](BuyerState s) {});
   }
   std::vector<fetch::oef::pb::Explorer_Direction> filterMove(const Position &pos, GridState val) const {
     std::vector<fetch::oef::pb::Explorer_Direction> res;
@@ -149,7 +154,7 @@ private:
   }
   void sendMove(Conversation<VariantState> &conversation) {
     _dir = generateMove();
-    std::cerr << "Sending move " << static_cast<int>(_dir);
+    std::cerr << "Sending move " << static_cast<int>(_dir) << std::endl;
     fetch::oef::pb::Explorer_Message outgoing;
     auto *explorer_mv = outgoing.mutable_move();
     explorer_mv->set_dir(_dir);
@@ -202,6 +207,7 @@ private:
       std::unordered_map<std::string,std::string> props{{"maze_name", _maze}};
       Instance instance{seller, props};
       Register reg{instance};
+      std::cerr << "Registering seller " << _id << std::endl;
       asyncWriteBuffer(_socket, serialize(reg.handle()), 5);
     }
   }
@@ -273,23 +279,42 @@ private:
                                     default:
                                       std::cerr << "Error processClients " << static_cast<int>(state) << " msgId " << conversation.msgId() << std::endl;
                                     }
-                                  },[](SellerState s) {
-                                }, [](BuyerState s) {});
+                                  },[](OEFState s) {
+                                    },[](SellerState s) {
+                                      }, [](BuyerState s) {});
+  }
+  void processMaze(const fetch::oef::pb::Server_AgentMessage &msg) {
+    if(msg.agents().agents_size() == 0) { // no answer yet, let's try again 
+      asyncWriteBuffer(_socket, serialize(_mazeQuery->handle()), 5);
+    } else {
+      _maze = msg.agents().agents(0);
+      std::cerr << "Found maze " << _maze << std::endl;
+      fetch::oef::pb::Explorer_Message outgoing;
+      (void)outgoing.mutable_register_();
+      Conversation<VariantState> maze_conversation{_maze};
+      maze_conversation.setState(ExplorerState::OEF_WAITING_FOR_REGISTER);
+      _conversations.insert({maze_conversation.uuid(), std::make_shared<Conversation<VariantState>>(maze_conversation)});
+      asyncWriteBuffer(_socket, maze_conversation.envelope(outgoing),5);
+    }
   }
   void processAgents(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<VariantState> &conversation) {
     assert(_maze == "");
     assert(msg.has_agents());
-    if(msg.agents().agents_size() == 0) { // no answer yet, let's try again 
-      asyncWriteBuffer(_socket, serialize(_mazeQuery->handle()), 5);
-    }
-    _maze = msg.agents().agents(0);
-    std::cerr << "Found maze " << _maze << std::endl;
-    fetch::oef::pb::Explorer_Message outgoing;
-    (void)outgoing.mutable_register_();
-    Conversation<VariantState> maze_conversation{_maze};
-    maze_conversation.setState(ExplorerState::OEF_WAITING_FOR_REGISTER);
-    _conversations.insert({maze_conversation.uuid(), std::make_shared<Conversation<VariantState>>(maze_conversation)});
-    asyncWriteBuffer(_socket, maze_conversation.envelope(outgoing),5);
+    conversation.getState().match([&msg,this](OEFState s) {
+                                    switch(s) {
+                                    case OEFState::OEF_WAITING_FOR_MAZE:
+                                      processMaze(msg);
+                                    }
+                                  }, [](ExplorerState s) {
+                                       std::cerr << "Error processAgents " << to_string(s) << std::endl;
+                                       assert(false);
+                                     }, [](BuyerState s) {
+                                       std::cerr << "Error processAgents " << to_string(s) << std::endl;
+                                       assert(false);
+                                     }, [](SellerState s) {
+                                       std::cerr << "Error processAgents " << to_string(s) << std::endl;
+                                       assert(false);
+                                        });
   }
   
 public:
@@ -307,7 +332,7 @@ public:
     _mazeQuery = std::unique_ptr<Query>(new Query{ql});
 
     Conversation<VariantState> c{"", ""};
-    c.setState(VariantState{ExplorerState::OEF_WAITING_FOR_MAZE});
+    c.setState(VariantState{OEFState::OEF_WAITING_FOR_MAZE});
     _conversations.insert({"", std::make_shared<Conversation<VariantState>>(c)});
     asyncWriteBuffer(_socket, serialize(_mazeQuery->handle()), 5);
   }
@@ -325,7 +350,7 @@ public:
     case fetch::oef::pb::Server_AgentMessage::kContent: // from an explorer
       processClients(msg, conversation);
       break;
-    case fetch::oef::pb::Server_AgentMessage::kAgents: // answer for the query
+    case fetch::oef::pb::Server_AgentMessage::kAgents: // answer for the queries
       processAgents(msg, conversation);
       break;
     case fetch::oef::pb::Server_AgentMessage::PAYLOAD_NOT_SET:
@@ -360,27 +385,15 @@ int main(int argc, char* argv[])
   pool.run();
 
   std::vector<std::unique_ptr<Explorer>> explorers;
-  std::vector<std::future<std::unique_ptr<Explorer>>> futures;
   try {
     for(size_t i = 1; i <= nbClients; ++i) {
       std::string name = prefix;
       name += std::to_string(i);
-      futures.push_back(std::async(std::launch::async,
-                                   [&host,&pool,&account](const std::string &n){
-                                     return std::make_unique<Explorer>(pool.getIoContext(),n, host, account);
-                                   }, name));
+      explorers.emplace_back(std::make_unique<Explorer>(pool.getIoContext(), name, host, account));
     }
-    std::cerr << "Futures created\n";
-    for(auto &fut : futures) {
-      explorers.emplace_back(fut.get());
-    }
-    std::cerr << "Futures got\n";
   } catch(std::exception &e) {
     std::cerr << "BUG " << e.what() << "\n";
   }
-  std::cerr << "Start sleeping ...\n";
-  std::this_thread::sleep_for(std::chrono::seconds{(nbClients / 500) + 2});
-  std::cerr << "Stopped sleeping ...\n";
   pool.join();
   return 0;
 }

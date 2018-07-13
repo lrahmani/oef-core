@@ -27,6 +27,7 @@ class Maze : public MultiClient<MazeState,Maze>
 private:
   uint32_t _nbRows, _nbCols;
   Grid<bool> _grid;
+  uint64_t _steps;
   std::unordered_map<std::string,Position> _explorers;
   std::random_device _rd;
   std::mt19937 _gen;
@@ -157,8 +158,11 @@ public:
       assert(false);
     }
     if(response == fetch::oef::pb::Maze_Response_EXITED
-       || response == fetch::oef::pb::Maze_Response_OK)
+       || response == fetch::oef::pb::Maze_Response_OK) {
       _explorers[explorer] = pos;
+      ++_steps;
+      std::cerr << "Steps " << _steps << std::endl;
+    }
     fetch::oef::pb::Maze_Message outgoing;
     auto *moved = outgoing.mutable_moved();
     moved->set_resp(response);
