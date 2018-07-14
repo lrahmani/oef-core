@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <sstream>
+#include <functional>
 
 using Position = std::pair<uint32_t,uint32_t>;
 
@@ -32,6 +33,14 @@ class Grid {
   }
   void set(const Position &pos, const T &t) {
     set(pos.first, pos.second, t);
+  }
+  std::vector<Position> filter(std::function<bool(const T&)> pred) {
+    std::vector<Position> res;
+    for(uint32_t i = 0; i < _rows; ++i)
+      for(uint32_t j = 0; j < _cols; ++j)
+        if(pred(_data[i * _cols + j]))
+          res.emplace_back(std::make_pair(i, j));
+    return res;
   }
   std::string to_string() const {
     std::stringstream ss;
