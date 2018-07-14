@@ -88,21 +88,21 @@ message Transaction {
     required uint64 amount = 1;
 }
 
-message Buyer {
-    oneof msg {
-        Fipa.Cfp cfp = 1;
-        Fipa.Accept accept = 2;
-        Fipa.Refuse refuse = 3;
-        Fipa.Propose propose = 4;
-    }
-}
+//message Buyer {
+//    oneof msg {
+//        Fipa.Cfp cfp = 1;
+//        Fipa.Accept accept = 2;
+//        Fipa.Refuse refuse = 3;
+//        Fipa.Propose propose = 4;
+//    }
+//}
 
-message Seller {
-    oneof msg {
-        Fipa.Propose propose = 1;
-        Transaction transaction = 2;
-    }
-}
+//message Seller {
+//    oneof msg {
+//        Fipa.Propose propose = 1;
+//        Transaction transaction = 2;
+//    }
+//}
 
 // option optimize_for = LITE_RUNTIME;
 option optimize_for = SPEED;

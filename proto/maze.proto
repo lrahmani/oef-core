@@ -2,6 +2,8 @@ syntax = "proto2";
 
 package fetch.oef.pb;
 
+import "agent.proto";
+
 message Maze {
     message Position {
         required int64 row = 1;
@@ -91,6 +93,31 @@ message Explorer {
             Register register = 1;
             Move move = 2;
             Resource resource = 3;
+        }
+    }
+    message Cfp {
+    }
+    message Propose {
+        repeated Item objects = 1;
+    }
+    message Accept {
+        repeated Item objects = 1;
+    }
+    message Refuse {
+    }
+    message Buyer {
+        oneof msg {
+            Cfp cfp = 1;
+            Accept accept = 2;
+            Refuse refuse = 3;
+            Propose propose = 4;
+        }
+    }
+
+    message Seller {
+        oneof msg {
+            Propose propose = 1;
+            Transaction transaction = 2;
         }
     }
 }

@@ -29,14 +29,12 @@ enum class ExplorerState {OEF_WAITING_FOR_REGISTER = 1,
                           OEF_WAITING_FOR_MOVE_DELIVERED,
                           MAZE_WAITING_FOR_MOVE};
 
-enum class SellerState {WAITING_FOR_CFP = 1,
-                        OEF_WAITING_FOR_PROPOSE,
+enum class SellerState {OEF_WAITING_FOR_PROPOSE = 1,
                         WAITING_FOR_AGREEMENT,
                         OEF_WAITING_FOR_TRANSACTION,
                         OEF_WAITING_FOR_RESOURCES};
 
-enum class BuyerState {OEF_WAITING_FOR_AGENTS = 1,
-                       OEF_WAITING_FOR_CFP,
+enum class BuyerState {OEF_WAITING_FOR_CFP = 1,
                        WAITING_FOR_PROPOSE,
                        OEF_WAITING_FOR_ACCEPT,
                        OEF_WAITING_FOR_REFUSE,
@@ -109,7 +107,16 @@ private:
                                     std::cerr << "Error processOEFStatus OEFState " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
                                   }
                                 },[](SellerState s) {
-                                  }, [](BuyerState s) {});
+                                  }, [&conv](BuyerState s) {
+                                       switch(s) {
+                                       case BuyerState::OEF_WAITING_FOR_CFP:
+                                         assert(conv->msgId() == 0);
+                                         conv->setState(BuyerState::WAITING_FOR_PROPOSE);
+                                         break;
+                                       default:
+                                         std::cerr << "Error processOEFStatus BuyerState " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
+                                       }
+                                     });
   }
   std::vector<fetch::oef::pb::Explorer_Direction> filterMove(const Position &pos, GridState val) const {
     std::vector<fetch::oef::pb::Explorer_Direction> res;
@@ -309,7 +316,14 @@ private:
                                     default:
                                       std::cerr << "Error processClients " << static_cast<int>(state) << " msgId " << conversation.msgId() << std::endl;
                                     }
-                                  },[](OEFState s) {
+                                  },[&msg,&conversation,this](OEFState s) {
+                                      // a buyer called with a cfp.
+                                      conversation.setState(SellerState::OEF_WAITING_FOR_PROPOSE);
+                                      fetch::oef::pb::Explorer_Buyer incoming;
+                                      incoming.ParseFromString(msg.content().content());
+                                      assert(incoming.msg_case() == fetch::oef::pb::Explorer_Buyer::kCfp);
+                                      std::cerr << _id << " received cfp from " << msg.content().origin() << std::endl;
+                                      // send propose
                                     },[](SellerState s) {
                                       }, [](BuyerState s) {});
   }
@@ -334,7 +348,12 @@ private:
         if(s != _id) {
           std::cerr << "Buyer " << _id << " Seller " << s << std::endl;
           _sellers.emplace_back(s);
-      // TODO store the sellers and send CFP to each, create conversations too.
+          fetch::oef::pb::Explorer_Buyer outgoing;
+          (void)outgoing.mutable_cfp();
+          Conversation<VariantState> conversation{s};
+          conversation.setState(BuyerState::OEF_WAITING_FOR_CFP);
+          _conversations.insert({conversation.uuid(), std::make_shared<Conversation<VariantState>>(conversation)});
+          asyncWriteBuffer(_socket, conversation.envelope(outgoing),5);
         }
       }
     }
