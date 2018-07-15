@@ -64,13 +64,13 @@ class Explorer : public MultiClient<VariantState,Explorer>
 {
 private:
   uint64_t _account;
-  uint32_t _steps = 0;
   std::unique_ptr<Query> _mazeQuery;
   std::unique_ptr<Grid<GridState>> _grid;
   std::set<Position> _proposal;
   Position _current;
   bool _registered = false;
   std::vector<std::string> _sellers;
+  std::vector<fetch::oef::pb::Explorer_Propose> _proposalsReceived;
   fetch::oef::pb::Explorer_Direction _dir;
   std::string _maze;
   std::random_device _rd;
@@ -222,7 +222,7 @@ private:
     static Attribute mazeName{"maze_name", Type::String, true};
     static std::vector<Attribute> attributes{mazeName};
     static DataModel seller{"maze_seller", attributes, "Just a maze demo."};
-    if(_steps == 10 && !_registered) {
+    if(_proposal.size() == 10 && !_registered) {
       _registered = true;
       std::unordered_map<std::string,std::string> props{{"maze_name", _maze}};
       Instance instance{seller, props};
@@ -270,12 +270,10 @@ private:
       (void)_proposal.insert(_current);
       updateGrid(mv.env(), _current);
       sendMove(conversation);
-      ++_steps;
       break;
     case fetch::oef::pb::Maze_Response_EXITED:
       _current = newPos(_current, _dir);
       updateGrid(mv.env(), _current);
-      ++_steps;
       std::cerr << "Youhou, exit is " << _current.first << ":" << _current.second << std::endl << _grid->to_string() << std::endl;
       break;
     case fetch::oef::pb::Maze_Response_NOT_NOW:
@@ -315,6 +313,16 @@ private:
     asyncWriteBuffer(_socket, conversation.envelope(outgoing), 5);
     std::cerr << _id << " sent propose to " << conversation.dest() << std::endl;
   }
+  void processPropose(const fetch::oef::pb::Explorer_Propose &propose, fetch::oef::Conversation<VariantState> &conversation) {
+    _proposalsReceived.emplace_back(propose);
+    if(_proposalsReceived.size() == _sellers.size()) {
+      // process all proposals
+    }
+  }
+  void processTransaction(const fetch::oef::pb::Transaction &transaction, fetch::oef::Conversation<VariantState> &conversation) {
+  }
+  void processResources(const fetch::oef::pb::Explorer_Resource &resource, fetch::oef::Conversation<VariantState> &conversation) {
+  }
   void processClients(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<VariantState> &conversation) {
     assert(msg.has_content());
     assert(msg.content().has_origin());
@@ -346,7 +354,27 @@ private:
                                       sendPropose(conversation);
                                     },[](SellerState s) {
                                       }, [&msg,&conversation,this](BuyerState s) {
-                                           std::cerr << _id << " received propose from " << conversation.dest() << std::endl;
+                                           fetch::oef::pb::Explorer_Seller incoming;
+                                           incoming.ParseFromString(msg.content().content());
+                                           switch(incoming.msg_case()) {
+                                           case fetch::oef::pb::Explorer_Seller::kPropose:
+                                             assert(s == BuyerState::WAITING_FOR_PROPOSE);
+                                             std::cerr << _id << " received propose from " << conversation.dest() << std::endl;
+                                             processPropose(incoming.propose(), conversation);
+                                             break;
+                                           case fetch::oef::pb::Explorer_Seller::kTransaction:
+                                             assert(s == BuyerState::WAITING_FOR_TRANSACTION);
+                                             std::cerr << _id << " received transaction from " << conversation.dest() << std::endl;
+                                             processTransaction(incoming.transaction(), conversation);
+                                             break;
+                                           case fetch::oef::pb::Explorer_Seller::kResource:
+                                             assert(s == BuyerState::WAITING_FOR_RESOURCES);
+                                             std::cerr << _id << " received resources from " << conversation.dest() << std::endl;
+                                             processResources(incoming.resource(), conversation);
+                                             break;
+                                           default:
+                                             std::cerr << "Error processClients " << to_string(s) << " msgId " << conversation.msgId() << std::endl;
+                                           }
                                          });
   }
   void processMaze(const fetch::oef::pb::Server_AgentMessage &msg) {

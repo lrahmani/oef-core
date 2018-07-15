@@ -92,7 +92,6 @@ message Explorer {
         oneof msg {
             Register register = 1;
             Move move = 2;
-            Resource resource = 3;
         }
     }
     message Cfp {
@@ -118,6 +117,7 @@ message Explorer {
         oneof msg {
             Propose propose = 1;
             Transaction transaction = 2;
+            Resource resource = 3;
         }
     }
 }
