@@ -12,6 +12,7 @@
 #include "schema.h"
 #include "clientmsg.h"
 #include <stack>
+#include <set>
 #include "mapbox/variant.hpp"
 
 namespace var = mapbox::util; // for the variant
@@ -66,6 +67,7 @@ private:
   uint32_t _steps = 0;
   std::unique_ptr<Query> _mazeQuery;
   std::unique_ptr<Grid<GridState>> _grid;
+  std::set<Position> _proposal;
   Position _current;
   bool _registered = false;
   std::vector<std::string> _sellers;
@@ -265,6 +267,7 @@ private:
     case fetch::oef::pb::Maze_Response_OK:
       _current = newPos(_current, _dir);
       _grid->set(_current, GridState::VISITED_ROOM);
+      (void)_proposal.insert(_current);
       updateGrid(mv.env(), _current);
       sendMove(conversation);
       ++_steps;
@@ -292,9 +295,25 @@ private:
     _grid = std::unique_ptr<Grid<GridState>>(new Grid<GridState>(dim.rows(), dim.cols()));
     _current = std::make_pair<uint32_t, uint32_t>(pos.row(), pos.col());
     _grid->set(_current, GridState::VISITED_ROOM);
+    (void)_proposal.insert(_current);
     updateGrid(reg.env(), _current);
     std::cerr << "Grid:\n" << _grid->to_string() << std::endl;
     sendMove(conversation);
+  }
+  void sendPropose(fetch::oef::Conversation<VariantState> &conversation) {
+    fetch::oef::pb::Explorer_Seller outgoing;
+    auto *propose = outgoing.mutable_propose();
+    auto *items = propose->add_objects();
+    auto *cells = items->mutable_unitcells();
+    for(auto &p : _proposal) {
+      auto *cell = cells->add_cells();
+      auto *pos = cell->mutable_pos();
+      pos->set_row(p.first);
+      pos->set_col(p.second);
+      cell->set_price(1);
+    }
+    asyncWriteBuffer(_socket, conversation.envelope(outgoing), 5);
+    std::cerr << _id << " sent propose to " << conversation.dest() << std::endl;
   }
   void processClients(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<VariantState> &conversation) {
     assert(msg.has_content());
@@ -324,8 +343,11 @@ private:
                                       assert(incoming.msg_case() == fetch::oef::pb::Explorer_Buyer::kCfp);
                                       std::cerr << _id << " received cfp from " << msg.content().origin() << std::endl;
                                       // send propose
+                                      sendPropose(conversation);
                                     },[](SellerState s) {
-                                      }, [](BuyerState s) {});
+                                      }, [&msg,&conversation,this](BuyerState s) {
+                                           std::cerr << _id << " received propose from " << conversation.dest() << std::endl;
+                                         });
   }
   void processMaze(const fetch::oef::pb::Server_AgentMessage &msg) {
     if(msg.agents().agents_size() == 0) { // no answer yet, let's try again 
