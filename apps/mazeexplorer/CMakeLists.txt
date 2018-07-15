@@ -13,10 +13,10 @@ set (APP_SRC_PATH  "${APP_MODULE_PATH}/src" )
 include_directories (${LIBRARY_INCLUDE_PATH} ${THIRD_PARTY_INCLUDE_PATH} ${APP_SRC_PATH})
 
 #set sources
-#file (GLOB APP_SOURCE_FILES "${APP_SRC_PATH}/ants.cpp")
+set (APP_SOURCE_FILES "${APP_SRC_PATH}/state.cpp")
 
 #set target executable
-add_executable (${APP_NAME} "${APP_SRC_PATH}/main.cpp")
+add_executable (${APP_NAME} ${APP_SOURCE_FILES} "${APP_SRC_PATH}/main.cpp")
 
 #add the library
 target_link_libraries (${APP_NAME} ${LIB_NAME} ${PROTOBUF_LIBRARIES} proto Threads::Threads)

@@ -4,7 +4,6 @@
 //
 #include <iostream>
 #include "clara.hpp"
-#include "multiclient.h"
 #include <google/protobuf/text_format.h>
 #include <future>
 #include "grid.h"
@@ -13,52 +12,7 @@
 #include "clientmsg.h"
 #include <stack>
 #include <set>
-#include "mapbox/variant.hpp"
-
-namespace var = mapbox::util; // for the variant
-
-using fetch::oef::MultiClient;
-using fetch::oef::Conversation;
-
-enum class OEFState {OEF_WAITING_FOR_MAZE = 1,
-                     OEF_WAITING_FOR_NOTHING,
-                     OEF_WAITING_FOR_REGISTER,
-                     OEF_WAITING_FOR_SELLERS};
-
-enum class ExplorerState {OEF_WAITING_FOR_REGISTER = 1,
-                          MAZE_WAITING_FOR_REGISTER,
-                          OEF_WAITING_FOR_MOVE_DELIVERED,
-                          MAZE_WAITING_FOR_MOVE};
-
-enum class SellerState {OEF_WAITING_FOR_PROPOSE = 1,
-                        WAITING_FOR_AGREEMENT,
-                        OEF_WAITING_FOR_TRANSACTION,
-                        OEF_WAITING_FOR_RESOURCES,
-                        DONE};
-
-enum class BuyerState {OEF_WAITING_FOR_CFP = 1,
-                       WAITING_FOR_PROPOSE,
-                       OEF_WAITING_FOR_ACCEPT,
-                       OEF_WAITING_FOR_REFUSE,
-                       WAITING_FOR_TRANSACTION,
-                       WAITING_FOR_RESOURCES,
-                       DONE};
-                        
-using VariantState = var::variant<OEFState,ExplorerState,SellerState,BuyerState>;
-
-std::string to_string(const VariantState &s) {
-  std::string res;
-  s.match([&res](ExplorerState state) {
-            res = "ExplorerState " + std::to_string(static_cast<int>(state));
-          }, [&res](OEFState state) {
-            res = "OEFState " + std::to_string(static_cast<int>(state));
-          }, [&res](SellerState state) {
-            res = "SellerState " + std::to_string(static_cast<int>(state));
-          }, [&res](BuyerState state) {
-            res = "BuyerState " + std::to_string(static_cast<int>(state));
-             });
-  return res;
-}
+#include "oef.hpp"
 
 enum class GridState : uint8_t { UNKNOWN, WALL, ROOM, VISITED_ROOM };
 
@@ -90,43 +44,7 @@ private:
     } else {
       conv = _conversations[""];
     }
-    conv->getState().match([&conv](ExplorerState s) {
-                             switch(s) {
-                             case ExplorerState::OEF_WAITING_FOR_REGISTER:
-                               assert(conv->msgId() == 0);
-                               conv->setState(ExplorerState::MAZE_WAITING_FOR_REGISTER);
-                               break;
-                             case ExplorerState::OEF_WAITING_FOR_MOVE_DELIVERED:
-                               conv->setState(ExplorerState::MAZE_WAITING_FOR_MOVE);
-                               break;
-                             default:
-                               std::cerr << "Error processOEFStatus ExplorerState " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
-                             }},[&conv](OEFState s) {
-                                  switch(s) {
-                                  case OEFState::OEF_WAITING_FOR_REGISTER:
-                                    std::cerr << "Seller registered\n";
-                                    conv->setState(OEFState::OEF_WAITING_FOR_NOTHING);
-                                    break;
-                                  default:
-                                    std::cerr << "Error processOEFStatus OEFState " << conv->uuid() << " code " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
-                                  }
-                                },[](SellerState s) {
-                                  }, [&conv](BuyerState s) {
-                                       switch(s) {
-                                       case BuyerState::OEF_WAITING_FOR_CFP:
-                                         assert(conv->msgId() == 0);
-                                         conv->setState(BuyerState::WAITING_FOR_PROPOSE);
-                                         break;
-                                       case BuyerState::OEF_WAITING_FOR_ACCEPT:
-                                         conv->setState(BuyerState::WAITING_FOR_TRANSACTION);
-                                         break;
-                                       case BuyerState::OEF_WAITING_FOR_REFUSE:
-                                         conv->setState(BuyerState::DONE);
-                                         break;
-                                       default:
-                                         std::cerr << "Error processOEFStatus BuyerState " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
-                                       }
-                                     });
+    ::processOEFStatus(*conv);
   }
   std::vector<fetch::oef::pb::Explorer_Direction> filterMove(const Position &pos, GridState val) const {
     std::vector<fetch::oef::pb::Explorer_Direction> res;
