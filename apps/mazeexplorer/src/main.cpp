@@ -33,14 +33,16 @@ enum class ExplorerState {OEF_WAITING_FOR_REGISTER = 1,
 enum class SellerState {OEF_WAITING_FOR_PROPOSE = 1,
                         WAITING_FOR_AGREEMENT,
                         OEF_WAITING_FOR_TRANSACTION,
-                        OEF_WAITING_FOR_RESOURCES};
+                        OEF_WAITING_FOR_RESOURCES,
+                        DONE};
 
 enum class BuyerState {OEF_WAITING_FOR_CFP = 1,
                        WAITING_FOR_PROPOSE,
                        OEF_WAITING_FOR_ACCEPT,
                        OEF_WAITING_FOR_REFUSE,
                        WAITING_FOR_TRANSACTION,
-                       WAITING_FOR_RESOURCES};
+                       WAITING_FOR_RESOURCES,
+                       DONE};
                         
 using VariantState = var::variant<OEFState,ExplorerState,SellerState,BuyerState>;
 
@@ -106,7 +108,7 @@ private:
                                     conv->setState(OEFState::OEF_WAITING_FOR_NOTHING);
                                     break;
                                   default:
-                                    std::cerr << "Error processOEFStatus OEFState " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
+                                    std::cerr << "Error processOEFStatus OEFState " << conv->uuid() << " code " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
                                   }
                                 },[](SellerState s) {
                                   }, [&conv](BuyerState s) {
@@ -114,6 +116,12 @@ private:
                                        case BuyerState::OEF_WAITING_FOR_CFP:
                                          assert(conv->msgId() == 0);
                                          conv->setState(BuyerState::WAITING_FOR_PROPOSE);
+                                         break;
+                                       case BuyerState::OEF_WAITING_FOR_ACCEPT:
+                                         conv->setState(BuyerState::WAITING_FOR_TRANSACTION);
+                                         break;
+                                       case BuyerState::OEF_WAITING_FOR_REFUSE:
+                                         conv->setState(BuyerState::DONE);
                                          break;
                                        default:
                                          std::cerr << "Error processOEFStatus BuyerState " << static_cast<int>(s) << " msgId " << conv->msgId() << std::endl;
@@ -316,10 +324,51 @@ private:
   void processPropose(const fetch::oef::pb::Explorer_Propose &propose, fetch::oef::Conversation<VariantState> &conversation) {
     _proposalsReceived.emplace_back(propose);
     if(_proposalsReceived.size() == _sellers.size()) {
-      // process all proposals
+      uint64_t spent = 0;
+      std::set<Position> accepted;
+      for(auto &proposal : _proposalsReceived) {
+        std::vector<Position> currentAccepted;
+        for(auto &items : proposal.objects()) {
+          assert(items.has_unitcells());
+          auto &cells = items.unitcells();
+          for(auto &cell : cells.cells()) {
+            Position pos = std::make_pair(cell.pos().row(), cell.pos().col());
+            if(spent < _account && accepted.find(pos) == accepted.end() && _grid->get(pos) == GridState::UNKNOWN) {
+              currentAccepted.push_back(pos);
+              spent += cell.price();
+              accepted.insert(pos);
+            }
+          }
+        }
+        fetch::oef::pb::Explorer_Buyer outgoing;
+        if(currentAccepted.size() > 0) {
+          // accept
+          auto *accept = outgoing.mutable_accept();
+          auto *items = accept->add_objects();
+          auto *cells = items->mutable_unitcells();
+          for(auto &p : currentAccepted) {
+            auto *cell = cells->add_cells();
+            auto *pos = cell->mutable_pos();
+            pos->set_row(p.first);
+            pos->set_col(p.second);
+            cell->set_price(1);
+          }
+          std::cerr << _id << " send agreement accept " << currentAccepted.size() << " to " << conversation.dest() << std::endl;
+          conversation.setState(BuyerState::OEF_WAITING_FOR_ACCEPT);
+        } else {
+          // refuse
+          (void)outgoing.mutable_refuse();
+          conversation.setState(BuyerState::OEF_WAITING_FOR_REFUSE);
+          std::cerr << _id << " send agreement refuse to " << conversation.dest() << std::endl;
+          conversation.setState(BuyerState::OEF_WAITING_FOR_REFUSE);
+        }
+        asyncWriteBuffer(_socket, conversation.envelope(outgoing),5);
+      }
+      // processed all proposals
     }
   }
   void processTransaction(const fetch::oef::pb::Transaction &transaction, fetch::oef::Conversation<VariantState> &conversation) {
+    _sellers.clear();
   }
   void processResources(const fetch::oef::pb::Explorer_Resource &resource, fetch::oef::Conversation<VariantState> &conversation) {
   }
@@ -352,7 +401,20 @@ private:
                                       std::cerr << _id << " received cfp from " << msg.content().origin() << std::endl;
                                       // send propose
                                       sendPropose(conversation);
-                                    },[](SellerState s) {
+                                    },[&msg,&conversation,this](SellerState s) {
+                                        fetch::oef::pb::Explorer_Buyer incoming;
+                                        incoming.ParseFromString(msg.content().content());
+                                        switch(incoming.msg_case()) {
+                                        case fetch::oef::pb::Explorer_Buyer::kAccept:
+                                          // todo
+                                          break;
+                                        case fetch::oef::pb::Explorer_Buyer::kRefuse:
+                                          conversation.setState(SellerState::DONE);
+                                          std::cerr << _id << " received agreement refuse from " << conversation.dest() << std::endl;
+                                          break;
+                                        default:
+                                          std::cerr << "Error processClients " << to_string(s) << " msgId " << conversation.msgId() << std::endl;
+                                        }
                                       }, [&msg,&conversation,this](BuyerState s) {
                                            fetch::oef::pb::Explorer_Seller incoming;
                                            incoming.ParseFromString(msg.content().content());
