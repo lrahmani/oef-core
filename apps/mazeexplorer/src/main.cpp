@@ -286,19 +286,59 @@ private:
     }
   }
   void processTransaction(const fetch::oef::pb::Transaction &transaction, fetch::oef::Conversation<VariantState> &conversation) {
+    uint64_t amount = transaction.amount();
+    assert(amount <= _account);
+    _account -= amount;
+    conversation.setState(BuyerState::WAITING_FOR_RESOURCES);
     _sellers.clear();
   }
   void processResources(const fetch::oef::pb::Explorer_Resource &resource, fetch::oef::Conversation<VariantState> &conversation) {
   }
+  fetch::oef::pb::Maze_Cell cellStatus(uint32_t row, uint32_t col) const {
+    if(row >= _grid->rows() || col >= _grid->cols()) 
+      return fetch::oef::pb::Maze_Cell::Maze_Cell_WALL;
+    auto status = _grid->get(row, col);
+    assert(status != GridState::UNKNOWN && status != GridState::ROOM);
+    bool wall = status == GridState::WALL;
+    if(!wall && (row == 0 || col == 0 || row == _grid->rows() - 1 || col == _grid->cols() - 1))
+      return fetch::oef::pb::Maze_Cell::Maze_Cell_EXIT;
+    if(wall)
+      return fetch::oef::pb::Maze_Cell::Maze_Cell_WALL;
+    return fetch::oef::pb::Maze_Cell::Maze_Cell_ROOM;
+  }
+  void processAccept(const fetch::oef::pb::Explorer_Accept &accept, fetch::oef::Conversation<VariantState> &conversation) {
+    fetch::oef::pb::Explorer_Seller outgoingResource;
+    uint64_t price = 0;
+    auto *resources = outgoingResource.mutable_resource();
+    for(auto &object : accept.objects()) {
+      assert(object.has_unitcells());
+      auto &cells = object.unitcells();
+      for(auto &cell : cells.cells()) {
+        price += cell.price();
+        auto *resource = resources->add_cells();
+        auto *pos = resource->mutable_pos();
+        pos->set_row(cell.pos().row());
+        pos->set_col(cell.pos().col());
+        resource->set_cell(cellStatus(cell.pos().row(), cell.pos().col()));
+      }
+    }
+    fetch::oef::pb::Explorer_Seller transaction;
+    auto *t = transaction.mutable_transaction();
+    t->set_amount(price);
+    conversation.setState(SellerState::OEF_WAITING_FOR_TRANSACTION);
+    asyncWriteBuffer(_socket, conversation.envelope(transaction), 5);
+    // should wait for transaction to complete, but too complicated for now.
+    asyncWriteBuffer(_socket, conversation.envelope(outgoingResource), 5);
+  }
   void processClients(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<VariantState> &conversation) {
     assert(msg.has_content());
     assert(msg.content().has_origin());
-    conversation.getState().match([&msg, &conversation, this](ExplorerState state) {
+    conversation.getState().match(
+                                  [&msg, &conversation, this](ExplorerState state) {
                                     fetch::oef::pb::Maze_Message incoming;
                                     incoming.ParseFromString(msg.content().content());
                                     std::cerr << "Message from " << msg.content().origin() << " == " << conversation.dest() << std::endl;
-                                    auto maze_case = incoming.msg_case();
-                                    switch(maze_case) {
+                                    switch(incoming.msg_case()) {
                                     case fetch::oef::pb::Maze_Message::kRegistered:
                                       assert(state == ExplorerState::MAZE_WAITING_FOR_REGISTER);
                                       processRegistered(incoming.registered(), conversation);
@@ -310,52 +350,55 @@ private:
                                     default:
                                       std::cerr << "Error processClients " << static_cast<int>(state) << " msgId " << conversation.msgId() << std::endl;
                                     }
-                                  },[&msg,&conversation,this](OEFState s) {
-                                      // a buyer called with a cfp.
-                                      conversation.setState(SellerState::OEF_WAITING_FOR_PROPOSE);
-                                      fetch::oef::pb::Explorer_Buyer incoming;
-                                      incoming.ParseFromString(msg.content().content());
-                                      assert(incoming.msg_case() == fetch::oef::pb::Explorer_Buyer::kCfp);
-                                      std::cerr << _id << " received cfp from " << msg.content().origin() << std::endl;
-                                      // send propose
-                                      sendPropose(conversation);
-                                    },[&msg,&conversation,this](SellerState s) {
-                                        fetch::oef::pb::Explorer_Buyer incoming;
-                                        incoming.ParseFromString(msg.content().content());
-                                        switch(incoming.msg_case()) {
-                                        case fetch::oef::pb::Explorer_Buyer::kAccept:
-                                          // todo
-                                          break;
-                                        case fetch::oef::pb::Explorer_Buyer::kRefuse:
-                                          conversation.setState(SellerState::DONE);
-                                          std::cerr << _id << " received agreement refuse from " << conversation.dest() << std::endl;
-                                          break;
-                                        default:
-                                          std::cerr << "Error processClients " << to_string(s) << " msgId " << conversation.msgId() << std::endl;
-                                        }
-                                      }, [&msg,&conversation,this](BuyerState s) {
-                                           fetch::oef::pb::Explorer_Seller incoming;
-                                           incoming.ParseFromString(msg.content().content());
-                                           switch(incoming.msg_case()) {
-                                           case fetch::oef::pb::Explorer_Seller::kPropose:
-                                             assert(s == BuyerState::WAITING_FOR_PROPOSE);
-                                             std::cerr << _id << " received propose from " << conversation.dest() << std::endl;
-                                             processPropose(incoming.propose(), conversation);
-                                             break;
-                                           case fetch::oef::pb::Explorer_Seller::kTransaction:
-                                             assert(s == BuyerState::WAITING_FOR_TRANSACTION);
-                                             std::cerr << _id << " received transaction from " << conversation.dest() << std::endl;
-                                             processTransaction(incoming.transaction(), conversation);
-                                             break;
-                                           case fetch::oef::pb::Explorer_Seller::kResource:
-                                             assert(s == BuyerState::WAITING_FOR_RESOURCES);
-                                             std::cerr << _id << " received resources from " << conversation.dest() << std::endl;
-                                             processResources(incoming.resource(), conversation);
-                                             break;
-                                           default:
-                                             std::cerr << "Error processClients " << to_string(s) << " msgId " << conversation.msgId() << std::endl;
-                                           }
-                                         });
+                                  },
+                                  [&msg,&conversation,this](OEFState s) {
+                                    // a buyer called with a cfp.
+                                    conversation.setState(SellerState::OEF_WAITING_FOR_PROPOSE);
+                                    fetch::oef::pb::Explorer_Buyer incoming;
+                                    incoming.ParseFromString(msg.content().content());
+                                    assert(incoming.msg_case() == fetch::oef::pb::Explorer_Buyer::kCfp);
+                                    std::cerr << _id << " received cfp from " << msg.content().origin() << std::endl;
+                                    sendPropose(conversation);
+                                  },
+                                  [&msg,&conversation,this](SellerState s) {
+                                    fetch::oef::pb::Explorer_Buyer incoming;
+                                    incoming.ParseFromString(msg.content().content());
+                                    switch(incoming.msg_case()) {
+                                    case fetch::oef::pb::Explorer_Buyer::kAccept:
+                                      std::cerr << _id << " received agreement accept from " << conversation.dest() << std::endl;
+                                      processAccept(incoming.accept(), conversation);
+                                      break;
+                                    case fetch::oef::pb::Explorer_Buyer::kRefuse:
+                                      conversation.setState(SellerState::DONE);
+                                      std::cerr << _id << " received agreement refuse from " << conversation.dest() << std::endl;
+                                      break;
+                                    default:
+                                      std::cerr << "Error processClients " << to_string(s) << " msgId " << conversation.msgId() << std::endl;
+                                    }
+                                  },
+                                  [&msg,&conversation,this](BuyerState s) {
+                                    fetch::oef::pb::Explorer_Seller incoming;
+                                    incoming.ParseFromString(msg.content().content());
+                                    switch(incoming.msg_case()) {
+                                    case fetch::oef::pb::Explorer_Seller::kPropose:
+                                      assert(s == BuyerState::WAITING_FOR_PROPOSE);
+                                      std::cerr << _id << " received propose from " << conversation.dest() << std::endl;
+                                      processPropose(incoming.propose(), conversation);
+                                      break;
+                                    case fetch::oef::pb::Explorer_Seller::kTransaction:
+                                      assert(s == BuyerState::WAITING_FOR_TRANSACTION);
+                                      std::cerr << _id << " received transaction from " << conversation.dest() << std::endl;
+                                      processTransaction(incoming.transaction(), conversation);
+                                      break;
+                                    case fetch::oef::pb::Explorer_Seller::kResource:
+                                      assert(s == BuyerState::WAITING_FOR_RESOURCES);
+                                      std::cerr << _id << " received resources from " << conversation.dest() << std::endl;
+                                      processResources(incoming.resource(), conversation);
+                                      break;
+                                    default:
+                                      std::cerr << "Error processClients " << to_string(s) << " msgId " << conversation.msgId() << std::endl;
+                                    }
+                                  });
   }
   void processMaze(const fetch::oef::pb::Server_AgentMessage &msg) {
     if(msg.agents().agents_size() == 0) { // no answer yet, let's try again 
