@@ -133,6 +133,7 @@ private:
     if(current != GridState::VISITED_ROOM) {
       assert(current == GridState::UNKNOWN || current == gridCell);
       _grid->set(newPos, gridCell);
+      _proposal.insert(newPos);
     } else {
       assert(gridCell == GridState::ROOM);
     }
@@ -187,6 +188,7 @@ private:
       {
         Position pos = newPos(_current, _dir);
         _grid->set(pos, GridState::WALL);
+        _proposal.insert(pos);
         sendMove(conversation);
       }
       break;
