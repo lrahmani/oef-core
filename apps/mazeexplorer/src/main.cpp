@@ -149,7 +149,7 @@ private:
     static Attribute mazeName{"maze_name", Type::String, true};
     static std::vector<Attribute> attributes{mazeName};
     static DataModel seller{"maze_seller", attributes, "Just a maze demo."};
-    if(_proposal.size() == 10 && !_registered) {
+    if(_proposal.size() >= 10 && !_registered) {
       _registered = true;
       std::unordered_map<std::string,std::string> props{{"maze_name", _maze}};
       Instance instance{seller, props};
@@ -348,6 +348,7 @@ private:
     fetch::oef::pb::Explorer_Seller transaction;
     auto *t = transaction.mutable_transaction();
     t->set_amount(price);
+    _account += price;
     conversation.setState(SellerState::OEF_WAITING_FOR_TRANSACTION);
     asyncWriteBuffer(_socket, conversation.envelope(transaction), 5);
     // should wait for transaction to complete, but too complicated for now.
