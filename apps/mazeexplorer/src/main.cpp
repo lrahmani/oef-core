@@ -210,7 +210,7 @@ private:
     }
     registerSeller();
     searchSeller();
-    std::cerr << "Moved\n" << _grid->to_string() << std::endl;
+    std::cerr << _id << " Moved\n" << _grid->to_string() << std::endl;
   }
   void processRegistered(const fetch::oef::pb::Maze_Registered &reg, Conversation<VariantState> &conversation) {
     std::string output;
@@ -294,13 +294,34 @@ private:
     conversation.setState(BuyerState::WAITING_FOR_RESOURCES);
     _sellers.clear();
   }
+  GridState cellToState(const fetch::oef::pb::Maze_Cell &c) const {
+    GridState answer = GridState::UNKNOWN;
+    switch(c) {
+    case fetch::oef::pb::Maze_Cell::Maze_Cell_WALL:
+      answer = GridState::WALL;
+      break;
+    case fetch::oef::pb::Maze_Cell::Maze_Cell_ROOM:
+    case fetch::oef::pb::Maze_Cell::Maze_Cell_EXIT:
+      answer = GridState::VISITED_ROOM;
+      break;
+    }
+    return answer;
+  }
   void processResources(const fetch::oef::pb::Explorer_Resource &resource, fetch::oef::Conversation<VariantState> &conversation) {
+    std::cerr << _id << " processing " << resource.cells_size() << " resources from " << conversation.dest() << std::endl;
+    for(auto &r : resource.cells()) {
+      Position pos = std::make_pair(r.pos().row(), r.pos().col());
+      std::cerr << _id << " bought " << pos.first << ":" << pos.second << std::endl;
+      _grid->set(pos, cellToState(r.cell()));
+      _proposal.insert(pos);
+    }
+    conversation.setState(BuyerState::DONE);
   }
   fetch::oef::pb::Maze_Cell cellStatus(uint32_t row, uint32_t col) const {
     if(row >= _grid->rows() || col >= _grid->cols()) 
       return fetch::oef::pb::Maze_Cell::Maze_Cell_WALL;
     auto status = _grid->get(row, col);
-    assert(status != GridState::UNKNOWN && status != GridState::ROOM);
+    assert(status != GridState::UNKNOWN);
     bool wall = status == GridState::WALL;
     if(!wall && (row == 0 || col == 0 || row == _grid->rows() - 1 || col == _grid->cols() - 1))
       return fetch::oef::pb::Maze_Cell::Maze_Cell_EXIT;
@@ -449,7 +470,7 @@ private:
                                       break;
                                     case OEFState::OEF_WAITING_FOR_NOTHING:
                                     case OEFState::OEF_WAITING_FOR_REGISTER:
-                                      std::cerr << "Error processAgents " << to_string(s) << std::endl;
+                                      std::cerr << "Error processAgents " << to_string(s) << " id " << _id << " from " << conversation.dest() << std::endl;
                                       assert(false);
                                     }
                                   }, [](ExplorerState s) {
