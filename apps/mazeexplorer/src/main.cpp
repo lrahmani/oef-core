@@ -27,7 +27,7 @@ private:
   Position _current;
   bool _registered = false;
   std::vector<std::string> _sellers;
-  std::vector<fetch::oef::pb::Explorer_Propose> _proposalsReceived;
+  std::vector<std::pair<std::string,fetch::oef::pb::Explorer_Propose>> _proposalsReceived;
   fetch::oef::pb::Explorer_Direction _dir;
   std::string _maze;
   std::random_device _rd;
@@ -302,11 +302,13 @@ private:
     std::cerr << _id << " sent propose to " << conversation.dest() << std::endl;
   }
   void processPropose(const fetch::oef::pb::Explorer_Propose &propose, fetch::oef::Conversation<VariantState> &conversation) {
-    _proposalsReceived.emplace_back(propose);
+    _proposalsReceived.emplace_back(std::make_pair(conversation.uuid(),propose));
     if(_proposalsReceived.size() == _sellers.size()) {
       uint64_t spent = 0;
       std::set<Position> accepted;
-      for(auto &proposal : _proposalsReceived) {
+      for(auto &p : _proposalsReceived) {
+        auto propConversation = _conversations[p.first];
+        auto &proposal = p.second;
         std::vector<Position> currentAccepted;
         for(auto &items : proposal.objects()) {
           assert(items.has_unitcells());
@@ -333,18 +335,18 @@ private:
             pos->set_col(p.second);
             cell->set_price(1);
           }
-          std::cerr << _id << " send agreement accept " << currentAccepted.size() << " to " << conversation.dest() << std::endl;
-          conversation.setState(BuyerState::OEF_WAITING_FOR_ACCEPT);
+          std::cerr << _id << " send agreement accept " << currentAccepted.size() << " to " << propConversation->dest() << std::endl;
+          propConversation->setState(BuyerState::OEF_WAITING_FOR_ACCEPT);
         } else {
           // refuse
           (void)outgoing.mutable_refuse();
-          conversation.setState(BuyerState::OEF_WAITING_FOR_REFUSE);
-          std::cerr << _id << " send agreement refuse to " << conversation.dest() << std::endl;
-          conversation.setState(BuyerState::OEF_WAITING_FOR_REFUSE);
+          propConversation->setState(BuyerState::OEF_WAITING_FOR_REFUSE);
+          std::cerr << _id << " send agreement refuse to " << propConversation->dest() << std::endl;
+          propConversation->setState(BuyerState::OEF_WAITING_FOR_REFUSE);
           // ugly hack
           _sellers.pop_back();
         }
-        asyncWriteBuffer(_socket, conversation.envelope(outgoing),5);
+        asyncWriteBuffer(_socket, propConversation->envelope(outgoing),5);
       }
       // processed all proposals
       _proposalsReceived.clear();
