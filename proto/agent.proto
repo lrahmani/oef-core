@@ -40,7 +40,7 @@ message Server {
         message Content {
             required string cid = 1;
             required string origin = 2;
-            required string content = 3;
+            required bytes content = 3;
         }
         message Status {
             optional string cid = 1;

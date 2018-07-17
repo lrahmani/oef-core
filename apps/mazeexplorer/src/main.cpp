@@ -11,6 +11,7 @@
 #include "schema.h"
 #include "clientmsg.h"
 #include <stack>
+#include <queue>
 #include <set>
 #include "oef.hpp"
 
@@ -31,7 +32,7 @@ private:
   std::string _maze;
   std::random_device _rd;
   std::mt19937 _gen;
-  std::stack<fetch::oef::pb::Explorer_Direction> _path;
+  std::stack<fetch::oef::pb::Explorer_Direction> _searchPath;
 
   void processOEFStatus(const fetch::oef::pb::Server_AgentMessage &msg) {
     // it is getting complicated with sellers and buyers, then oef messages for maze and trades are mixed.
@@ -46,21 +47,24 @@ private:
     }
     ::processOEFStatus(*conv);
   }
-  std::vector<fetch::oef::pb::Explorer_Direction> filterMove(const Position &pos, GridState val) const {
+  std::vector<fetch::oef::pb::Explorer_Direction> filterNeighbours(const Position &pos, std::function<bool(GridState)> pred) const {
     std::vector<fetch::oef::pb::Explorer_Direction> res;
-    if((pos.first > 0) && (_grid->get(pos.first - 1, pos.second) == val)) {
+    if((pos.first > 0) && pred(_grid->get(pos.first - 1, pos.second))) {
       res.push_back(fetch::oef::pb::Explorer_Direction_N);
     }
-    if((pos.first < (_grid->rows() - 1)) && (_grid->get(pos.first + 1, pos.second) == val)) {
+    if((pos.first < (_grid->rows() - 1)) && pred(_grid->get(pos.first + 1, pos.second))) {
       res.push_back(fetch::oef::pb::Explorer_Direction_S);
     }
-    if((pos.second > 0) && (_grid->get(pos.first, pos.second - 1) == val)) {
+    if((pos.second > 0) && pred(_grid->get(pos.first, pos.second - 1))) {
       res.push_back(fetch::oef::pb::Explorer_Direction_W);
     }
-    if((pos.second < (_grid->cols() - 1)) && (_grid->get(pos.first, pos.second + 1) == val)) {
+    if((pos.second < (_grid->cols() - 1)) && pred(_grid->get(pos.first, pos.second + 1))) {
       res.push_back(fetch::oef::pb::Explorer_Direction_E);
     }
     return res;
+  }
+  std::vector<fetch::oef::pb::Explorer_Direction> filterMove(const Position &pos, GridState val) const {
+    return filterNeighbours(pos, [val](GridState s) { return s == val; });
   }
   fetch::oef::pb::Explorer_Direction choose(const std::vector<fetch::oef::pb::Explorer_Direction> &vals) {
     if(vals.size() == 1)
@@ -77,10 +81,7 @@ private:
       return choose(rooms);
     return choose(filterMove(_current, GridState::VISITED_ROOM));
   }
-  fetch::oef::pb::Explorer_Direction backtrack() {
-    assert(!_path.empty());
-    auto dir = _path.top();
-    _path.pop();
+  fetch::oef::pb::Explorer_Direction revert(fetch::oef::pb::Explorer_Direction dir) const {
     switch(dir) {
     case fetch::oef::pb::Explorer_Direction_N:
       return fetch::oef::pb::Explorer_Direction_S;
@@ -92,12 +93,68 @@ private:
       return fetch::oef::pb::Explorer_Direction_W;
     }
   }
+  fetch::oef::pb::Explorer_Direction bfs() {
+    assert(_searchPath.empty());
+    std::queue<Position> q; // for bfs
+    std::set<Position> visited;
+    q.push(_current);
+    std::map<Position,std::pair<Position,fetch::oef::pb::Explorer_Direction>> parents;
+    bool found = false;
+    while(!found && !q.empty()) {
+      auto current = q.front();
+      q.pop();
+      if(visited.find(current) == visited.end()) {
+        visited.insert(current);
+        auto neighboursDir = filterNeighbours(current,
+                                              [](GridState s) {
+                                                return s == GridState::ROOM
+                                                  || s == GridState::VISITED_ROOM
+                                                  || s == GridState::UNKNOWN; });
+        for(auto dir : neighboursDir) {
+          if(!found) {
+            Position pos = newPos(current, dir);
+            if(visited.find(pos) == visited.end()) {
+              auto s = _grid->get(pos);
+              if(s == GridState::ROOM || s == GridState::UNKNOWN) {
+                found = true;
+                _searchPath.push(dir);
+                std::map<Position,std::pair<Position,fetch::oef::pb::Explorer_Direction>>::const_iterator iter;
+                std::cerr << _id << " found path " << pos.first << ":" << pos.second << " dir "
+                          << fetch::oef::pb::Explorer_Direction_Name(dir) << " -> ";
+                pos = current;
+                while(parents.end() != (iter = parents.find(pos))) {
+                  Position parent = iter->second.first;
+                  auto newdir = iter->second.second;
+                  std::cerr << parent.first << ":" << parent.second << " dir "
+                            << fetch::oef::pb::Explorer_Direction_Name(newdir) << " -> ";
+                  _searchPath.push(newdir);
+                  pos = parent;
+                }
+                std::cerr << " current " << _current.first << ":" << _current.second << "\n";
+              } else {
+                std::cerr << _id << " queueing " << pos.first << ":" << pos.second << " dir "
+                          << fetch::oef::pb::Explorer_Direction_Name(dir) << " child " << current.first << ":" << current.second
+                          << std::endl; 
+                q.push(pos);
+                parents[pos] = std::make_pair(current, dir);
+              }
+            }
+          }
+        }
+      }
+    }
+    assert(_searchPath.size() > 0);
+    auto res = _searchPath.top();
+    _searchPath.pop();
+    return res;
+  }
   fetch::oef::pb::Explorer_Direction generateMove() {
-    auto rooms = filterMove(_current, GridState::ROOM);
-    if(rooms.size() == 0)
-      return backtrack();
-    _path.push(rooms.front());
-    return rooms.front();
+    if(_searchPath.size() > 0) {
+      auto res = _searchPath.top();
+      _searchPath.pop();
+      return res;
+    }
+    return bfs();
   }
   void sendMove(Conversation<VariantState> &conversation) {
     _dir = generateMove();
@@ -131,7 +188,6 @@ private:
     auto gridCell = cell == fetch::oef::pb::Maze_Cell::Maze_Cell_WALL ? GridState::WALL : GridState::ROOM;
     auto current = _grid->get(newPos);
     if(current != GridState::VISITED_ROOM) {
-      assert(current == GridState::UNKNOWN || current == gridCell);
       _grid->set(newPos, gridCell);
       _proposal.insert(newPos);
     } else {
@@ -145,26 +201,30 @@ private:
     updateGrid(env.west(), pos, 0, -1);
     updateGrid(env.east(), pos, 0, 1);
   }
-  void registerSeller() {
+  bool registerSeller() {
     static Attribute mazeName{"maze_name", Type::String, true};
     static std::vector<Attribute> attributes{mazeName};
     static DataModel seller{"maze_seller", attributes, "Just a maze demo."};
-    if(_proposal.size() >= 10 && !_registered) {
+    auto conv = _conversations[""];
+    if(_proposal.size() >= 10 && !_registered && conv->getState().get<OEFState>() == OEFState::OEF_WAITING_FOR_NOTHING) {
       _registered = true;
       std::unordered_map<std::string,std::string> props{{"maze_name", _maze}};
       Instance instance{seller, props};
       Register reg{instance};
       std::cerr << "Registering seller " << _id << std::endl;
-      auto conv = _conversations[""];
       conv->setState(OEFState::OEF_WAITING_FOR_REGISTER);
       asyncWriteBuffer(_socket, serialize(reg.handle()), 5);
+      return true;
     }
+    return false;
   }
   void searchSeller() {
     static Attribute mazeName{"maze_name", Type::String, true};
     static std::vector<Attribute> attributes{mazeName};
     static DataModel seller{"maze_seller", attributes, "Just a maze demo."};
-    if(_account == 0 || _sellers.size() > 0) // no money or already buying
+    auto conv = _conversations[""];
+    std::cerr << _id << " search sellers " << _account << " " << _sellers.size() << std::endl;
+    if(_account == 0 || _sellers.size() > 0 || conv->getState().get<OEFState>() != OEFState::OEF_WAITING_FOR_NOTHING) // no money or already buying
       return;
 
     ConstraintType eqMaze{Relation{Relation::Op::Eq, _maze}};
@@ -172,8 +232,8 @@ private:
     QueryModel ql{{mazeName_c}, seller};
     Query query{ql};
     
-    auto conv = _conversations[""];
     conv->setState(OEFState::OEF_WAITING_FOR_SELLERS);
+    std::cerr << _id << " waiting for sellers\n";
     asyncWriteBuffer(_socket, serialize(query.handle()), 5);
   }
   void processMoved(const fetch::oef::pb::Maze_Moved &mv, Conversation<VariantState> &conversation) {
@@ -210,7 +270,7 @@ private:
     }
     registerSeller();
     searchSeller();
-    std::cerr << _id << " Moved\n" << _grid->to_string() << std::endl;
+    std::cerr << _id << " account " << _account << " Moved\n" << _grid->to_string() << std::endl;
   }
   void processRegistered(const fetch::oef::pb::Maze_Registered &reg, Conversation<VariantState> &conversation) {
     std::string output;
@@ -281,10 +341,13 @@ private:
           conversation.setState(BuyerState::OEF_WAITING_FOR_REFUSE);
           std::cerr << _id << " send agreement refuse to " << conversation.dest() << std::endl;
           conversation.setState(BuyerState::OEF_WAITING_FOR_REFUSE);
+          // ugly hack
+          _sellers.pop_back();
         }
         asyncWriteBuffer(_socket, conversation.envelope(outgoing),5);
       }
       // processed all proposals
+      _proposalsReceived.clear();
     }
   }
   void processTransaction(const fetch::oef::pb::Transaction &transaction, fetch::oef::Conversation<VariantState> &conversation) {
@@ -293,6 +356,7 @@ private:
     _account -= amount;
     conversation.setState(BuyerState::WAITING_FOR_RESOURCES);
     _sellers.clear();
+    assert(_sellers.size() == 0);
   }
   GridState cellToState(const fetch::oef::pb::Maze_Cell &c) const {
     GridState answer = GridState::UNKNOWN;
@@ -312,7 +376,10 @@ private:
     for(auto &r : resource.cells()) {
       Position pos = std::make_pair(r.pos().row(), r.pos().col());
       std::cerr << _id << " bought " << pos.first << ":" << pos.second << std::endl;
-      _grid->set(pos, cellToState(r.cell()));
+      if(pos.first == 0 || pos.first == _grid->rows() - 1 || pos.second == 0 || pos.second == _grid->cols() - 1)
+        _grid->set(pos, GridState::ROOM);
+      else
+        _grid->set(pos, cellToState(r.cell()));
       _proposal.insert(pos);
     }
     conversation.setState(BuyerState::DONE);
@@ -462,14 +529,16 @@ private:
                                     case OEFState::OEF_WAITING_FOR_MAZE:
                                       assert(_maze == "");
                                       processMaze(msg);
+                                      std::cerr << _id << " received maze\n";
                                       conversation.setState(OEFState::OEF_WAITING_FOR_NOTHING);
                                       break;
                                     case OEFState::OEF_WAITING_FOR_SELLERS:
                                       assert(_sellers.size() == 0);
                                       processSellers(msg);
+                                      std::cerr << _id << " received sellers\n";
                                       conversation.setState(OEFState::OEF_WAITING_FOR_NOTHING);
                                       break;
-                                    case OEFState::OEF_WAITING_FOR_NOTHING:
+                                    case OEFState::OEF_WAITING_FOR_NOTHING: 
                                     case OEFState::OEF_WAITING_FOR_REGISTER:
                                       std::cerr << "Error processAgents " << to_string(s) << " id " << _id << " from " << conversation.dest() << std::endl;
                                       assert(false);
