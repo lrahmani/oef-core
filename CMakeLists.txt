@@ -22,19 +22,8 @@ add_subdirectory(proto)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/proto)
 add_subdirectory(lib)
 include_directories(lib/include)
-set(SRC_FILES src/main.cpp)
 
 message("PROTOBUF = ${PROTOBUF_LIBRARIES}")
-add_executable(test_proto ${SRC_FILES})
-target_link_libraries(test_proto proto ${PROTOBUF_LIBRARIES} oefLib Threads::Threads)
-
-set(SRC_SERVER src/server.cpp)
-add_executable(test_server ${SRC_SERVER})
-target_link_libraries(test_server oefLib ${PROTOBUF_LIBRARIES} proto Threads::Threads)
-
-set(SRC_CLIENT src/client.cpp)
-add_executable(test_client ${SRC_CLIENT})
-target_link_libraries(test_client oefLib ${PROTOBUF_LIBRARIES} proto Threads::Threads)
 
 add_subdirectory(apps)
 
