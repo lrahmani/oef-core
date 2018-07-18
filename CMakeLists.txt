@@ -15,14 +15,14 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -DASIO_STANDALONE")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -DASIO_STANDALONE -fsanitize=undefined")
 
 find_package(Threads REQUIRED)
+include(GNUInstallDirs)
 
 add_subdirectory(3rd EXCLUDE_FROM_ALL)
 include_directories(${THIRD_PARTY_INCLUDE_PATH})
-add_subdirectory(proto)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/proto)
+#add_subdirectory(proto)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/lib/)
 add_subdirectory(lib)
 include_directories(lib/include)
-include(GNUInstallDirs)
 
 message("PROTOBUF = ${PROTOBUF_LIBRARIES}")
 

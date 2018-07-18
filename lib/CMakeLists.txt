@@ -1,4 +1,8 @@
 # Distributed under the MIT License (See accompanying file /LICENSE )
+find_package(Protobuf REQUIRED)
+
+PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER proto/query.proto proto/fipa.proto proto/agent.proto proto/maze.proto)
+set (PROTOBUF_LIBRARIES  ${PROTOBUF_LIBRARIES} PARENT_SCOPE)
 
 # CMake build : library
 
@@ -14,12 +18,13 @@ set (LIBRARY_INCLUDE_PATH  "${LIBRARY_MODULE_PATH}/include")
 #set includes
 include_directories (${LIBRARY_INCLUDE_PATH} ${THIRD_PARTY_INCLUDE_PATH} ${PROTOBUF_INCLUDE_DIRS})
 
+
 #set sources
 file (GLOB LIB_HEADER_FILES "${LIBRARY_INCLUDE_PATH}/*.h")
 file (GLOB LIB_SOURCE_FILES "${LIBRARY_SRC_PATH}/*.cpp")
 
 #set library
-add_library (${LIB_NAME} STATIC ${LIB_SOURCE_FILES} ${LIB_HEADER_FILES})
+add_library (${LIB_NAME} STATIC ${PROTO_HEADER} ${PROTO_SRC} ${LIB_SOURCE_FILES} ${LIB_HEADER_FILES})
 
 target_include_directories(${LIB_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -31,15 +36,18 @@ set (LIBRARY_INCLUDE_PATH  ${LIBRARY_INCLUDE_PATH} PARENT_SCOPE)
 set (LIB_NAME ${LIB_NAME} PARENT_SCOPE)
 
 install(TARGETS ${LIB_NAME} EXPORT ${LIB_CONFIG}
-    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT library
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT library
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT library
 )
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LIB_NAME})
 install(EXPORT ${LIB_CONFIG} DESTINATION share/${LIB_NAME}/cmake)
 
 # this makes the project importable from the build directory.
 export(TARGETS ${LIB_NAME} FILE "${LIB_CONFIG}.cmake")
+
+message("PROTOBUF = ${PROTOBUF_LIBRARIES}")
+message("PROTOBUF_INC = ${PROTOBUF_INCLUDE_DIR}")
 
 #test
 enable_testing ()

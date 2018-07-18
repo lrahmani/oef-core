@@ -19,7 +19,7 @@ include_directories (${LIBRARY_INCLUDE_PATH} ${THIRD_PARTY_INCLUDE_PATH} ${APP_S
 add_executable (${APP_NAME} "${APP_SRC_PATH}/main.cpp")
 
 #add the library
-target_link_libraries (${APP_NAME} ${LIB_NAME} ${PROTOBUF_LIBRARIES} proto Threads::Threads)
+target_link_libraries (${APP_NAME} ${LIB_NAME} ${PROTOBUF_LIBRARIES} Threads::Threads)
 
 #test
 #test
