@@ -1,7 +1,7 @@
 # Distributed under the MIT License (See accompanying file /LICENSE )
 find_package(Protobuf REQUIRED)
 
-PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER proto/query.proto proto/fipa.proto proto/agent.proto proto/maze.proto)
+PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER proto/query.proto proto/fipa.proto proto/agent.proto)
 set (PROTOBUF_LIBRARIES  ${PROTOBUF_LIBRARIES} PARENT_SCOPE)
 
 # CMake build : library
