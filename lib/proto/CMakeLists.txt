@@ -1,5 +1,0 @@
-find_package(Protobuf REQUIRED)
-include_directories(${PROTOBUF_INCLUDE_DIR})
-PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER query.proto fipa.proto agent.proto maze.proto)
-ADD_LIBRARY(proto ${PROTO_HEADER} ${PROTO_SRC})
-set (PROTOBUF_LIBRARIES  ${PROTOBUF_LIBRARIES} PARENT_SCOPE)
