@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 
 set(PROJECT_NAME oef)
-project(${PROJECT_NAME})
+project(${PROJECT_NAME} VERSION 0.5 LANGUAGES CXX)
 add_compile_options(-std=c++1y)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,6 +22,7 @@ add_subdirectory(proto)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/proto)
 add_subdirectory(lib)
 include_directories(lib/include)
+include(GNUInstallDirs)
 
 message("PROTOBUF = ${PROTOBUF_LIBRARIES}")
 
