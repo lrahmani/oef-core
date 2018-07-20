@@ -46,7 +46,7 @@ message("Proto file ${PROTO_HEADER_FILES}")
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LIB_NAME})
 install(DIRECTORY proto DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LIB_NAME})
 install(DIRECTORY ${PROTO_HEADER_FILES} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LIB_NAME})
-install(EXPORT ${LIB_CONFIG} DESTINATION share/${LIB_NAME}/cmake)
+install(EXPORT ${LIB_CONFIG} DESTINATION cmake)
 
 # this makes the project importable from the build directory.
 export(TARGETS ${LIB_NAME} FILE "${LIB_CONFIG}.cmake")
