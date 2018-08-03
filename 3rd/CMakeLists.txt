@@ -37,6 +37,13 @@ set (VARIANT_MODULE_PATH "${THIRD_PARTY_MODULE_PATH}/mapbox")
 set (VARIANT_INCLUDE_PATH "${THIRD_PARTY_MODULE_PATH}/")
 
 # -------------------------------------------------------------------------
+# spdlog
+
+#configure directories
+set (SPDLOG_MODULE_PATH "${THIRD_PARTY_MODULE_PATH}/spdlog")
+set (SPDLOG_INCLUDE_PATH "${THIRD_PARTY_MODULE_PATH}/")
+
+# -------------------------------------------------------------------------
 # clara
 
 #configure directories
@@ -46,7 +53,7 @@ set (CLARA_INCLUDE_PATH "${CLARA_MODULE_PATH}/include")
 # -------------------------------------------------------------------------
 
 #set variables
-set (THIRD_PARTY_INCLUDE_PATH ${VARIANT_INCLUDE_PATH} ${ASIO_INCLUDE_PATH} ${CLARA_INCLUDE_PATH})
+set (THIRD_PARTY_INCLUDE_PATH ${VARIANT_INCLUDE_PATH} ${ASIO_INCLUDE_PATH} ${CLARA_INCLUDE_PATH} ${SPDLOG_INCLUDE_PATH})
 
 #set variables for tests
 set (TEST_THIRD_PARTY_INCLUDE_PATH  ${CATCH_INCLUDE_PATH} ${HAYAI_INCLUDE_PATH})
