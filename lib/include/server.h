@@ -3,6 +3,7 @@
 #include "agent.pb.h"
 #include "common.h"
 #include "sd.h"
+#include "logger.hpp"
 
 namespace fetch {
   namespace oef {
@@ -12,6 +13,9 @@ namespace fetch {
     private:
       mutable std::mutex _lock;
       std::unordered_map<std::string,std::shared_ptr<AgentSession>> _sessions;
+
+      static fetch::oef::Logger logger;
+      
     public:
       AgentDiscovery() = default;
       AgentDiscovery(const AgentDiscovery &) = delete;
@@ -63,7 +67,9 @@ namespace fetch {
       tcp::acceptor _acceptor;
       AgentDiscovery _ad;
       ServiceDirectory _sd;
-      
+
+      static fetch::oef::Logger logger;
+
       void secretHandshake(const std::string &id, const std::shared_ptr<Context> &context);  
       void newSession(tcp::socket socket);
       void do_accept();

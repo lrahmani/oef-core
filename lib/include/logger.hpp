@@ -13,6 +13,24 @@ enum class LogLevel {trace = spdlog::level::level_enum::trace,
                      off = spdlog::level::level_enum::off
 };
 
+
+#ifdef TRACE_ON
+#define STR_H(x) #x
+#define STR_HELPER(x) SPDLOG_STR_H(x)
+#define TRACE(logger, ...) logger.trace("[" __FILE__ " line #" SPDLOG_STR_HELPER(__LINE__) "] " __VA_ARGS__)
+//#define TRACE_IF(logger, flag, ...) logger.trace_if(flag, "[" __FILE__ " line #" SPDLOG_STR_HELPER(__LINE__) "] " __VA_ARGS__)
+#undef STR_H
+#undef STR_HELPER
+#else
+#define TRACE(logger, ...)
+#endif
+#ifdef DEBUG_ON
+#define DEBUG(logger, ...) logger.debug(__VA_ARGS__)
+//#define DEBUG_IF(logger, flag, ...) logger.debug_if(flag, __VA_ARGS__)
+#else
+#define DEBUG(logger, ...)
+#endif
+
 namespace fetch {
   namespace oef {
     class Logger {

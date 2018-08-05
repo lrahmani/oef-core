@@ -3,6 +3,7 @@
 #include "common.h"
 #include "uuid.h"
 #include "agent.pb.h"
+#include "logger.hpp"
 #include <unordered_map>
 #include <mutex>
 #include <condition_variable>
@@ -49,15 +50,17 @@ namespace fetch {
       std::mutex _lock;
       std::condition_variable _condVar;
       
+      static fetch::oef::Logger logger;
+
       T &underlying() { return static_cast<T&>(*this); }
       T const &underlying() const { return static_cast<T const &>(*this); }
       
       void read() {
         asyncReadBuffer(_socket, 1000, [this](std::error_code ec, std::shared_ptr<Buffer> buffer) {
             if(ec) {
-              std::cerr << "MultiClient::read failure " << ec.value() << std::endl;
+              logger.error("MultiClient::read failure {}", ec.value());
             } else {
-              std::cerr << "MultiClient::read " << std::endl;
+              logger.trace("Multiclient::read");
               try {
                 auto msg = deserialize<fetch::oef::pb::Server_AgentMessage>(*buffer);
                 std::string cid = ""; // oef
@@ -72,10 +75,10 @@ namespace fetch {
                 }
                 auto &c = _conversations[cid];
                 c->incrementMsgId();
-                std::cerr << "Read::cid " << c->uuid() << " msgId " << c->msgId() << " dest " << c->dest() << std::endl;
+                logger.trace("Multiclient::read cid {} msgId {} dest {}", c->uuid(), c->msgId(), c->dest());
                 underlying().onMsg(msg, *c);
               } catch(std::exception &e) {
-                std::cerr << "Wrong message sent\n";
+                logger.error("Multiclient::read cannot deserialize AgentMessage");
               }
               read();
             }
@@ -84,32 +87,36 @@ namespace fetch {
       void secretHandshake() {
         fetch::oef::pb::Agent_Server_ID id;
         id.set_id(_id);
-        std::cerr << "MultiClient::secretHandshake\n";
-        asyncWriteBuffer(_socket, serialize(id), 5, [this](std::error_code, std::size_t length){
-            std::cerr << "MultiClient::secretHandshake id sent\n";
-            asyncReadBuffer(_socket, 5, [this](std::error_code ec,std::shared_ptr<Buffer> buffer) {
-                auto p = deserialize<fetch::oef::pb::Server_Phrase>(*buffer);
-                std::string answer_s = p.phrase();
-                std::cerr << "MultiClient received phrase: [" << answer_s << "]\n";
-                // normally should encrypt with private key
-                std::reverse(std::begin(answer_s), std::end(answer_s));
-                std::cerr << "MultiClient sending back phrase: [" << answer_s << "]\n";
-                fetch::oef::pb::Agent_Server_Answer answer;
-                answer.set_answer(answer_s);
-                asyncWriteBuffer(_socket, serialize(answer), 5, [this](std::error_code, std::size_t length){
-                    asyncReadBuffer(_socket, 5, [this](std::error_code ec,std::shared_ptr<Buffer> buffer) {
-                        auto c = deserialize<fetch::oef::pb::Server_Connected>(*buffer);
-                        std::cerr << "MultiClient::secretHandshake received connected " << c.status() << std::endl;
-                        if(c.status()) {
-                          std::unique_lock<std::mutex> lck(_lock);
-                          _connected = true;
-                          _condVar.notify_all();
-                          read();
-                        }
-                      });
-                  });
-              });
-          });
+        logger.trace("MultiCilent::secretHandshake");
+        asyncWriteBuffer(_socket, serialize(id), 5,
+                         [this](std::error_code, std::size_t length){
+                           logger.trace("MultiClient::secretHandshake id sent");
+                           asyncReadBuffer(_socket, 5,
+                                           [this](std::error_code ec,std::shared_ptr<Buffer> buffer) {
+                                             auto p = deserialize<fetch::oef::pb::Server_Phrase>(*buffer);
+                                             std::string answer_s = p.phrase();
+                                             logger.trace("Multiclient::secretHandshake received phrase: [{}]", answer_s);
+                                             // normally should encrypt with private key
+                                             std::reverse(std::begin(answer_s), std::end(answer_s));
+                                             logger.trace("Multiclient::secretHandshake sending back phrase: [{}]", answer_s);
+                                             fetch::oef::pb::Agent_Server_Answer answer;
+                                             answer.set_answer(answer_s);
+                                             asyncWriteBuffer(_socket, serialize(answer), 5,
+                                                              [this](std::error_code, std::size_t length){
+                                                                asyncReadBuffer(_socket, 5,
+                                                                                [this](std::error_code ec,std::shared_ptr<Buffer> buffer) {
+                                                                                  auto c = deserialize<fetch::oef::pb::Server_Connected>(*buffer);
+                                                                                  logger.info("Multiclient::secretHandshake received connected: {}", c.status());
+                                                                                  if(c.status()) {
+                                                                                    std::unique_lock<std::mutex> lck(_lock);
+                                                                                    _connected = true;
+                                                                                    _condVar.notify_all();
+                                                                                    read();
+                                                                                  }
+                                                                                });
+                                                              });
+                                           });
+                         });
         std::unique_lock<std::mutex> lck(_lock);
         while(!_connected) {
           _condVar.wait(lck);
@@ -127,5 +134,7 @@ namespace fetch {
         _socket.close();
       }
     };
+    template <typename State,typename T>
+    fetch::oef::Logger MultiClient<State,T>::logger = fetch::oef::Logger("multiclient");
   }
 }
