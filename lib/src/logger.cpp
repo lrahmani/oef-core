@@ -1,5 +1,6 @@
 #include "logger.hpp"
 #include <spdlog/sinks/dist_sink.h>
+#include <spdlog/sinks/file_sinks.h>
 
 #ifdef _WIN32
 #include <spdlog/sinks/wincolor_sink.h>
@@ -21,7 +22,9 @@ fetch::oef::Logger::Logger(const std::string &section) : _section{section} {
     auto color_sink = std::make_shared<spdlog::sinks::ansicolor_stdout_sink_mt>();
 #endif
     auto dist_sink = std::make_shared<spdlog::sinks::dist_sink_st>();
+    auto rotating_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>("log.txt", 1024*1024*10, 10);
     dist_sink->add_sink(color_sink);
+    dist_sink->add_sink(rotating_sink);
 #if defined(_DEBUG) && defined(_MSC_VER)
     auto debug_sink = std::make_shared<spdlog::sinks::msvc_sink_st>();
     dist_sink->add_sink(debug_sink);
