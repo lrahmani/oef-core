@@ -178,19 +178,19 @@ class Set {
   explicit Set(Op op, const ValueType &values) {
     _set.set_op(static_cast<fetch::oef::pb::Query_Set_Operator>(op));
     fetch::oef::pb::Query_Set_Values *vals = _set.mutable_vals();
-    values.match([vals,this](const std::unordered_set<int> &s) {
+    values.match([vals](const std::unordered_set<int> &s) {
         fetch::oef::pb::Query_Set_Values_Ints *ints = vals->mutable_i();
         for(auto &v : s)
           ints->add_vals(v);
-      },[vals,this](const std::unordered_set<float> &s) {
+      },[vals](const std::unordered_set<float> &s) {
         fetch::oef::pb::Query_Set_Values_Floats *floats = vals->mutable_f();
         for(auto &v : s)
           floats->add_vals(v);
-      },[vals,this](const std::unordered_set<std::string> &s) {
+      },[vals](const std::unordered_set<std::string> &s) {
         fetch::oef::pb::Query_Set_Values_Strings *strings = vals->mutable_s();
         for(auto &v : s)
           strings->add_vals(v);
-      },[vals,this](const std::unordered_set<bool> &s) {
+      },[vals](const std::unordered_set<bool> &s) {
         fetch::oef::pb::Query_Set_Values_Bools *bools = vals->mutable_b();
         for(auto &v : s)
           bools->add_vals(v);

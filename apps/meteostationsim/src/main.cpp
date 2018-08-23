@@ -79,7 +79,7 @@ private:
   }
   void run()
   {
-    process(std::move(_conversations.pop()));
+    process(_conversations.pop());
   }
 };
 

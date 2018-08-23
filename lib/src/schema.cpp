@@ -1,10 +1,10 @@
 #include "schema.h"
 
 
-std::string t_to_string(int i) { return "int"; }
-std::string t_to_string(float f) { return "float"; }
-std::string t_to_string(bool b) { return "bool"; }
-std::string t_to_string(const std::string &s) { return "string"; }
+std::string t_to_string(int) { return "int"; }
+std::string t_to_string(float) { return "float"; }
+std::string t_to_string(bool) { return "bool"; }
+std::string t_to_string(const std::string &) { return "string"; }
 
 VariantType string_to_value(fetch::oef::pb::Query_Attribute_Type t, const std::string &s) {
   switch(t) {
@@ -45,7 +45,6 @@ bool ConstraintType::check(const fetch::oef::pb::Query_Constraint_ConstraintType
   case fetch::oef::pb::Query_Constraint_ConstraintType::kRel:
     return Relation::check(constraint.rel(), v);
   case fetch::oef::pb::Query_Constraint_ConstraintType::CONSTRAINT_NOT_SET:
-  default:
     // should not reach this line
     return false;
   }

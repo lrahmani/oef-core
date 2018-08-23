@@ -111,7 +111,6 @@ namespace fetch {
           content->set_origin(_id);
           content->set_content(msg.content());
           auto buffer = serialize(message);
-          fetch::oef::pb::Server_AgentMessage msg2 = deserialize<fetch::oef::pb::Server_AgentMessage>(*buffer); 
           asyncWriteBuffer(session->_socket, buffer, 5, [this,cid](std::error_code ec, std::size_t length) {
               fetch::oef::pb::Server_AgentMessage answer;
               auto *status = answer.mutable_status();
@@ -145,7 +144,6 @@ namespace fetch {
           processQuery(envelope.query());
           break;
         case fetch::oef::pb::Envelope::PAYLOAD_NOT_SET:
-        default:
           logger.error("AgentSession::process cannot process payload {} from {}", payload_case, _id);
         }
       }
@@ -203,7 +201,7 @@ namespace fetch {
                               asyncWriteBuffer(context->_socket, serialize(status), 10 /* sec ? */);
                             }
                             // should check the secret with the public key i.e. ID.
-                          } catch(std::exception &e) {
+                          } catch(std::exception &) {
                             logger.error("Server::secretHandshake error on Answer id {}", id);
                             fetch::oef::pb::Server_Connected status;
                             status.set_status(false);
@@ -232,7 +230,7 @@ namespace fetch {
                               status.set_status(false);
                               asyncWriteBuffer(context->_socket, serialize(status), 10 /* sec ? */);
                             }
-                          } catch(std::exception &e) {
+                          } catch(std::exception &) {
                             logger.error("Server::newSession error parsing ID");
                             fetch::oef::pb::Server_Connected status;
                             status.set_status(false);

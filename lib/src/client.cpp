@@ -20,7 +20,8 @@
 
 namespace fetch {
   namespace oef {
-    Client::Client(const std::string &id, const char *host, const std::function<void(std::unique_ptr<Conversation>)> &onNew) :
+    Client::Client(const std::string &id, const char *host,
+                   const std::function<void(std::unique_ptr<Conversation>)> &onNew) :
       _id{id},
       _proxy{_id, host, std::to_string(static_cast<int>(Ports::Agents)), onNew}
     {
@@ -51,7 +52,7 @@ namespace fetch {
       try {
         assert(registered->has_status());
         return registered->status().status();
-      } catch(std::exception &e) {
+      } catch(std::exception &) {
         std::cerr << "Agent::register " << _id << " not registered\n";
       }
       return false;
@@ -69,7 +70,7 @@ namespace fetch {
       try {
         assert(registered->has_status());
         return registered->status().status();
-      } catch(std::exception &e) {
+      } catch(std::exception &) {
         std::cerr << "Agent::unregister " << _id << " not unregistered\n";
       }
       return false;
@@ -90,7 +91,7 @@ namespace fetch {
         for(auto &s : agents->agents().agents()) {
           res.emplace_back(s);
         }
-      } catch(std::exception &e) {
+      } catch(std::exception &) {
         std::cerr << "Agent::query " << _id << " not returned\n";
       }
       return res;
@@ -108,7 +109,7 @@ namespace fetch {
       try {
         assert(delivered->has_status());
         return delivered->status().status();
-      } catch(std::exception &e) {
+      } catch(std::exception &) {
         std::cerr << "Agent::delivered from " << _id << " not delivered\n";
       }
       return false;
@@ -129,7 +130,7 @@ namespace fetch {
         for(auto &s : agents->agents().agents()) {
           res.emplace_back(s);
         }
-      } catch(std::exception &e) {
+      } catch(std::exception &) {
         std::cerr << "Agent::search " << _id << " not returned\n";
       }
       return res;
@@ -147,7 +148,7 @@ namespace fetch {
       try {
         assert(registered->has_status());
         return registered->status().status();
-      } catch(std::exception &e) {
+      } catch(std::exception &) {
         std::cerr << "Agent::register " << _id << " not registered\n";
       }
       return false;
