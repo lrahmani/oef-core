@@ -17,6 +17,7 @@ namespace fetch {
       std::string _dest;
       uint32_t _msgId = 0;
       T _state;
+      bool _finished = false;
     public:
     Conversation(const std::string &uuid, const std::string &dest) : _uuid{Uuid{uuid}}, _dest{dest} {}
     Conversation(const std::string &dest) : _uuid{Uuid::uuid4()}, _dest{dest} {}
@@ -24,6 +25,8 @@ namespace fetch {
       std::string uuid() const { return _uuid.to_string(); }
       uint32_t msgId() const { return _msgId; }
       void incrementMsgId() { ++_msgId; }
+      bool finished() const { return _finished; }
+      void setFinished() { _finished = true; }
       const T getState() const { return _state; }
       void setState(const T& t) { _state = t; }
       std::shared_ptr<Buffer> envelope(const std::string &outgoing) {
@@ -77,6 +80,8 @@ namespace fetch {
                 c->incrementMsgId();
                 logger.trace("Multiclient::read cid {} msgId {} dest {}", c->uuid(), c->msgId(), c->dest());
                 underlying().onMsg(msg, *c);
+                if(c->finished())
+                  _conversations.erase(cid);
               } catch(std::exception &e) {
                 logger.error("Multiclient::read cannot deserialize AgentMessage");
               }
