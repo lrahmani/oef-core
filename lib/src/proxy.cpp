@@ -112,7 +112,7 @@ bool Proxy::secretHandshake()
 }
 
 
-bool Conversation::send(const std::string &msg)
+void Conversation::send(const std::string &msg)
 {
   fetch::oef::pb::Envelope env;
   auto *message = env.mutable_message();
@@ -123,15 +123,5 @@ bool Conversation::send(const std::string &msg)
   assert(google::protobuf::TextFormat::PrintToString(env, &output));
   std::cerr << "Conversation::send from " << _uuid.to_string() << " to " << _dest << " msg: " << msg << " [" << output << "]\n";
   _proxy.push(serialize(env));
-  // wait for delivered
-  auto delivered = _proxy.pop("");
-  std::cerr << "Received delivered\n";
-  try {
-    assert(delivered->has_status());
-    return delivered->status().status();
-  } catch(std::exception &e) {
-    std::cerr << "Agent::delivered from " << _uuid.to_string() << " not delivered\n";
-  }
-  return false;
 }
 

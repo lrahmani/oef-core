@@ -13,9 +13,8 @@ using fetch::oef::MultiClient;
 using fetch::oef::Conversation;
 
 enum class MeteoClientState {OEF_WAITING_FOR_CANDIDATES = 1,
-                             OEF_WAITING_FOR_DELIVERED = 2,
-                             CLIENT_WAITING_FOR_PRICE = 3,
-                             CLIENT_WAITING_FOR_DATA = 4,
+                             CLIENT_WAITING_FOR_PRICE = 2,
+                             CLIENT_WAITING_FOR_DATA = 3,
                              CLIENT_DONE};
 
 class MeteoMultiClient : public MultiClient<MeteoClientState,MeteoMultiClient> {
@@ -26,33 +25,14 @@ private:
   uint32_t _nbPropose = 0;
 
   void processCandidates(const fetch::oef::pb::Server_AgentMessage &msg) {
+    std::cerr << "processCandidates nb " << msg.agents().agents_size() << std::endl;
     for(auto &s : msg.agents().agents()) {
       _candidates.emplace_back(s);
       Conversation<MeteoClientState> c{s};
-      c.setState(MeteoClientState::OEF_WAITING_FOR_DELIVERED);
+      c.setState(MeteoClientState::CLIENT_WAITING_FOR_PRICE);
       _conversations.insert({c.uuid(), std::make_shared<Conversation<MeteoClientState>>(c)});
       Message cfp(c.uuid(), s, "");
       asyncWriteBuffer(_socket, serialize(cfp.handle()), 5);
-    }
-  }
-  void processOEFStatus(const fetch::oef::pb::Server_AgentMessage &msg) {
-    assert(msg.status().has_cid());
-    auto iter = _conversations.find(msg.status().cid());
-    assert(iter != _conversations.end());
-    auto conv = iter->second;
-    assert(conv->getState() == MeteoClientState::OEF_WAITING_FOR_DELIVERED);
-    switch(conv->msgId()) {
-    case 0:
-      conv->setState(MeteoClientState::CLIENT_WAITING_FOR_PRICE);
-      break;
-    case 1:
-      if(conv->dest() == _bestStation)
-        conv->setState(MeteoClientState::CLIENT_WAITING_FOR_DATA);
-      else
-        conv->setState(MeteoClientState::CLIENT_DONE);
-      break;
-    default:
-      std::cerr << "Error::Status msgId: " << conv->msgId() << std::endl;
     }
   }
   void processPrice(const std::string &content, const std::string &dest) {
@@ -78,8 +58,9 @@ private:
         for(auto &p : _conversations) {
           if(p.first != "") {
             auto &conv = p.second;
-            accepted.set_status(conv->dest() == _bestStation);
-            conv->setState(MeteoClientState::OEF_WAITING_FOR_DELIVERED);
+            bool accept = conv->dest() == _bestStation;
+            accepted.set_status(accept);
+            conv->setState(accept ? MeteoClientState::CLIENT_WAITING_FOR_DATA : MeteoClientState::CLIENT_DONE);
             asyncWriteBuffer(_socket, conv->envelope(accepted), 5);
           }
         }
@@ -132,8 +113,8 @@ public:
       std::cerr << "Expected msgId 1 == " << conversation.msgId() << std::endl;
       processCandidates(msg);
       break;
-    case fetch::oef::pb::Server_AgentMessage::kStatus: // oef
-      processOEFStatus(msg);
+    case fetch::oef::pb::Server_AgentMessage::kError: // oef
+      std::cerr << "Error on operation " << msg.error().operation() << std::endl;
       break;
     case fetch::oef::pb::Server_AgentMessage::kContent: // from a meteostation
       processClients(msg, conversation);

@@ -46,16 +46,7 @@ namespace fetch {
       auto buffer = serialize(reg.handle());
       std::cerr << "Agent::registerAgent from " << _id << std::endl;
       _proxy.push(buffer);
-      // wait for registered
-      auto registered = _proxy.pop("");
-      std::cerr << "Received registered\n";
-      try {
-        assert(registered->has_status());
-        return registered->status().status();
-      } catch(std::exception &) {
-        std::cerr << "Agent::register " << _id << " not registered\n";
-      }
-      return false;
+      return true;
     }
     
     bool Client::unregisterAgent(const Instance &description)
@@ -65,15 +56,7 @@ namespace fetch {
       std::cerr << "Agent::unregisterAgent from " << _id << std::endl;
       _proxy.push(buffer);
       // wait for registered
-      auto registered = _proxy.pop("");
-      std::cerr << "Received registered\n";
-      try {
-        assert(registered->has_status());
-        return registered->status().status();
-      } catch(std::exception &) {
-        std::cerr << "Agent::unregister " << _id << " not unregistered\n";
-      }
-      return false;
+      return true;
     }
     
     std::vector<std::string> Client::query(const QueryModel &query)
@@ -103,16 +86,7 @@ namespace fetch {
       Message msg(conversationId.to_string(), dest, message);
       auto buffer = serialize(msg.handle());
       _proxy.push(buffer);
-      // wait for delivered
-      auto delivered = _proxy.pop("");
-      std::cerr << "Received delivered\n";
-      try {
-        assert(delivered->has_status());
-        return delivered->status().status();
-      } catch(std::exception &) {
-        std::cerr << "Agent::delivered from " << _id << " not delivered\n";
-      }
-      return false;
+      return true;
     }
 
     std::vector<std::string> Client::search(const QueryModel &query)
@@ -142,16 +116,7 @@ namespace fetch {
       auto buffer = serialize(desc.handle());
       _proxy.push(buffer);
       std::cerr << "Agent::addDescription from " << _id << std::endl;
-      // wait for registered
-      auto registered = _proxy.pop("");
-      std::cerr << "Received registered\n";
-      try {
-        assert(registered->has_status());
-        return registered->status().status();
-      } catch(std::exception &) {
-        std::cerr << "Agent::register " << _id << " not registered\n";
-      }
-      return false;
+      return true;
     }
   }
 }

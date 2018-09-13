@@ -87,7 +87,7 @@ class Conversation {
   Conversation(const std::string &dest, Proxy &proxy)
     : _uuid{Uuid::uuid4()}, _dest{dest}, _queue{proxy.getQueue(_uuid.to_string())},
       _proxy{proxy} {}
-  bool send(const std::string &s);
+  void send(const std::string &s);
   std::unique_ptr<fetch::oef::pb::Server_AgentMessage> pop() {
     return _queue.pop();
   }
@@ -102,8 +102,8 @@ class Conversation {
     t.ParseFromString(popContent());
     return t;
   }
-  bool send(const google::protobuf::MessageLite &t) {
-    return send(t.SerializeAsString());
+  void send(const google::protobuf::MessageLite &t) {
+    send(t.SerializeAsString());
   }
   size_t nbMsgs() const { return _queue.size(); }
   std::string dest() const { return _dest; }
