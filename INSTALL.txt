@@ -1,7 +1,8 @@
 Context
     * 1 Dependencies
     * 2 Installation
-    * 3 Verify installation
+    * 3 Configuration
+    * 4 Verify installation
 
 Dependencies
     * CMake
@@ -18,6 +19,10 @@ run the following steps:
     * 3 `cmake ..`
     * 4 `make`
     * 5 `sudo make install`
+
+Configuration
+It is import to increase the maximum number of open files that linux can use:
+    `ulimit -n 10000`
 
 Verify installation
 To check that installation has been successful, run the tests:
