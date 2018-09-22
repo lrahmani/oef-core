@@ -1,13 +1,14 @@
 #include <iostream>
 #include "multiclient.h"
 
-class SimpleMultiClient : public fetch::oef::MultiClient<bool,SimpleMultiClient> {
+class SimpleMultiClient : public fetch::oef::AgentInterface {
 public:
-  SimpleMultiClient(asio::io_context &io_context, const std::string &id, const std::string &host) :
-    fetch::oef::MultiClient<bool,SimpleMultiClient>{io_context, id, host} {}
-  void onMsg(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<bool> &Conversation) {
-  }
+  SimpleMultiClient() {}
+  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
+  void onSearchResult(const std::vector<std::string> &results) override {}
+  void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {}
 };
+fetch::oef::Logger fetch::oef::OEFCoreNetworkProxy::logger = fetch::oef::Logger("oefcore-network");
 int main(int argc, char* argv[])
 {
   IoContextPool pool(2);
@@ -19,7 +20,9 @@ int main(int argc, char* argv[])
       std::cerr << "Usage: client <agentID> <host>\n";
       return 1;
     }
-    SimpleMultiClient client(pool.getIoContext(), argv[1], argv[2]);
+    SimpleMultiClient agent;
+    fetch::oef::OEFCoreNetworkProxy oefCore{argv[1], pool.getIoContext(), argv[2]};
+    fetch::oef::OEFCoreProxy proxy{oefCore, agent};
     // std::cout << "Enter destination: ";
     // std::string destId;
     // std::getline(std::cin, destId);

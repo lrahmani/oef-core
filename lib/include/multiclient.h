@@ -4,6 +4,8 @@
 #include "uuid.h"
 #include "agent.pb.h"
 #include "logger.hpp"
+#include "oefcoreproxy.hpp"
+#include "clientmsg.h"
 #include <unordered_map>
 #include <mutex>
 #include <condition_variable>
@@ -42,6 +44,148 @@ namespace fetch {
       }
     };
 
+    class OEFCoreNetworkProxy : public OEFCoreBridgeBase {
+    private:
+      asio::io_context &_io_context;
+      tcp::socket _socket;
+      
+      static fetch::oef::Logger logger;
+
+    public:
+      OEFCoreNetworkProxy(const std::string &agentPublicKey, asio::io_context &io_context, const std::string &host)
+        : OEFCoreBridgeBase{agentPublicKey}, _io_context{io_context}, _socket{_io_context} {
+          tcp::resolver resolver(_io_context);
+          asio::connect(_socket, resolver.resolve(host, std::to_string(static_cast<int>(Ports::Agents))));
+      }
+      ~OEFCoreNetworkProxy() {
+        _socket.shutdown(asio::socket_base::shutdown_both);
+        _socket.close();
+      }
+      bool handshake() override {
+        bool connected = false;
+        bool finished = false;
+        std::mutex lock;
+        std::condition_variable condVar;
+        fetch::oef::pb::Agent_Server_ID id;
+        id.set_id(_agentPublicKey);
+        logger.trace("OEFCoreNetworkProxy::handshake");
+        asyncWriteBuffer(_socket, serialize(id), 5,
+            [this,&connected,&condVar,&finished,&lock](std::error_code ec, std::size_t length){
+              if(ec) {
+                std::unique_lock<std::mutex> lck(lock);
+                finished = true;
+                condVar.notify_all();
+              } else {
+                logger.trace("OEFCoreNetworkProxy::handshake id sent");
+                asyncReadBuffer(_socket, 5,
+                    [this,&connected,&condVar,&finished,&lock](std::error_code ec,std::shared_ptr<Buffer> buffer) {
+                      if(ec) {
+                        std::unique_lock<std::mutex> lck(lock);
+                        finished = true;
+                        condVar.notify_all();
+                      } else {
+                        auto p = deserialize<fetch::oef::pb::Server_Phrase>(*buffer);
+                        std::string answer_s = p.phrase();
+                        logger.trace("OEFCoreNetworkProxy::handshake received phrase: [{}]", answer_s);
+                        // normally should encrypt with private key
+                        std::reverse(std::begin(answer_s), std::end(answer_s));
+                        logger.trace("OEFCoreNetworkProxy::handshake sending back phrase: [{}]", answer_s);
+                        fetch::oef::pb::Agent_Server_Answer answer;
+                        answer.set_answer(answer_s);
+                        asyncWriteBuffer(_socket, serialize(answer), 5,
+                            [this,&connected,&condVar,&finished,&lock](std::error_code ec, std::size_t length){
+                              if(ec) {
+                                std::unique_lock<std::mutex> lck(lock);
+                                finished = true;
+                                condVar.notify_all();
+                              } else {
+                                asyncReadBuffer(_socket, 5,
+                                    [this,&connected,&condVar,&finished,&lock](std::error_code ec,std::shared_ptr<Buffer> buffer) {
+                                      auto c = deserialize<fetch::oef::pb::Server_Connected>(*buffer);
+                                      logger.info("OEFCoreNetworkProxy::handshake received connected: {}", c.status());
+                                      connected = c.status();
+                                      std::unique_lock<std::mutex> lck(lock);
+                                      finished = true;
+                                      condVar.notify_all();
+                                    });
+                              }
+                            });
+                      }
+                    });
+              }
+            });
+        std::unique_lock<std::mutex> lck(lock);
+        while(!finished) {
+          condVar.wait(lck);
+        }
+        return connected;
+      }
+      void loop(AgentInterface &agent) override {
+        asyncReadBuffer(_socket, 1000, [this,&agent](std::error_code ec, std::shared_ptr<Buffer> buffer) {
+            if(ec) {
+              logger.error("OEFCoreNetworkProxy::loop failure {}", ec.value());
+            } else {
+              logger.trace("OEFCoreNetworkProxy::loop");
+              try {
+                auto msg = deserialize<fetch::oef::pb::Server_AgentMessage>(*buffer);
+                switch(msg.payload_case()) {
+                case fetch::oef::pb::Server_AgentMessage::kError:
+                  {
+                    auto &error = msg.error();
+                    agent.onError(error.operation(), error.has_cid() ? error.cid() : "", error.has_msgid() ? error.msgid() : 0);
+                  }
+                  break;
+                case fetch::oef::pb::Server_AgentMessage::kAgents:
+                  {
+                    std::vector<std::string> searchResults;
+                    for(auto &s : msg.agents().agents()) {
+                      searchResults.emplace_back(s);
+                    }
+                    agent.onSearchResult(searchResults);
+                  }
+                case fetch::oef::pb::Server_AgentMessage::kContent:
+                  {
+                    auto &content = msg.content();
+                    agent.onMessage(content.origin(), content.cid(), content.content());
+                  }
+                  break;
+                case fetch::oef::pb::Server_AgentMessage::PAYLOAD_NOT_SET:
+                default:
+                  logger.error("OEFCoreNetworkProxy::loop error {}", static_cast<int>(msg.payload_case()));
+                }
+              } catch(std::exception &e) {
+                logger.error("OEFCoreNetworkProxy::loop cannot deserialize AgentMessage {}", e.what());
+              }
+              loop(agent);
+            }
+          });
+      }
+      void registerDescription(const Instance &instance) override {
+        Description description{instance};
+        asyncWriteBuffer(_socket, serialize(description.handle()), 5);
+      }
+      void registerService(const Instance &instance) override {
+        Register service{instance};
+        asyncWriteBuffer(_socket, serialize(service.handle()), 5);
+      }
+      void searchAgents(const QueryModel &model) override {
+        Query query{model};
+        asyncWriteBuffer(_socket, serialize(query.handle()), 5);
+      }
+      void searchServices(const QueryModel &model) override {
+        Search search{model};
+        asyncWriteBuffer(_socket, serialize(search.handle()), 5);
+      }
+      void unregisterService(const Instance &instance) override {
+        Unregister service{instance};
+        asyncWriteBuffer(_socket, serialize(service.handle()), 5);
+      }
+      void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) {
+        Message message{conversationId, dest, msg};
+        asyncWriteBuffer(_socket, serialize(message.handle()), 5);
+      }
+    };
+    
     template <typename State,typename T>
       class MultiClient : public std::enable_shared_from_this<MultiClient<State,T>> {
     protected:

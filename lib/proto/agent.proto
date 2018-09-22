@@ -47,7 +47,7 @@ message Server {
             }
             required Operation operation = 1;
             optional string cid = 2;
-            optional int64 msgId = 3;
+            optional int32 msgId = 3;
         }
         oneof payload {
             Content content = 1; // from agent

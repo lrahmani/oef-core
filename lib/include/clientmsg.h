@@ -42,7 +42,7 @@ class Message {
  private:
   fetch::oef::pb::Envelope _envelope;
  public:
-  explicit Message(const std::string &conversationID, const std::string &dest, const std::string msg) {
+  explicit Message(const std::string &conversationID, const std::string &dest, const std::string &msg) {
     auto *message = _envelope.mutable_message();
     message->set_cid(conversationID);
     message->set_destination(dest);

@@ -9,7 +9,6 @@ namespace fetch {
   namespace oef {
     fetch::oef::Logger Server::logger = fetch::oef::Logger("oef-node");
     fetch::oef::Logger AgentDiscovery::logger = fetch::oef::Logger("agent-discovery");
-
     std::string to_string(const google::protobuf::Message &msg) {
       std::string output;
       google::protobuf::TextFormat::PrintToString(msg, &output);
