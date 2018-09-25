@@ -51,7 +51,7 @@ void Proxy::read()
           _inMsgBox[""].push(std::make_unique<fetch::oef::pb::Server_AgentMessage>(msg));
         } else {           
           assert(msg.has_content());
-          std::string cid = msg.content().cid();
+          std::string cid = msg.content().conversation_id();
           bool newCid = false;
           {
             std::unique_lock<std::mutex> mlock(_mutex);
@@ -116,7 +116,7 @@ void Conversation::send(const std::string &msg)
 {
   fetch::oef::pb::Envelope env;
   auto *message = env.mutable_message();
-  message->set_cid(_uuid.to_string());
+  message->set_conversation_id(_uuid.to_string());
   message->set_destination(_dest);
   message->set_content(msg);
   std::string output;

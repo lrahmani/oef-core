@@ -113,8 +113,8 @@ namespace fetch {
         if(session) {
           fetch::oef::pb::Server_AgentMessage message;
           auto content = message.mutable_content();
-          std::string cid = msg.cid();
-          content->set_cid(cid);
+          std::string cid = msg.conversation_id();
+          content->set_conversation_id(cid);
           content->set_origin(_id);
           content->set_content(msg.content());
           auto buffer = serialize(message);
@@ -123,7 +123,7 @@ namespace fetch {
                 fetch::oef::pb::Server_AgentMessage answer;
                 auto *error = answer.mutable_error();
                 error->set_operation(fetch::oef::pb::Server_AgentMessage_Error::SEND_MESSAGE);
-                error->set_cid(cid);
+                error->set_conversation_id(cid);
                 logger.trace("AgentSession::processMessage sending error {} to {}", error->operation(), _id);
                 send(answer);
               }

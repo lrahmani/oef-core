@@ -44,7 +44,7 @@ class Message {
  public:
   explicit Message(const std::string &conversationID, const std::string &dest, const std::string &msg) {
     auto *message = _envelope.mutable_message();
-    message->set_cid(conversationID);
+    message->set_conversation_id(conversationID);
     message->set_destination(dest);
     message->set_content(msg);
   }

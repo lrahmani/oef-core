@@ -15,9 +15,12 @@ message Agent {
         }
     }
     message Message {
-        required string cid = 1; // conversation ID
+        required string conversation_id = 1; // conversation ID
         required string destination = 2;
-        required bytes content = 3; // or bytes ?
+        oneof payload {
+            bytes content = 3;
+            Fipa.Message fipa = 4;
+        }
     }
 }
 
@@ -28,15 +31,18 @@ message Server {
     message Connected {
         required bool status = 1;
     }
-    message QueryAnswer {
+    message SearchResult {
         repeated string agents = 1;
     }
     
     message AgentMessage {
         message Content {
-            required string cid = 1;
+            required string conversation_id = 1;
             required string origin = 2;
-            required bytes content = 3;
+            oneof payload {
+                  bytes content = 3;
+                  Fipa.Message fipa = 4;
+            }
         }
         message Error {
             enum Operation {
@@ -46,13 +52,13 @@ message Server {
                 SEND_MESSAGE = 3;
             }
             required Operation operation = 1;
-            optional string cid = 2;
+            optional string conversation_id = 2;
             optional int32 msgId = 3;
         }
         oneof payload {
             Content content = 1; // from agent
             Error error = 2;   // from oef
-            QueryAnswer agents = 3; // from oef
+            SearchResult agents = 3; // from oef
         }
     }
 }
@@ -89,22 +95,6 @@ message Boolean {
 message Transaction {
     required uint64 amount = 1;
 }
-
-//message Buyer {
-//    oneof msg {
-//        Fipa.Cfp cfp = 1;
-//        Fipa.Accept accept = 2;
-//        Fipa.Refuse refuse = 3;
-//        Fipa.Propose propose = 4;
-//    }
-//}
-
-//message Seller {
-//    oneof msg {
-//        Fipa.Propose propose = 1;
-//        Transaction transaction = 2;
-//    }
-//}
 
 // option optimize_for = LITE_RUNTIME;
 option optimize_for = SPEED;

@@ -2,6 +2,9 @@
 
 #include "schema.h"
 #include "agent.pb.h"
+#include <experimental/optional>
+
+namespace stde = std::experimental;
 
 namespace fetch {
   namespace oef {
@@ -10,12 +13,10 @@ namespace fetch {
       virtual void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) = 0;
       virtual void onSearchResult(const std::vector<std::string> &results) = 0;
       virtual void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) = 0;
-      /*
-      virtual void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const QueryModel *constraints) = 0; // + extension
-      virtual void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const Instance *proposals) = 0; // + extension
-      virtual void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const Instance *proposals) = 0; // + extension
-      virtual void onRefuse(const std::string &from, const std::string &conversationId, uint32_t msgId) = 0;
-      */
+      virtual void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const stde::optional<QueryModel> &constraints) = 0; // + extension
+      virtual void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) = 0; // + extension
+      virtual void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) = 0; // + extension
+      virtual void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) = 0;
     };
     class OEFCoreInterface {
     public:
@@ -53,20 +54,18 @@ namespace fetch {
       virtual void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
         _agent.onMessage(from, conversationId, content);
       }
-      /*
-      virtual void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const QueryModel *constraints) override { // + extension
+      virtual void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const stde::optional<QueryModel> &constraints) override { // + extension
         _agent.onCFP(from, conversationId, msgId, target, constraints);
       }        
-      virtual void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const Instance *proposals) override { // + extension
+      virtual void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override { // + extension
         _agent.onPropose(from, conversationId, msgId, target, proposals);
       }
-      virtual void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const Instance *proposals) override { // + extension
+      virtual void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override { // + extension
         _agent.onAccept(from, conversationId, msgId, target, proposals);
       }
-      virtual void onRefuse(const std::string &from, const std::string &conversationId, uint32_t msgId) override {
-        _agent.onRefuse(from, conversationId, msgId);
+      virtual void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {
+        _agent.onClose(from, conversationId, msgId, target);
       }
-      */
       virtual bool handshake() override {
         return _oefCore.handshake();
       }

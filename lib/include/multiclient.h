@@ -34,7 +34,7 @@ namespace fetch {
       std::shared_ptr<Buffer> envelope(const std::string &outgoing) {
         fetch::oef::pb::Envelope env;
         auto *message = env.mutable_message();
-        message->set_cid(_uuid.to_string());
+        message->set_conversation_id(_uuid.to_string());
         message->set_destination(_dest);
         message->set_content(outgoing);
         return serialize(env);
@@ -120,6 +120,48 @@ namespace fetch {
         }
         return connected;
       }
+      void dispatch(AgentInterface &agent, const fetch::oef::pb::Fipa_Message &fipa,
+                    const fetch::oef::pb::Server_AgentMessage_Content &content) {
+        switch(fipa.msg_case()) {
+        case fetch::oef::pb::Fipa_Message::kCfp:
+          {
+            auto &cfp = fipa.cfp();
+            stde::optional<QueryModel> constraints;
+            if(cfp.has_query())
+              constraints.emplace(cfp.query());
+            agent.onCFP(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target(),
+                        constraints);
+          }
+          break;
+        case fetch::oef::pb::Fipa_Message::kPropose:
+          {
+            auto &propose = fipa.propose();
+            std::vector<Instance> instances;
+            for(auto &instance : propose.objects()) {
+              instances.emplace_back(instance);
+            }
+            agent.onPropose(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target(),
+                            instances);
+          }
+          break;
+        case fetch::oef::pb::Fipa_Message::kAccept:
+          {
+            auto &accept = fipa.accept();
+            std::vector<Instance> instances;
+            for(auto &instance : accept.objects()) {
+              instances.emplace_back(instance);
+            }
+            agent.onAccept(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target(),
+                           instances);
+          }
+          break;
+        case fetch::oef::pb::Fipa_Message::kClose:
+          agent.onClose(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target());
+          break;
+        case fetch::oef::pb::Fipa_Message::MSG_NOT_SET:
+          logger.error("OEFCoreNetworkProxy::loop error on fipa {}", static_cast<int>(fipa.msg_case()));
+        }
+      }
       void loop(AgentInterface &agent) override {
         asyncReadBuffer(_socket, 1000, [this,&agent](std::error_code ec, std::shared_ptr<Buffer> buffer) {
             if(ec) {
@@ -132,7 +174,8 @@ namespace fetch {
                 case fetch::oef::pb::Server_AgentMessage::kError:
                   {
                     auto &error = msg.error();
-                    agent.onError(error.operation(), error.has_cid() ? error.cid() : "", error.has_msgid() ? error.msgid() : 0);
+                    agent.onError(error.operation(), error.has_conversation_id() ? error.conversation_id() : "",
+                                  error.has_msgid() ? error.msgid() : 0);
                   }
                   break;
                 case fetch::oef::pb::Server_AgentMessage::kAgents:
@@ -143,14 +186,27 @@ namespace fetch {
                     }
                     agent.onSearchResult(searchResults);
                   }
+                  break;
                 case fetch::oef::pb::Server_AgentMessage::kContent:
                   {
                     auto &content = msg.content();
-                    agent.onMessage(content.origin(), content.cid(), content.content());
+                    switch(content.payload_case()) {
+                    case fetch::oef::pb::Server_AgentMessage_Content::kContent:
+                      {
+                        agent.onMessage(content.origin(), content.conversation_id(), content.content());
+                      }
+                      break;
+                    case fetch::oef::pb::Server_AgentMessage_Content::kFipa:
+                      {
+                        dispatch(agent, content.fipa(), content);
+                      }
+                      break;
+                    case fetch::oef::pb::Server_AgentMessage_Content::PAYLOAD_NOT_SET:
+                      logger.error("OEFCoreNetworkProxy::loop error on message {}", static_cast<int>(msg.payload_case()));
+                    }
                   }
                   break;
                 case fetch::oef::pb::Server_AgentMessage::PAYLOAD_NOT_SET:
-                default:
                   logger.error("OEFCoreNetworkProxy::loop error {}", static_cast<int>(msg.payload_case()));
                 }
               } catch(std::exception &e) {
@@ -212,7 +268,7 @@ namespace fetch {
                 auto msg = deserialize<fetch::oef::pb::Server_AgentMessage>(*buffer);
                 std::string cid = ""; // oef
                 if(msg.has_content())
-                  cid = msg.content().cid();
+                  cid = msg.content().conversation_id();
                 auto iter = _conversations.find(cid);
                 if(iter == _conversations.end()) {
                   std::string dest = "";

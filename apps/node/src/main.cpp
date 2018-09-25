@@ -3,6 +3,8 @@
 
 int main(int argc, char* argv[])
 {
+  spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [thread %t] [%n] [%l] %v");
+  spdlog::set_level(spdlog::level::level_enum::trace);
   try
   {
     if (argc != 1)
