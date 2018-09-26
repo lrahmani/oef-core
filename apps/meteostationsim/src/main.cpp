@@ -4,16 +4,21 @@
 //
 #include <iostream>
 #include "clara.hpp"
-#include "client.h"
 #include <google/protobuf/text_format.h>
+#include "multiclient.h"
+#include "oefcoreproxy.hpp"
+#include <unordered_set>
 
-using fetch::oef::Client;
-
-class MeteoStation : public Client
+class MeteoStation : public fetch::oef::AgentInterface, public fetch::oef::OEFCoreNetworkProxy
 {
+private:
+  fetch::oef::OEFCoreProxy _oefCore;
+  float _unitPrice;
+  std::unordered_set<std::string> _conversations;
+  
 public:
-  MeteoStation(const std::string &id, const char *host) : Client{id, host, [this](std::unique_ptr<Conversation> c) { _conversations.push(std::move(c));}}
-  {
+  MeteoStation(const std::string &agentId, asio::io_context &io_context, const std::string &host)
+    : fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host}, _oefCore{*this, *this} {
     static std::vector<std::string> properties = { "true", "true", "true", "false"};
     static std::random_device rd;
     static std::mt19937 g(rd());
@@ -27,7 +32,7 @@ public:
     std::shuffle(properties.begin(), properties.end(), g);
     static std::normal_distribution<float> dist{1.0, 0.1}; // mean,stddev
     _unitPrice = dist(g);
-    std::cerr << id << " " << _unitPrice << std::endl;
+    std::cerr << _agentPublicKey << " " << _unitPrice << std::endl;
     std::unordered_map<std::string,std::string> props;
     int i = 0;
     for(auto &a : attributes) {
@@ -35,52 +40,42 @@ public:
       ++i;
     }
     Instance instance{weather, props};
-    registerAgent(instance);
-    _thread = std::make_unique<std::thread>([this]() { run(); });
+    registerService(instance);
   }
   MeteoStation(const MeteoStation &) = delete;
   MeteoStation operator=(const MeteoStation &) = delete;
 
-  ~MeteoStation()
-  {
-    if(_thread)
-      _thread->join();
-  }
-
-private:
-
-  float                                _unitPrice;
-  std::unique_ptr<std::thread>         _thread;
-  Queue<std::unique_ptr<Conversation>> _conversations;
-
-  void process(std::unique_ptr<Conversation> conversation)
-  {
-    std::unique_ptr<fetch::oef::pb::Server_AgentMessage> agentMsg = conversation->pop();
-    Data price{"price", "float", {std::to_string(_unitPrice)}};
-    conversation->send(price.handle());
-    std::cerr << "Price sent\n";
-    auto accepted = conversation->popMsg<fetch::oef::pb::Boolean>();
-    if(accepted.status()) {
-      // let's send the data
-      std::cerr << "I won!\n";
-      std::random_device rd;
-      std::mt19937 g(rd());
-      std::normal_distribution<float> dist{15.0, 2.0};
-      Data temp{"temperature", "float", {std::to_string(dist(g))}};
-      conversation->send(temp.handle());
-      Data air{"air pressure", "float", {std::to_string(dist(g))}};
-      conversation->send(air.handle());
-      Data humid{"humidity", "float", {std::to_string(dist(g))}};
-      conversation->send(humid.handle());
+  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
+  void onSearchResult(const std::vector<std::string> &results) override {}
+  void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
+    if(_conversations.find(conversationId) == _conversations.end()) { // first contact
+      _conversations.insert(conversationId);
+      Data price{"price", "float", {std::to_string(_unitPrice)}};
+      sendMessage(conversationId, from, price.handle().SerializeAsString());
     } else {
-      // too bad
-      std::cerr << "I lost\n";
+      fetch::oef::pb::Boolean accepted;
+      accepted.ParseFromString(content);
+      if(accepted.status()) {
+        // let's send the data
+        std::cerr << "I won!\n";
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::normal_distribution<float> dist{15.0, 2.0};
+        Data temp{"temperature", "float", {std::to_string(dist(g))}};
+        sendMessage(conversationId, from, temp.handle().SerializeAsString());
+        Data air{"air pressure", "float", {std::to_string(dist(g))}};
+        sendMessage(conversationId, from, air.handle().SerializeAsString());
+        Data humid{"humidity", "float", {std::to_string(dist(g))}};
+        sendMessage(conversationId, from, humid.handle().SerializeAsString());
+      } else {
+        std::cerr << "I lost\n";
+      }
     }
   }
-  void run()
-  {
-    process(_conversations.pop());
-  }
+  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const stde::optional<QueryModel> &constraints) override {}
+  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
+  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
+  void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
 };
 
 int main(int argc, char* argv[])
@@ -100,12 +95,15 @@ int main(int argc, char* argv[])
   {
     try
     {
-      std::vector<std::unique_ptr<Client>> stations;
+      IoContextPool pool(2);
+      pool.run();
+      std::vector<std::unique_ptr<MeteoStation>> stations;
       for(uint32_t i = 1; i <= nbStations; ++i)
       {
         std::string name = "Station_" + std::to_string(i);
-        stations.emplace_back(std::unique_ptr<MeteoStation>(new MeteoStation{name, host.c_str()}));
+        stations.emplace_back(std::unique_ptr<MeteoStation>(new MeteoStation{name, pool.getIoContext(), host}));
       }
+      pool.join();
     } catch(std::exception &e) {
       std::cerr << "Exception " << e.what() << std::endl;
     }

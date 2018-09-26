@@ -57,9 +57,13 @@ namespace fetch {
           tcp::resolver resolver(_io_context);
           asio::connect(_socket, resolver.resolve(host, std::to_string(static_cast<int>(Ports::Agents))));
       }
-      ~OEFCoreNetworkProxy() {
+      void stop() {
         _socket.shutdown(asio::socket_base::shutdown_both);
         _socket.close();
+      }
+      ~OEFCoreNetworkProxy() {
+        if(_socket.is_open())
+          stop();
       }
       bool handshake() override {
         bool connected = false;
@@ -173,6 +177,7 @@ namespace fetch {
                 switch(msg.payload_case()) {
                 case fetch::oef::pb::Server_AgentMessage::kError:
                   {
+                    logger.trace("OEFCoreNetworkProxy::loop error");
                     auto &error = msg.error();
                     agent.onError(error.operation(), error.has_conversation_id() ? error.conversation_id() : "",
                                   error.has_msgid() ? error.msgid() : 0);
@@ -180,6 +185,7 @@ namespace fetch {
                   break;
                 case fetch::oef::pb::Server_AgentMessage::kAgents:
                   {
+                    logger.trace("OEFCoreNetworkProxy::loop searchResults");
                     std::vector<std::string> searchResults;
                     for(auto &s : msg.agents().agents()) {
                       searchResults.emplace_back(s);
@@ -189,15 +195,18 @@ namespace fetch {
                   break;
                 case fetch::oef::pb::Server_AgentMessage::kContent:
                   {
+                    logger.trace("OEFCoreNetworkProxy::loop content");
                     auto &content = msg.content();
                     switch(content.payload_case()) {
                     case fetch::oef::pb::Server_AgentMessage_Content::kContent:
                       {
+                        logger.trace("OEFCoreNetworkProxy::loop onMessage {} from {} cid {}", _agentPublicKey, content.origin(), content.conversation_id());
                         agent.onMessage(content.origin(), content.conversation_id(), content.content());
                       }
                       break;
                     case fetch::oef::pb::Server_AgentMessage_Content::kFipa:
                       {
+                        logger.trace("OEFCoreNetworkProxy::loop fipa");
                         dispatch(agent, content.fipa(), content);
                       }
                       break;
@@ -225,12 +234,12 @@ namespace fetch {
         asyncWriteBuffer(_socket, serialize(service.handle()), 5);
       }
       void searchAgents(const QueryModel &model) override {
-        Query query{model};
-        asyncWriteBuffer(_socket, serialize(query.handle()), 5);
-      }
-      void searchServices(const QueryModel &model) override {
         Search search{model};
         asyncWriteBuffer(_socket, serialize(search.handle()), 5);
+      }
+      void searchServices(const QueryModel &model) override {
+        Query query{model};
+        asyncWriteBuffer(_socket, serialize(query.handle()), 5);
       }
       void unregisterService(const Instance &instance) override {
         Unregister service{instance};
@@ -241,7 +250,7 @@ namespace fetch {
         asyncWriteBuffer(_socket, serialize(message.handle()), 5);
       }
     };
-    
+
     template <typename State,typename T>
       class MultiClient : public std::enable_shared_from_this<MultiClient<State,T>> {
     protected:

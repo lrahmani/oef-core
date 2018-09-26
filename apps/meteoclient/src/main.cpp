@@ -3,9 +3,70 @@
 // Creation: 09/01/18
 //
 #include <iostream>
-#include "client.h"
+#include <unordered_map>
 
-using fetch::oef::Client;
+#include "oefcoreproxy.hpp"
+#include "multiclient.h"
+#include "uuid.h"
+
+class MeteoClientAgent : public fetch::oef::AgentInterface, public fetch::oef::OEFCoreNetworkProxy {
+ private:
+  fetch::oef::OEFCoreProxy _oefCore;
+  std::unordered_map<std::string,std::string> _conversationsIds;
+  std::string _bestStation;
+  float _bestPrice = -1.0;
+  size_t _nbAnswers = 0;
+  bool _waitingForData = false;
+  uint32_t _dataReceived = 0;
+
+public:
+  MeteoClientAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
+    : fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host}, _oefCore{*this, *this} {
+  }
+  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
+  void onSearchResult(const std::vector<std::string> &results) override {
+    if(results.size() == 0)
+      std::cerr << "No candidates\n";
+    for(auto &c : results) {
+      auto uuid = Uuid::uuid4();
+      _conversationsIds[c] = uuid.to_string();
+      sendMessage(uuid.to_string(), c, ""); // should be cfp
+    }
+  }
+  void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
+    if(!_waitingForData) {
+      Data price{content};
+      assert(price.values().size() == 1);
+      float currentPrice = std::stof(price.values().front());
+      if(_bestPrice == -1.0 || _bestPrice > currentPrice) {
+        _bestPrice = currentPrice;
+        _bestStation = from;
+      }
+      ++_nbAnswers;
+      std::cerr << "Nb Answers " << _nbAnswers << " " << _conversationsIds.size() << std::endl;
+      if(_nbAnswers == _conversationsIds.size()) {
+        _waitingForData = true;
+        std::cerr << "Best station " << _bestStation << " price " << _bestPrice << std::endl;
+        fetch::oef::pb::Boolean accepted;
+        for(auto &p : _conversationsIds) {
+          accepted.set_status(p.first == _bestStation);
+          sendMessage(p.second, p.first, accepted.SerializeAsString());
+        }
+      }
+    } else {
+      assert(from == _bestStation);
+      Data temp{content};
+      std::cerr << "**Received " << temp.name() << " = " << temp.values().front() << std::endl;
+      ++_dataReceived;
+      if(_dataReceived == 3)
+        stop();
+    }
+  }
+  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const stde::optional<QueryModel> &constraints) override {}
+  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
+  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
+  void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
+ };
 
 int main(int argc, char* argv[])
 {
@@ -16,7 +77,12 @@ int main(int argc, char* argv[])
       std::cerr << "Usage: meteoclient <agentID> <host>\n";
       return 1;
     }
-    Client client(argv[1], argv[2], [](std::unique_ptr<Conversation>){});
+    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [thread %t] [%n] [%l] %v");
+    spdlog::set_level(spdlog::level::level_enum::trace);
+    IoContextPool pool(2);
+    pool.run();
+    
+    MeteoClientAgent client(argv[1], pool.getIoContext(), argv[2]);
 
     // Build up our DataModel (this is identical to the meteostations DataModel, wouldn't work if not)
     Attribute wind        { "wind_speed",   Type::Bool, true};
@@ -34,56 +100,8 @@ int main(int argc, char* argv[])
 
     // Construct a Query schema and send it to the Node
     QueryModel q1{{temperature_c,air_c,humidity_c}, weather};
-    std::vector<std::string> candidates = client.query(q1);
-
-    // The return value should be a vector of strings (AEAs). Note this will crash if there are no matching AEAs
-    // We now create conversations with these AEAs
-    std::cout << "Candidates:\n";
-    std::vector<Conversation> conversations;
-    for(auto &c : candidates) {
-      std::cout << c << std::endl;
-      conversations.emplace_back(client.newConversation(c));
-    }
-
-    for(auto &c : conversations) {
-      std::cerr << "Debug client cuid " << c.uuid() << " to " << c.dest() << std::endl;
-      c.send("");
-    }
-
-    // Note: Since this executes sequentially, it will hang if any AEA does not respond
-    std::string best_station;
-    float best_price = -1.0;
-    for(auto &c : conversations) {
-      auto p = c.pop();
-      assert(p->has_content());
-      Data price{p->content().content()};
-      assert(price.values().size() == 1);
-      float current_price = std::stof(price.values().front());
-      if(best_price == -1.0 || best_price > current_price) {
-        best_price = current_price;
-        best_station = c.dest();
-      }
-    }
-
-    // Note: the client needs to tell the AEA whether its accepted or the AEA will hang forever
-    std::cerr << "Best station " << best_station << " price " << best_price << std::endl;
-    fetch::oef::pb::Boolean accepted;
-    for(auto &c : conversations) {
-      accepted.set_status(c.dest() == best_station);
-      c.send(accepted);
-    }
-
-    auto iter = std::find_if(conversations.begin(), conversations.end(), [&](const Conversation &c){return c.dest() == best_station;});
-    if(iter != conversations.end()) {
-      Data temp{iter->popContent()};
-      std::cerr << "**Received temp: " << temp.name() << " = " << temp.values().front() << std::endl;
-      Data air_data{iter->popContent()};
-      std::cerr << "**Received air_data: " << air_data.name() << " = " << air_data.values().front() << std::endl;
-      Data humid{iter->popContent()};
-      std::cerr << "**Received humidity: " << humid.name() << " = " << humid.values().front() << std::endl;
-    } else {
-      std::cerr << "No station available.\n";
-    }
+    client.searchServices(q1);
+    pool.join();
   } catch (std::exception& e) {
     std::cerr << "Exception: " << e.what() << "\n";
   }

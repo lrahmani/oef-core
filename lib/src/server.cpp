@@ -4,11 +4,15 @@
 #include <google/protobuf/text_format.h>
 #include <sstream>
 #include <iomanip>
+#include "oefcoreproxy.hpp"
+#include "multiclient.h"
 
 namespace fetch {
   namespace oef {
     fetch::oef::Logger Server::logger = fetch::oef::Logger("oef-node");
     fetch::oef::Logger AgentDiscovery::logger = fetch::oef::Logger("agent-discovery");
+    fetch::oef::Logger fetch::oef::OEFCoreNetworkProxy::logger = fetch::oef::Logger("oefcore-network");
+    
     std::string to_string(const google::protobuf::Message &msg) {
       std::string output;
       google::protobuf::TextFormat::PrintToString(msg, &output);

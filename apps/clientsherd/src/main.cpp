@@ -3,21 +3,41 @@
 // Creation: 09/01/18
 //
 #include <iostream>
-#include "client.h"
 #include "clara.hpp"
 #include <future>
+#include "multiclient.h"
+#include "oefcoreproxy.hpp"
 
-using fetch::oef::Client;
+class SimpleAgent : public fetch::oef::AgentInterface, public fetch::oef::OEFCoreNetworkProxy {
+ private:
+  fetch::oef::OEFCoreProxy _oefCore;
+  
+ public:
+  std::vector<std::string> _results;
+  SimpleAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
+    : fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host}, _oefCore{*this, *this} {
+  }
+  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
+  void onSearchResult(const std::vector<std::string> &results) override {
+    _results = results;
+  }
+  void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {}
+  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const stde::optional<QueryModel> &constraints) override {}
+  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
+  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
+  void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
+ };
+
 
 int main(int argc, char* argv[])
 {
   bool showHelp = false;
   std::string host = "127.0.0.1";
-  uint32_t nbClients = 100;
+  uint32_t nbAgents = 100;
   std::string prefix = "Agent_";
   
   auto parser = clara::Help(showHelp)
-    | clara::Opt(nbClients, "nbClients")["--nbClients"]["-n"]("Number of clients. Default 100.")
+    | clara::Opt(nbAgents, "nbAgents")["--nbAgents"]["-n"]("Number of agents. Default 100.")
     | clara::Opt(prefix, "prefix")["--prefix"]["-p"]("Prefix used for all agents name. Default: Agent_")
     | clara::Opt(host, "host")["--host"]["-h"]("Host address to connect. Default: 127.0.0.1");
   auto result = parser.parse(clara::Args(argc, argv));
@@ -29,19 +49,21 @@ int main(int argc, char* argv[])
   // > ulimit -n 8000
   // ulimit -n 1048576
 
-  std::vector<std::unique_ptr<Client>> clients;
-  std::vector<std::future<std::unique_ptr<Client>>> futures;
+  std::vector<std::unique_ptr<SimpleAgent>> agents;
+  std::vector<std::future<std::unique_ptr<SimpleAgent>>> futures;
+  IoContextPool pool(10);
+  pool.run();
   try {
-    for(size_t i = 1; i <= nbClients; ++i) {
+    for(size_t i = 1; i <= nbAgents; ++i) {
       std::string name = prefix;
       name += std::to_string(i);
-      futures.push_back(std::async(std::launch::async, [&host](const std::string &n){
-            return std::make_unique<Client>(n, host.c_str(), [](std::unique_ptr<Conversation>){});
-          }, name));
+      futures.push_back(std::async(std::launch::async, [&pool,&host](const std::string &n){
+          return std::make_unique<SimpleAgent>(n, pool.getIoContext(), host.c_str());
+      }, name));
     }
     std::cerr << "Futures created\n";
     for(auto &fut : futures) {
-      clients.emplace_back(fut.get());
+      agents.emplace_back(fut.get());
     }
     std::cerr << "Futures got\n";
   } catch(std::exception &e) {

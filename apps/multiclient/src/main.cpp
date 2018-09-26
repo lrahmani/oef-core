@@ -12,7 +12,7 @@ public:
   void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
   void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
  };
-fetch::oef::Logger fetch::oef::OEFCoreNetworkProxy::logger = fetch::oef::Logger("oefcore-network");
+
 int main(int argc, char* argv[])
 {
   IoContextPool pool(2);
