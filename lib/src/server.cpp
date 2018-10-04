@@ -111,16 +111,21 @@ namespace fetch {
         logger.trace("AgentSession::processQuery sending {} agents to {}", agents_vec.size(), _id);
         send(answer);
       }
-      void processMessage(const fetch::oef::pb::Agent_Message &msg) {
-        auto session = _ad.session(msg.destination());
-        logger.trace("AgentSession::processMessage to {} from {}", msg.destination(), _id);
+      void processMessage(fetch::oef::pb::Agent_Message *msg) {
+        auto session = _ad.session(msg->destination());
+        DEBUG(logger, "AgentSession::processMessage from agent {} : {}", _id, to_string(*msg));
+        logger.trace("AgentSession::processMessage to {} from {}", msg->destination(), _id);
         if(session) {
           fetch::oef::pb::Server_AgentMessage message;
           auto content = message.mutable_content();
-          std::string cid = msg.conversation_id();
+          std::string cid = msg->conversation_id();
           content->set_conversation_id(cid);
           content->set_origin(_id);
-          content->set_content(msg.content());
+          if(msg->has_content())
+            content->set_allocated_content(msg->release_content());
+          if(msg->has_fipa())
+            content->set_allocated_fipa(msg->release_fipa());
+          DEBUG(logger, "AgentSession::processMessage to agent {} : {}", msg->destination(), to_string(message));
           auto buffer = serialize(message);
           asyncWriteBuffer(session->_socket, buffer, 5, [this,cid](std::error_code ec, std::size_t length) {
               if(ec) {
@@ -139,7 +144,7 @@ namespace fetch {
         auto payload_case = envelope.payload_case();
         switch(payload_case) {
         case fetch::oef::pb::Envelope::kMessage:
-          processMessage(envelope.message());
+          processMessage(envelope.release_message());
           break;
         case fetch::oef::pb::Envelope::kRegister:
           processRegister(envelope.register_());

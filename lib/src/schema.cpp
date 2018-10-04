@@ -15,7 +15,7 @@ VariantType string_to_value(fetch::oef::pb::Query_Attribute_Type t, const std::s
   case fetch::oef::pb::Query_Attribute_Type_STRING:
     return VariantType{s};
   case fetch::oef::pb::Query_Attribute_Type_BOOL:
-    return VariantType{s == "1" || s == "true"};
+    return VariantType{s == "1" || s == "true" || s == "True"};
   }
   // should not reach this line
   return VariantType{std::string{""}};
