@@ -159,8 +159,11 @@ namespace Test {
     DataModel station{"weather_station", {manufacturer, model, wireless}, "Weather station"};
     REQUIRE(google::protobuf::TextFormat::PrintToString(station.handle(), &output));
     std::cout << output;
-    Instance youshiko{station, {{"manufacturer", "Youshiko"}, {"model", "YC9315"}, {"wireless", "true"}}};
-    Instance opes{station, {{"manufacturer", "Opes"}, {"model", "17500"}, {"wireless", "true"}}};
+    Instance youshiko{station, {{"manufacturer", VariantType{std::string{"Youshiko"}}},
+                                {"model", VariantType{std::string{"YC9315"}}},
+                                {"wireless", VariantType{true}}}};
+    Instance opes{station, {{"manufacturer", VariantType{std::string{"Opes"}}},
+                            {"model", VariantType{std::string{"17500"}}}, {"wireless", VariantType{true}}}};
     REQUIRE(google::protobuf::TextFormat::PrintToString(youshiko.handle(), &output));
     std::cout << output;
     // Instance youshiko2 = fromJsonString<Instance>(toJsonString<Instance>(youshiko));
@@ -168,9 +171,9 @@ namespace Test {
 
     ServiceDirectory sd;
     for(size_t i = 0; i < attributes.size(); ++i) {
-      std::unordered_map<std::string,std::string> values;
+      std::unordered_map<std::string,VariantType> values;
       for(size_t j = 0; j < attributes.size(); ++j) {
-        values.emplace(std::make_pair(attributes[j].name(), std::to_string(i != j)));
+        values.emplace(std::make_pair(attributes[j].name(), VariantType{i != j}));
       }
       std::string name = "Agent"+ std::to_string(i+1);
       sd.registerAgent(Instance{weather, values}, name);

@@ -7,14 +7,14 @@ std::vector<uint8_t> data;
 BENCHMARK(Serialization, ID, 10, 1000)
 {
   fetch::oef::pb::Agent_Server_ID id;
-  id.set_id("Agent1");
+  id.set_public_key("Agent1");
   std::string data(id.SerializeAsString());
 }
 
 BENCHMARK(Serialization, ID_Array, 10, 1000)
 {
   fetch::oef::pb::Agent_Server_ID id;
-  id.set_id("Agent1");
+  id.set_public_key("Agent1");
   size_t size = id.ByteSize();
   data.resize(size);
   (void)id.SerializeWithCachedSizesToArray(data.data());
@@ -80,7 +80,7 @@ BENCHMARK(Serialization, Connected_Array2, 1, 1)
 BENCHMARK(DeSerialization, ID, 10, 1000)
 {
   fetch::oef::pb::Agent_Server_ID id;
-  id.set_id("Agent1");
+  id.set_public_key("Agent1");
   fetch::oef::pb::Agent_Server_ID id2;
   id2.ParseFromString(id.SerializeAsString());
 }
@@ -88,7 +88,7 @@ BENCHMARK(DeSerialization, ID, 10, 1000)
 BENCHMARK(DeSerialization, ID_Array, 10, 1000)
 {
   fetch::oef::pb::Agent_Server_ID id;
-  id.set_id("Agent1");
+  id.set_public_key("Agent1");
   size_t size = id.ByteSize();
   data.resize(size);
   (void)id.SerializeWithCachedSizesToArray(data.data());

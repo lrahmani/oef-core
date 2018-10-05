@@ -20,14 +20,6 @@ message Query {
         repeated Attribute attributes = 2;
         optional string description = 3;
     }
-    message StringPair {
-        required string first = 1;
-        required string second = 2;
-    }
-    message Instance {
-        required DataModel model = 1;
-        repeated StringPair values = 2;
-    }
     message Value {
         oneof value {
             string s = 1;
@@ -35,7 +27,19 @@ message Query {
             bool b = 3;
             int64 i = 4;
         }
-    }    
+    }
+    message KeyValue {
+        required string key = 1;
+        required Value value = 2;
+    }
+    message Instance {
+        required DataModel model = 1;
+        repeated KeyValue values = 2;
+    }
+    message StringPair {
+        required string first = 1;
+        required string second = 2;
+    }
     message IntPair {
         required int64 first = 1;
         required int64 second = 2;
@@ -100,11 +104,11 @@ message Query {
                 repeated ConstraintType expr = 1;
             }
             oneof constraint {
-                Or or = 1;
-                And and = 2;
-                Set set = 3;
-                Range range = 4;
-                Relation rel = 5;
+                Or or_ = 1;
+                And and_ = 2;
+                Set set_ = 3;
+                Range range_ = 4;
+                Relation relation = 5;
             }
         }
         required Attribute attribute = 1;

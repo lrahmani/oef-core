@@ -6,6 +6,15 @@ std::string t_to_string(float) { return "float"; }
 std::string t_to_string(bool) { return "bool"; }
 std::string t_to_string(const std::string &) { return "string"; }
 
+std::string to_string(const VariantType &v) {
+  std::string res;
+  v.match([&res](int i) { res = std::to_string(i); },
+          [&res](float f) { res = std::to_string(f);},
+          [&res](const std::string &s) { res = s;},
+          [&res](bool b) { res = std::to_string(b);});
+  return res;
+}
+
 VariantType string_to_value(fetch::oef::pb::Query_Attribute_Type t, const std::string &s) {
   switch(t) {
   case fetch::oef::pb::Query_Attribute_Type_FLOAT:
@@ -39,14 +48,15 @@ bool ConstraintType::check(const fetch::oef::pb::Query_Constraint_ConstraintType
   case fetch::oef::pb::Query_Constraint_ConstraintType::kAnd:
     return And::check(constraint.and_(), v);
   case fetch::oef::pb::Query_Constraint_ConstraintType::kSet:
-    return Set::check(constraint.set(), v);
+    return Set::check(constraint.set_(), v);
   case fetch::oef::pb::Query_Constraint_ConstraintType::kRange:
-    return Range::check(constraint.range(), v);
-  case fetch::oef::pb::Query_Constraint_ConstraintType::kRel:
-    return Relation::check(constraint.rel(), v);
+    return Range::check(constraint.range_(), v);
+  case fetch::oef::pb::Query_Constraint_ConstraintType::kRelation:
+    return Relation::check(constraint.relation(), v);
   case fetch::oef::pb::Query_Constraint_ConstraintType::CONSTRAINT_NOT_SET:
     // should not reach this line
     return false;
   }
+  return false;
 }
 

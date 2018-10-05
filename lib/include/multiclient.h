@@ -71,7 +71,7 @@ namespace fetch {
         std::mutex lock;
         std::condition_variable condVar;
         fetch::oef::pb::Agent_Server_ID id;
-        id.set_id(_agentPublicKey);
+        id.set_public_key(_agentPublicKey);
         logger.trace("OEFCoreNetworkProxy::handshake");
         asyncWriteBuffer(_socket, serialize(id), 5,
             [this,&connected,&condVar,&finished,&lock](std::error_code ec, std::size_t length){
@@ -89,31 +89,36 @@ namespace fetch {
                         condVar.notify_all();
                       } else {
                         auto p = deserialize<fetch::oef::pb::Server_Phrase>(*buffer);
-                        std::string answer_s = p.phrase();
-                        logger.trace("OEFCoreNetworkProxy::handshake received phrase: [{}]", answer_s);
-                        // normally should encrypt with private key
-                        std::reverse(std::begin(answer_s), std::end(answer_s));
-                        logger.trace("OEFCoreNetworkProxy::handshake sending back phrase: [{}]", answer_s);
-                        fetch::oef::pb::Agent_Server_Answer answer;
-                        answer.set_answer(answer_s);
-                        asyncWriteBuffer(_socket, serialize(answer), 5,
-                            [this,&connected,&condVar,&finished,&lock](std::error_code ec, std::size_t length){
-                              if(ec) {
-                                std::unique_lock<std::mutex> lck(lock);
-                                finished = true;
-                                condVar.notify_all();
-                              } else {
-                                asyncReadBuffer(_socket, 5,
-                                    [this,&connected,&condVar,&finished,&lock](std::error_code ec,std::shared_ptr<Buffer> buffer) {
-                                      auto c = deserialize<fetch::oef::pb::Server_Connected>(*buffer);
-                                      logger.info("OEFCoreNetworkProxy::handshake received connected: {}", c.status());
-                                      connected = c.status();
-                                      std::unique_lock<std::mutex> lck(lock);
-                                      finished = true;
-                                      condVar.notify_all();
-                                    });
-                              }
-                            });
+                        if(p.has_failure()) {
+                          finished = true;
+                          condVar.notify_all();
+                        } else {
+                          std::string answer_s = p.phrase();
+                          logger.trace("OEFCoreNetworkProxy::handshake received phrase: [{}]", answer_s);
+                          // normally should encrypt with private key
+                          std::reverse(std::begin(answer_s), std::end(answer_s));
+                          logger.trace("OEFCoreNetworkProxy::handshake sending back phrase: [{}]", answer_s);
+                          fetch::oef::pb::Agent_Server_Answer answer;
+                          answer.set_answer(answer_s);
+                          asyncWriteBuffer(_socket, serialize(answer), 5,
+                              [this,&connected,&condVar,&finished,&lock](std::error_code ec, std::size_t length){
+                                if(ec) {
+                                  std::unique_lock<std::mutex> lck(lock);
+                                  finished = true;
+                                  condVar.notify_all();
+                                } else {
+                                  asyncReadBuffer(_socket, 5,
+                                      [this,&connected,&condVar,&finished,&lock](std::error_code ec,std::shared_ptr<Buffer> buffer) {
+                                        auto c = deserialize<fetch::oef::pb::Server_Connected>(*buffer);
+                                        logger.info("OEFCoreNetworkProxy::handshake received connected: {}", c.status());
+                                        connected = c.status();
+                                        std::unique_lock<std::mutex> lck(lock);
+                                        finished = true;
+                                        condVar.notify_all();
+                                      });
+                                }
+                              });
+                        }
                       }
                     });
               }
@@ -130,9 +135,20 @@ namespace fetch {
         case fetch::oef::pb::Fipa_Message::kCfp:
           {
             auto &cfp = fipa.cfp();
-            stde::optional<QueryModel> constraints;
-            if(cfp.has_query())
-              constraints.emplace(cfp.query());
+            CFPType constraints;
+            switch(cfp.payload_case()) {
+            case fetch::oef::pb::Fipa_Cfp::kQuery:
+              constraints = CFPType{QueryModel{cfp.query()}};
+              break;
+            case fetch::oef::pb::Fipa_Cfp::kContent:
+              constraints = CFPType{cfp.content()};
+              break;
+            case fetch::oef::pb::Fipa_Cfp::kNothing:
+              constraints = CFPType{stde::nullopt};
+              break;
+            case fetch::oef::pb::Fipa_Cfp::PAYLOAD_NOT_SET:
+              break;
+            }
             agent.onCFP(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target(),
                         constraints);
           }
@@ -140,26 +156,31 @@ namespace fetch {
         case fetch::oef::pb::Fipa_Message::kPropose:
           {
             auto &propose = fipa.propose();
-            std::vector<Instance> instances;
-            for(auto &instance : propose.objects()) {
-              instances.emplace_back(instance);
+            ProposeType proposals;
+            switch(propose.payload_case()) {
+            case fetch::oef::pb::Fipa_Propose::kProposals:
+              {
+                std::vector<Instance> instances;
+                for(auto &instance : propose.proposals().objects()) {
+                  instances.emplace_back(instance);
+                }
+                proposals = ProposeType{std::move(instances)};
+              }
+              break;
+            case fetch::oef::pb::Fipa_Propose::kContent:
+              proposals = ProposeType{propose.content()};
+              break;
+            case fetch::oef::pb::Fipa_Propose::PAYLOAD_NOT_SET:
+              break;
             }
             agent.onPropose(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target(),
-                            instances);
+                            proposals);
           }
           break;
         case fetch::oef::pb::Fipa_Message::kAccept:
-          {
-            auto &accept = fipa.accept();
-            std::vector<Instance> instances;
-            for(auto &instance : accept.objects()) {
-              instances.emplace_back(instance);
-            }
-            agent.onAccept(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target(),
-                           instances);
-          }
+          agent.onAccept(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target());
           break;
-        case fetch::oef::pb::Fipa_Message::kClose:
+        case fetch::oef::pb::Fipa_Message::kDecline:
           agent.onClose(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target());
           break;
         case fetch::oef::pb::Fipa_Message::MSG_NOT_SET:
@@ -300,7 +321,7 @@ namespace fetch {
       }
       void secretHandshake() {
         fetch::oef::pb::Agent_Server_ID id;
-        id.set_id(_id);
+        id.set_public_key(_id);
         logger.trace("MultiCilent::secretHandshake");
         asyncWriteBuffer(_socket, serialize(id), 5,
                          [this](std::error_code, std::size_t length){

@@ -8,7 +8,7 @@ import "fipa.proto";
 message Agent {
     message Server {
         message ID {
-            required string id = 1;
+            required string public_key = 1;
         }       
         message Answer {
             required string answer = 1;
@@ -26,7 +26,12 @@ message Agent {
 
 message Server {
     message Phrase {
-        required string phrase = 1;
+        message Failure {
+        }
+        oneof payload {
+            string phrase = 1;
+            Failure failure = 2;
+        }
     }
     message Connected {
         required bool status = 1;

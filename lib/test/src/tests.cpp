@@ -24,9 +24,9 @@ class SimpleAgent : public fetch::oef::AgentInterface, public fetch::oef::OEFCor
     _results = results;
   }
   void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {}
-  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const stde::optional<QueryModel> &constraints) override {}
-  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
-  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
+  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
+  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
+  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
   void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
  };
 
@@ -50,13 +50,16 @@ TEST_CASE("testing register", "[ServiceDiscovery]") {
     Attribute colour{"colour", Type::String, false};
     Attribute luxury{"luxury", Type::Bool, true};
     DataModel car{"car", {manufacturer, colour, luxury}, "Car sale."};
-    Instance ferrari{car, {{"manufacturer", "Ferrari"}, {"colour", "Aubergine"}, {"luxury", "true"}}};
+    Instance ferrari{car, {{"manufacturer", VariantType{std::string{"Ferrari"}}},
+                           {"colour", VariantType{std::string{"Aubergine"}}},
+                           {"luxury", VariantType{true}}}};
     c1.registerService(ferrari);
     std::this_thread::sleep_for(std::chrono::seconds{1});
     c1.unregisterService(ferrari);
     std::this_thread::sleep_for(std::chrono::seconds{1});
     c1.registerService(ferrari);
-    Instance lamborghini{car, {{"manufacturer", "Lamborghini"}, {"luxury", "true"}}};
+    Instance lamborghini{car, {{"manufacturer", VariantType{std::string{"Lamborghini"}}},
+                               {"luxury", VariantType{true}}}};
     c2.registerService(lamborghini);
     std::this_thread::sleep_for(std::chrono::seconds{1});
     ConstraintType eqTrue{Relation{Relation::Op::Eq, true}};
@@ -103,8 +106,11 @@ TEST_CASE("description", "[ServiceDiscovery]") {
     Attribute model{"model", Type::String, true};
     Attribute wireless{"wireless", Type::Bool, true};
     DataModel station{"weather_station", {manufacturer, model, wireless}, "Weather station"};
-    Instance youshiko{station, {{"manufacturer", "Youshiko"}, {"model", "YC9315"}, {"wireless", "true"}}};
-    Instance opes{station, {{"manufacturer", "Opes"}, {"model", "17500"}, {"wireless", "true"}}};
+    Instance youshiko{station, {{"manufacturer", VariantType{std::string{"Youshiko"}}},
+                                {"model", VariantType{std::string{"YC9315"}}},
+                                {"wireless", VariantType{true}}}};
+    Instance opes{station, {{"manufacturer", VariantType{std::string{"Opes"}}},
+                            {"model", VariantType{std::string{"17500"}}}, {"wireless", VariantType{true}}}};
     c1.registerDescription(youshiko);
     c2.registerDescription(opes);
     std::this_thread::sleep_for(std::chrono::seconds{1});

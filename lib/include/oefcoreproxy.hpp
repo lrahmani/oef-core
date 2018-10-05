@@ -3,19 +3,24 @@
 #include "schema.h"
 #include "agent.pb.h"
 #include <experimental/optional>
+#include "mapbox/variant.hpp"
 
+namespace var = mapbox::util; // for the variant
 namespace stde = std::experimental;
 
 namespace fetch {
   namespace oef {
+    using CFPType = var::variant<std::string,QueryModel,stde::nullopt_t>;
+    using ProposeType = var::variant<std::string,std::vector<Instance>>;
+    
     class AgentInterface {
     public:
       virtual void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) = 0;
       virtual void onSearchResult(const std::vector<std::string> &results) = 0;
       virtual void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) = 0;
-      virtual void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const stde::optional<QueryModel> &constraints) = 0; // + extension
-      virtual void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) = 0; // + extension
-      virtual void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) = 0; // + extension
+      virtual void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const CFPType &constraints) = 0;
+      virtual void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const ProposeType &proposals) = 0;
+      virtual void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) = 0;
       virtual void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) = 0;
     };
     class OEFCoreInterface {
@@ -54,14 +59,14 @@ namespace fetch {
       virtual void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
         _agent.onMessage(from, conversationId, content);
       }
-      virtual void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const stde::optional<QueryModel> &constraints) override { // + extension
+      virtual void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const CFPType &constraints) override {
         _agent.onCFP(from, conversationId, msgId, target, constraints);
       }        
-      virtual void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override { // + extension
+      virtual void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const ProposeType &proposals) override {
         _agent.onPropose(from, conversationId, msgId, target, proposals);
       }
-      virtual void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override { // + extension
-        _agent.onAccept(from, conversationId, msgId, target, proposals);
+      virtual void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {
+        _agent.onAccept(from, conversationId, msgId, target);
       }
       virtual void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {
         _agent.onClose(from, conversationId, msgId, target);

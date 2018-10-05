@@ -19,7 +19,7 @@ private:
 public:
   MeteoStation(const std::string &agentId, asio::io_context &io_context, const std::string &host)
     : fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host}, _oefCore{*this, *this} {
-    static std::vector<std::string> properties = { "true", "true", "true", "false"};
+      static std::vector<VariantType> properties = { VariantType{true}, VariantType{true}, VariantType{true}, VariantType{false}};
     static std::random_device rd;
     static std::mt19937 g(rd());
     static Attribute wind{"wind_speed", Type::Bool, true};
@@ -33,7 +33,7 @@ public:
     static std::normal_distribution<float> dist{1.0, 0.1}; // mean,stddev
     _unitPrice = dist(g);
     std::cerr << _agentPublicKey << " " << _unitPrice << std::endl;
-    std::unordered_map<std::string,std::string> props;
+    std::unordered_map<std::string,VariantType> props;
     int i = 0;
     for(auto &a : attributes) {
       props[a.name()] = properties[i];
@@ -72,9 +72,9 @@ public:
       }
     }
   }
-  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const stde::optional<QueryModel> &constraints) override {}
-  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
-  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const std::vector<Instance> &proposals) override {}
+  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
+  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
+  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
   void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
 };
 

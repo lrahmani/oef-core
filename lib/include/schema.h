@@ -21,30 +21,19 @@ enum class Type {
     String = fetch::oef::pb::Query_Attribute_Type_STRING };
 using VariantType = var::variant<int,float,std::string,bool>;
 VariantType string_to_value(fetch::oef::pb::Query_Attribute_Type t, const std::string &s);
+std::string to_string(const VariantType &v);
 
 class Attribute {
  private:
   fetch::oef::pb::Query_Attribute _attribute;
-  static bool validate(const fetch::oef::pb::Query_Attribute &attribute, const std::string &value) {
-    try {
-      switch(attribute.type()) {
-      case fetch::oef::pb::Query_Attribute_Type_FLOAT:
-        (void)std::stod(value);
-        break;
-      case fetch::oef::pb::Query_Attribute_Type_INT:
-        (void)std::stol(value);
-        break;
-      case fetch::oef::pb::Query_Attribute_Type_BOOL:
-        return value == "true" || value == "false" || value == "1" || value == "0";
-        break;
-      case fetch::oef::pb::Query_Attribute_Type_STRING:
-        return true;
-        break;
-      }
-    } catch(std::exception &e) {
-      return false;
-    }
-    return true;
+  static bool validate(const fetch::oef::pb::Query_Attribute &attribute, const VariantType &value) {
+    auto type = attribute.type();
+    bool res;
+    value.match([&res,type](int) { res = type == fetch::oef::pb::Query_Attribute_Type_INT;},
+                [&res,type](float) { res = type == fetch::oef::pb::Query_Attribute_Type_FLOAT;},
+                [&res,type](const std::string &) { res = type == fetch::oef::pb::Query_Attribute_Type_STRING;},
+                [&res,type](bool) { res = type == fetch::oef::pb::Query_Attribute_Type_BOOL;});
+    return res;
   }
  public:
   explicit Attribute(const std::string &name, Type type, bool required) {
@@ -61,7 +50,7 @@ class Attribute {
   const std::string &name() const { return _attribute.name(); }
   fetch::oef::pb::Query_Attribute_Type type() const { return _attribute.type(); }
   bool required() const { return _attribute.required(); }
-  static std::pair<std::string,std::string> instantiate(const std::unordered_map<std::string,std::string> &values,
+  static std::pair<std::string,std::string> instantiate(const std::unordered_map<std::string,VariantType> &values,
                                                         const fetch::oef::pb::Query_Attribute &attribute) {
     auto iter = values.find(attribute.name());
     if(iter == values.end()) {
@@ -71,11 +60,11 @@ class Attribute {
       return std::make_pair(attribute.name(),"");
     }
     if(validate(attribute, iter->second)) {
-      return std::make_pair(attribute.name(), iter->second);
+      return std::make_pair(attribute.name(), to_string(iter->second));
     }
-    throw std::invalid_argument(attribute.name() + std::string(" has a wrong type of value ") + iter->second);
+    throw std::invalid_argument(attribute.name() + std::string(" has a wrong type of value ") + to_string(iter->second));
   }
-  std::pair<std::string,std::string> instantiate(const std::unordered_map<std::string,std::string> &values) const {
+  std::pair<std::string,std::string> instantiate(const std::unordered_map<std::string,VariantType> &values) const {
     return instantiate(values, _attribute);
   }
 };
@@ -312,7 +301,7 @@ class DataModel {
   }
   std::string name() const { return _model.name(); }
   static std::vector<std::pair<std::string,std::string>>
-    instantiate(const fetch::oef::pb::Query_DataModel &model, const std::unordered_map<std::string,std::string> &values) {
+    instantiate(const fetch::oef::pb::Query_DataModel &model, const std::unordered_map<std::string,VariantType> &values) {
     std::vector<std::pair<std::string,std::string>> res;
     for(auto &a : model.attributes()) {
       res.emplace_back(Attribute::instantiate(values, a));
@@ -324,23 +313,43 @@ class DataModel {
 class Instance {
  private:
   fetch::oef::pb::Query_Instance _instance;
-  std::unordered_map<std::string,std::string> _values;
+  std::unordered_map<std::string,VariantType> _values;
  public:
- explicit Instance(const DataModel &model, const std::unordered_map<std::string,std::string> &values) : _values{values} {
+ explicit Instance(const DataModel &model, const std::unordered_map<std::string,VariantType> &values) : _values{values} {
     auto *mod = _instance.mutable_model();
     mod->CopyFrom(model.handle());
     auto *vals = _instance.mutable_values();
     for(auto &v : values) {
       auto *val = vals->Add();
-      val->set_first(v.first);
-      val->set_second(v.second);
+      val->set_key(v.first);
+      auto *value = val->mutable_value();
+      v.second.match([value](int i) { value->set_i(i);},
+                     [value](float f) { value->set_f(f);},
+                     [value](const std::string &s) { value->set_s(s);},
+                     [value](bool b) {value->set_b(b);});
     }
   }
   explicit Instance(const fetch::oef::pb::Query_Instance &instance) : _instance{instance}
   {
     const auto &values = _instance.values();
     for(auto &v : values) {
-      _values[v.first()] = v.second();
+      switch(v.value().value_case()) {
+      case fetch::oef::pb::Query_Value::kS:
+        _values[v.key()] = VariantType{v.value().s()};
+        break;
+      case fetch::oef::pb::Query_Value::kF:
+        _values[v.key()] = VariantType{v.value().f()};
+        break;
+      case fetch::oef::pb::Query_Value::kB:
+        _values[v.key()] = VariantType{v.value().b()};
+        break;
+      case fetch::oef::pb::Query_Value::kI:
+        _values[v.key()] = VariantType{int(v.value().i())};
+        break;
+      case fetch::oef::pb::Query_Value::VALUE_NOT_SET:
+      default:
+        break;
+      }
     }
   }
   const fetch::oef::pb::Query_Instance &handle() const { return _instance; }
@@ -362,7 +371,10 @@ class Instance {
     for(const auto &p : _values) {
       std::size_t hs = std::hash<std::string>{}(p.first);
       h = hs ^ (h << 1);
-      hs = std::hash<std::string>{}(p.second);
+      p.second.match([&hs](int i) { hs = std::hash<int>{}(i);},
+                     [&hs](float f) { hs = std::hash<float>{}(f);},
+                     [&hs](const std::string &s) { hs = std::hash<std::string>{}(s);},
+                     [&hs](bool b) { hs = std::hash<bool>{}(b);});
       h = hs ^ (h << 2);
     }
     return h;
@@ -379,7 +391,7 @@ class Instance {
     auto iter = _values.find(name);
     if(iter == _values.end())
       return stde::nullopt;
-    return stde::optional<std::string>{iter->second};
+    return stde::optional<std::string>{to_string(iter->second)};
   }
 };
 
@@ -407,15 +419,15 @@ class ConstraintType {
   explicit ConstraintType(const Or &or_);
   explicit ConstraintType(const And &and_);
   explicit ConstraintType(const Range &range) {
-    auto *r = _constraint.mutable_range();
+    auto *r = _constraint.mutable_range_();
     r->CopyFrom(range.handle());
   }
   explicit ConstraintType(const Relation &rel) {
-    auto *r = _constraint.mutable_rel();
+    auto *r = _constraint.mutable_relation();
     r->CopyFrom(rel.handle());
   }
   explicit ConstraintType(const Set &set) {
-    auto *s = _constraint.mutable_set();
+    auto *s = _constraint.mutable_set_();
     s->CopyFrom(set.handle());
   }
   const fetch::oef::pb::Query_Constraint_ConstraintType &handle() const { return _constraint; }

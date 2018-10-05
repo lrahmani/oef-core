@@ -6,18 +6,26 @@ import "query.proto";
 
 message Fipa {
     message Cfp {
-        optional Query.Model query = 1;
-        extensions 2 to 100;
+        message Nothing {
+        }
+        oneof payload {
+            Query.Model query = 1;
+            bytes content = 2;
+            Nothing nothing = 3;
+        }
     }
     message Propose {
-        repeated Query.Instance objects = 1;
-        extensions 2 to 100;
+        message Proposals {
+            repeated Query.Instance objects = 1;
+        }
+        oneof payload {
+            Proposals proposals = 1;
+            bytes content = 2;
+        }
     }
     message Accept {
-        repeated Query.Instance objects = 1;
-        extensions 2 to 100;
     }
-    message Close {
+    message Decline {
     }
     message Message {
         required int32 msg_id = 1;
@@ -26,7 +34,7 @@ message Fipa {
             Cfp cfp = 3;
             Propose propose = 4;
             Accept accept = 5;
-            Close close = 6;
+            Decline decline = 6;
         }
     }
 }

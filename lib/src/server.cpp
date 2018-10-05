@@ -239,20 +239,20 @@ namespace fetch {
                           try {
                             logger.trace("Server::newSession received {} bytes", buffer->size());
                             auto id = deserialize<fetch::oef::pb::Agent_Server_ID>(*buffer);
-                            logger.trace("Server::newSession connection from {}", id.id());
-                            if(!_ad.exist(id.id())) { // not yet connected
-                              secretHandshake(id.id(), context);
+                            logger.trace("Server::newSession connection from {}", id.public_key());
+                            if(!_ad.exist(id.public_key())) { // not yet connected
+                              secretHandshake(id.public_key(), context);
                             } else {
-                              logger.info("Server::newSession ID {} already connected", id.id());
-                              fetch::oef::pb::Server_Connected status;
-                              status.set_status(false);
-                              asyncWriteBuffer(context->_socket, serialize(status), 10 /* sec ? */);
+                              logger.info("Server::newSession ID {} already connected", id.public_key());
+                              fetch::oef::pb::Server_Phrase failure;
+                              (void)failure.mutable_failure();
+                              asyncWriteBuffer(context->_socket, serialize(failure), 10 /* sec ? */);
                             }
                           } catch(std::exception &) {
                             logger.error("Server::newSession error parsing ID");
-                            fetch::oef::pb::Server_Connected status;
-                            status.set_status(false);
-                            asyncWriteBuffer(context->_socket, serialize(status), 10 /* sec ? */);
+                            fetch::oef::pb::Server_Phrase failure;
+                            (void)failure.mutable_failure();
+                            asyncWriteBuffer(context->_socket, serialize(failure), 10 /* sec ? */);
                           }
                         }
                       });

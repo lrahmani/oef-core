@@ -7,7 +7,7 @@ namespace Test {
 
   TEST_CASE("message serialization", "[serialization]") {
     fetch::oef::pb::Agent_Server_ID id;
-    id.set_id("Agent1");
+    id.set_public_key("Agent1");
     std::string output;
     REQUIRE(google::protobuf::TextFormat::PrintToString(id, &output));
     std::cout << output;
