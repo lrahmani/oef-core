@@ -218,6 +218,8 @@ class Set {
           }
         }
       });
+    if(set.op() == fetch::oef::pb::Query_Set_Operator_NOTIN)
+      return !res;
     return res;
   }  
   bool check(const VariantType &v) const {
