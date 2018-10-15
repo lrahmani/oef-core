@@ -12,6 +12,9 @@ namespace fetch {
     fetch::oef::Logger Server::logger = fetch::oef::Logger("oef-node");
     fetch::oef::Logger AgentDiscovery::logger = fetch::oef::Logger("agent-discovery");
     fetch::oef::Logger fetch::oef::OEFCoreNetworkProxy::logger = fetch::oef::Logger("oefcore-network");
+    fetch::oef::Logger fetch::oef::OEFCoreLocalPB::logger = fetch::oef::Logger("oefcore-local-pb");
+    fetch::oef::Logger fetch::oef::MessageDecoder::logger = fetch::oef::Logger("oefcore-pb");
+    fetch::oef::Logger fetch::oef::SchedulerPB::logger = fetch::oef::Logger("oefcore-scheduler-pb");
     
     std::string to_string(const google::protobuf::Message &msg) {
       std::string output;
