@@ -7,6 +7,7 @@
 #include "oefcoreproxy.hpp"
 #include "clientmsg.h"
 #include "queue.h"
+#include "sd.h"
 
 #include <unordered_map>
 #include <mutex>
@@ -164,20 +165,30 @@ namespace fetch {
     
     class SchedulerPB {
     private:
-      std::unordered_map<std::string, AgentInterface *> _agents;
+      struct LocalAgentSession {
+        AgentInterface *_agent;
+        stde::optional<Instance> _description;
+        
+        bool match(const QueryModel &query) const {
+          if(!_description)
+            return false;
+          return query.check(*_description);
+        }
+      };
+      std::unordered_map<std::string, LocalAgentSession> _agents;
       Queue<std::pair<std::string,std::shared_ptr<Buffer>>> _queue;
       std::unique_ptr<std::thread> _thread;
       bool _stopping = false;
-
+      ServiceDirectory _sd;
+      
       static fetch::oef::Logger logger;
       
       void process() {
         while(!_stopping) {
           auto p = _queue.pop();
           if(!_stopping) {
-            auto *agent = _agents[p.first];
-            if(agent)
-              MessageDecoder::decode(p.first, p.second, *agent);
+            if(_agents.find(p.first) != _agents.end() && _agents[p.first]._agent)
+              MessageDecoder::decode(p.first, p.second, *_agents[p.first]._agent);
           }
         }
       }
@@ -186,7 +197,7 @@ namespace fetch {
         _thread = std::unique_ptr<std::thread>(new std::thread([this]() { process(); }));
       }
       ~SchedulerPB() {
-        if(_thread)
+        if(!_stopping)
           _thread->join();
       }
       void stop() {
@@ -200,7 +211,7 @@ namespace fetch {
         logger.trace("SchedulerPB::connect {} size {}", agentPublicKey, _agents.size());
         if(_agents.find(agentPublicKey) != _agents.end())
           return false;
-        _agents[agentPublicKey] = nullptr;
+        _agents[agentPublicKey] = LocalAgentSession{};
         return true;
       }
       void disconnect(const std::string &agentPublicKey) {
@@ -209,15 +220,44 @@ namespace fetch {
       }
       void loop(const std::string &agentPublicKey, AgentInterface &agent) {
         logger.trace("SchedulerPB::loop {}", agentPublicKey);
-        _agents[agentPublicKey] = &agent;
+        _agents[agentPublicKey]._agent = &agent;
+      }
+      void registerDescription(const std::string &agentPublicKey, const Instance &instance) {
+        logger.trace("SchedulerPB::registerDescription {}", agentPublicKey);
+        if(_agents.find(agentPublicKey) == _agents.end())
+          logger.error("SchedulerPB::registerDescription {} is not registered", agentPublicKey);
+        else
+          _agents[agentPublicKey]._description = instance;
+      }
+      void registerService(const std::string &agentPublicKey, const Instance &instance) {
+        logger.trace("SchedulerPB::registerService {}", agentPublicKey);
+        _sd.registerAgent(instance, agentPublicKey);
+      }
+      void unregisterService(const std::string &agentPublicKey, const Instance &instance) {
+        logger.trace("SchedulerPB::unregisterService {}", agentPublicKey);
+        _sd.unregisterAgent(instance, agentPublicKey);
+      }
+      std::vector<std::string> searchAgents(const QueryModel &model) const {
+        std::vector<std::string> res;
+        for(const auto &s : _agents) {
+          if(s.second.match(model))
+            res.emplace_back(s.first);
+        }
+        return res;
+      }
+      std::vector<std::string> searchServices(const QueryModel &model) const {
+        return _sd.query(model);
       }
       void send(const std::string &agentPublicKey, const std::shared_ptr<Buffer> &buffer) {
         logger.trace("SchedulerPB::send {}", agentPublicKey);
         _queue.push(std::pair<std::string,std::shared_ptr<Buffer>>(agentPublicKey, buffer));
       }
       void sendTo(const std::string &agentPublicKey, const std::string &to, const std::shared_ptr<Buffer> &buffer) {
-        logger.trace("SchedulerPB::sendTo {}", agentPublicKey);
-        _queue.push(std::pair<std::string,std::shared_ptr<Buffer>>(agentPublicKey, buffer));
+        logger.trace("SchedulerPB::sendTo {} to {}", agentPublicKey, to);
+        if(_agents.find(to) == _agents.end())
+          logger.error("SchedulerPB::sendTo {} is not connected.", to);
+        else
+          _queue.push(std::pair<std::string,std::shared_ptr<Buffer>>(to, buffer));
       }
     };
       
@@ -243,28 +283,41 @@ namespace fetch {
         _scheduler.loop(_agentPublicKey, agent);
       }
       void registerDescription(const Instance &instance) override {
-        Description description{instance};
-        _scheduler.send(_agentPublicKey, serialize(description.handle()));
+        _scheduler.registerDescription(_agentPublicKey, instance);
       }
       void registerService(const Instance &instance) override {
-        Register service{instance};
-        _scheduler.send(_agentPublicKey, serialize(service.handle()));
+        _scheduler.registerService(_agentPublicKey, instance);
       }
       void searchAgents(const QueryModel &model) override {
-        Search search{model};
-        _scheduler.send(_agentPublicKey, serialize(search.handle()));
+        auto agents_vec = _scheduler.searchAgents(model);
+        fetch::oef::pb::Server_AgentMessage answer;
+        auto agents = answer.mutable_agents();
+        for(auto &a : agents_vec) {
+          agents->add_agents(a);
+        }
+        _scheduler.send(_agentPublicKey, serialize(answer));
       }
       void searchServices(const QueryModel &model) override {
-        Query query{model};
-        _scheduler.send(_agentPublicKey, serialize(query.handle()));
+        auto agents_vec = _scheduler.searchServices(model);
+        fetch::oef::pb::Server_AgentMessage answer;
+        auto agents = answer.mutable_agents();
+        for(auto &a : agents_vec) {
+          agents->add_agents(a);
+        }
+        _scheduler.send(_agentPublicKey, serialize(answer));
       }
       void unregisterService(const Instance &instance) override {
-        Unregister service{instance};
-        _scheduler.send(_agentPublicKey, serialize(service.handle()));
+        _scheduler.unregisterService(_agentPublicKey, instance);
       }
       void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) {
-        Message message{conversationId, dest, msg};
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(message.handle()));
+        fetch::oef::pb::Server_AgentMessage message;
+        auto content = message.mutable_content();
+        content->set_conversation_id(conversationId);
+        content->set_origin(_agentPublicKey);
+        content->set_content(msg);
+        // todo fipa
+        auto buffer = serialize(message);
+        _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       }
     };
     
