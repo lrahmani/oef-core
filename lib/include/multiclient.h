@@ -262,13 +262,15 @@ namespace fetch {
     };
       
     
-    class OEFCoreLocalPB : public OEFCoreBridgeBase {
+    class OEFCoreLocalPB : public virtual OEFCoreInterface {
+    protected:
+      const std::string _agentPublicKey;
     private:
       SchedulerPB &_scheduler;
       
       static fetch::oef::Logger logger;
     public:
-      OEFCoreLocalPB(const std::string &agentPublicKey, SchedulerPB &scheduler) : OEFCoreBridgeBase{agentPublicKey},
+      OEFCoreLocalPB(const std::string &agentPublicKey, SchedulerPB &scheduler) : _agentPublicKey{agentPublicKey},
                                                                                   _scheduler{scheduler} {}
       void stop() {
         _scheduler.disconnect(_agentPublicKey);
@@ -321,7 +323,9 @@ namespace fetch {
       }
     };
     
-    class OEFCoreNetworkProxy : public OEFCoreBridgeBase {
+    class OEFCoreNetworkProxy : virtual public OEFCoreInterface {
+    protected:
+      const std::string _agentPublicKey;
     private:
       asio::io_context &_io_context;
       tcp::socket _socket;
@@ -330,10 +334,11 @@ namespace fetch {
 
     public:
       OEFCoreNetworkProxy(const std::string &agentPublicKey, asio::io_context &io_context, const std::string &host)
-        : OEFCoreBridgeBase{agentPublicKey}, _io_context{io_context}, _socket{_io_context} {
+        : _agentPublicKey{agentPublicKey}, _io_context{io_context}, _socket{_io_context} {
           tcp::resolver resolver(_io_context);
           asio::connect(_socket, resolver.resolve(host, std::to_string(static_cast<int>(Ports::Agents))));
       }
+      OEFCoreNetworkProxy(OEFCoreNetworkProxy &&) = default;
       void stop() {
         _socket.shutdown(asio::socket_base::shutdown_both);
         _socket.close();

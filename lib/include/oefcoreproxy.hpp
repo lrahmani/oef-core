@@ -34,19 +34,12 @@ namespace fetch {
       virtual void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) = 0;
       virtual void loop(AgentInterface &server) = 0;
     };
-    class OEFCoreBridgeBase : public OEFCoreInterface {
-    protected:
-      const std::string _agentPublicKey;
-    public:
-      OEFCoreBridgeBase(const std::string &agentPublicKey) : _agentPublicKey{agentPublicKey} {}
-      virtual ~OEFCoreBridgeBase() {}
-    };
     class OEFCoreProxy : public AgentInterface, public OEFCoreInterface {
     private:
-      OEFCoreBridgeBase &_oefCore;
+      OEFCoreInterface &_oefCore;
       AgentInterface &_agent;
     public:
-      OEFCoreProxy(OEFCoreBridgeBase &oefCore, AgentInterface &agent) : _oefCore{oefCore}, _agent{agent} {
+      OEFCoreProxy(OEFCoreInterface &oefCore, AgentInterface &agent) : _oefCore{oefCore}, _agent{agent} {
         if(_oefCore.handshake())
           loop(_agent);
       }
