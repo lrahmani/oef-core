@@ -28,7 +28,27 @@ class SimpleAgent : public fetch::oef::AgentInterface, public fetch::oef::OEFCor
   void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
   void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
   void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
- };
+};
+
+class SimpleAgentLocal : public fetch::oef::AgentInterface, public fetch::oef::OEFCoreLocalPB {
+ private:
+  fetch::oef::OEFCoreProxy _oefCore;
+  
+ public:
+  std::vector<std::string> _results;
+  SimpleAgentLocal(const std::string &agentId, fetch::oef::SchedulerPB &scheduler)
+    : fetch::oef::OEFCoreLocalPB{agentId, scheduler}, _oefCore{*this, *this} {
+  }
+  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
+  void onSearchResult(const std::vector<std::string> &results) override {
+    _results = results;
+  }
+  void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {}
+  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
+  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
+  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
+  void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
+};
 
 TEST_CASE("testing register", "[ServiceDiscovery]") {
   fetch::oef::Server as;
@@ -85,6 +105,49 @@ TEST_CASE("testing register", "[ServiceDiscovery]") {
   std::cerr << "Server stopped\n";
 }
 
+TEST_CASE("local testing register", "[ServiceDiscovery]") {
+  fetch::oef::SchedulerPB scheduler;
+  std::cerr << "Scheduler created\n";
+  std::cerr << "NbAgents " << scheduler.nbAgents() << "\n";
+  REQUIRE(scheduler.nbAgents() == 0);
+  {
+    SimpleAgentLocal c1("Agent1", scheduler);
+    SimpleAgentLocal c2("Agent2", scheduler);
+    SimpleAgentLocal c3("Agent3", scheduler);
+    REQUIRE(scheduler.nbAgents() == 3);
+    Attribute manufacturer{"manufacturer", Type::String, true};
+    Attribute colour{"colour", Type::String, false};
+    Attribute luxury{"luxury", Type::Bool, true};
+    DataModel car{"car", {manufacturer, colour, luxury}, "Car sale."};
+    Instance ferrari{car, {{"manufacturer", VariantType{std::string{"Ferrari"}}},
+                           {"colour", VariantType{std::string{"Aubergine"}}},
+                           {"luxury", VariantType{true}}}};
+    c1.registerService(ferrari);
+    c1.unregisterService(ferrari);
+    c1.registerService(ferrari);
+    Instance lamborghini{car, {{"manufacturer", VariantType{std::string{"Lamborghini"}}},
+                               {"luxury", VariantType{true}}}};
+    c2.registerService(lamborghini);
+    ConstraintType eqTrue{Relation{Relation::Op::Eq, true}};
+    Constraint luxury_c{luxury, eqTrue};
+    QueryModel q1{{luxury_c}, car};
+    c3.searchServices(q1);
+    auto agents = c3._results;
+    std::sort(agents.begin(), agents.end());
+    REQUIRE(agents.size() == 2);
+    REQUIRE(agents == std::vector<std::string>({"Agent1", "Agent2"}));
+    c1.stop();
+    c2.stop();
+    c3.stop();
+    std::cerr << "Agent3 received\n";
+    for(auto &s : agents) {
+      std::cerr << s << std::endl;
+    }
+  }
+  scheduler.stop();
+  std::cerr << "Scheduler stopped\n";
+}
+
 TEST_CASE("description", "[ServiceDiscovery]") {
   fetch::oef::Server as;
   std::cerr << "Server created\n";
@@ -139,6 +202,53 @@ TEST_CASE("description", "[ServiceDiscovery]") {
   }
   as.stop();
   std::cerr << "Server stopped\n";
+}
+
+TEST_CASE("local description", "[ServiceDiscovery]") {
+  fetch::oef::SchedulerPB scheduler;
+  std::cerr << "Scheduler created\n";
+  std::this_thread::sleep_for(std::chrono::seconds{1});
+  std::cerr << "NbAgents " << scheduler.nbAgents() << "\n";
+  REQUIRE(scheduler.nbAgents() == 0);
+  {
+    SimpleAgentLocal c1("Agent1", scheduler);
+    SimpleAgentLocal c2("Agent2", scheduler);
+    SimpleAgentLocal c3("Agent3", scheduler);
+    REQUIRE(scheduler.nbAgents() == 3);
+
+    Attribute manufacturer{"manufacturer", Type::String, true};
+    Attribute model{"model", Type::String, true};
+    Attribute wireless{"wireless", Type::Bool, true};
+    DataModel station{"weather_station", {manufacturer, model, wireless}, "Weather station"};
+    Instance youshiko{station, {{"manufacturer", VariantType{std::string{"Youshiko"}}},
+                                {"model", VariantType{std::string{"YC9315"}}},
+                                {"wireless", VariantType{true}}}};
+    Instance opes{station, {{"manufacturer", VariantType{std::string{"Opes"}}},
+                            {"model", VariantType{std::string{"17500"}}}, {"wireless", VariantType{true}}}};
+    c1.registerDescription(youshiko);
+    c2.registerDescription(opes);
+    ConstraintType eqTrue{Relation{Relation::Op::Eq, true}};
+    Constraint wireless_c{wireless, eqTrue};
+    QueryModel q1{{wireless_c}, station};
+    c3.searchAgents(q1);
+    auto agents = c3._results;
+    std::sort(agents.begin(), agents.end());
+    REQUIRE(agents.size() == 2);
+    REQUIRE(agents == std::vector<std::string>({"Agent1", "Agent2"}));
+    ConstraintType eqYoushiko{Relation{Relation::Op::Eq, std::string{"Youshiko"}}};
+    Constraint manufacturer_c{manufacturer, eqYoushiko};
+    QueryModel q2{{manufacturer_c}};
+    c3.searchAgents(q2);
+    auto agents2 = c3._results;
+    REQUIRE(agents2.size() == 1);
+    REQUIRE(agents2 == std::vector<std::string>({"Agent1"}));
+    
+    c1.stop();
+    c2.stop();
+    c3.stop();
+  }
+  scheduler.stop();
+  std::cerr << "Scheduler stopped\n";
 }
 
 TEST_CASE( "testing Server", "[Server]" ) {
@@ -233,7 +343,7 @@ TEST_CASE( "testing multiclient", "[Client]" ) {
 
     std::vector<std::unique_ptr<SimpleMultiClient>> clients;
     std::vector<std::future<std::unique_ptr<SimpleMultiClient>>> futures;
-    size_t nbClients = 10;
+    size_t nbClients = 1000;
     try {
       for(size_t i = 1; i <= nbClients; ++i) {
         std::string name = "Agent_";
