@@ -8,15 +8,14 @@
 #include "multiclient.h"
 #include "oefcoreproxy.hpp"
 
-class SimpleAgent : public fetch::oef::AgentInterface, public fetch::oef::OEFCoreNetworkProxy {
- private:
-  fetch::oef::OEFCoreProxy _oefCore;
-  
+class SimpleAgent : public virtual fetch::oef::AgentInterface, public virtual fetch::oef::OEFCoreNetworkProxy {
  public:
   std::vector<std::string> _results;
   SimpleAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
-    : fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host}, _oefCore{*this, *this} {
-  }
+    : fetch::oef::OEFCoreInterface{agentId}, fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host} {
+      if(handshake())
+        loop(*this);
+    }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
   void onSearchResult(const std::vector<std::string> &results) override {
     _results = results;

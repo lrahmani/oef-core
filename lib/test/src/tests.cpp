@@ -10,14 +10,14 @@
 using fetch::oef::Server;
 using fetch::oef::MultiClient;
 
-class SimpleAgent : public fetch::oef::AgentInterface, public fetch::oef::OEFCoreNetworkProxy {
- private:
-  //  fetch::oef::OEFCoreProxy _oefCore;
-  
+class SimpleAgent : public virtual fetch::oef::AgentInterface, public virtual fetch::oef::OEFCoreNetworkProxy {
  public:
   std::vector<std::string> _results;
   SimpleAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
-    : fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host} {} //, _oefCore{*this, *this} {}
+    : fetch::oef::OEFCoreInterface{agentId}, fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host} {
+      if(handshake())
+        loop(*this);
+    }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
   void onSearchResult(const std::vector<std::string> &results) override {
     _results = results;
@@ -29,17 +29,17 @@ class SimpleAgent : public fetch::oef::AgentInterface, public fetch::oef::OEFCor
   void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
 };
 
-class SimpleAgentLocal : public fetch::oef::AgentInterface, public fetch::oef::OEFCoreLocalPB {
- private:
-  fetch::oef::OEFCoreProxy _oefCore;
-  
+class SimpleAgentLocal : public virtual fetch::oef::AgentInterface, public virtual fetch::oef::OEFCoreLocalPB {
  public:
   std::vector<std::string> _results;
   SimpleAgentLocal(const std::string &agentId, fetch::oef::SchedulerPB &scheduler)
-    : fetch::oef::OEFCoreLocalPB{agentId, scheduler}, _oefCore{*this, *this} {
-  }
+    : fetch::oef::OEFCoreInterface{agentId}, fetch::oef::OEFCoreLocalPB{agentId, scheduler} {
+      if(handshake())
+        loop(*this);
+    }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
   void onSearchResult(const std::vector<std::string> &results) override {
+    std::cerr << "onSearchResult " << results.size() << std::endl;
     _results = results;
   }
   void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {}
@@ -105,6 +105,7 @@ TEST_CASE("testing register", "[ServiceDiscovery]") {
 }
 
 TEST_CASE("local testing register", "[ServiceDiscovery]") {
+  // spdlog::set_level(spdlog::level::level_enum::trace);
   fetch::oef::SchedulerPB scheduler;
   std::cerr << "Scheduler created\n";
   std::cerr << "NbAgents " << scheduler.nbAgents() << "\n";
@@ -131,6 +132,7 @@ TEST_CASE("local testing register", "[ServiceDiscovery]") {
     Constraint luxury_c{luxury, eqTrue};
     QueryModel q1{{luxury_c}, car};
     c3.searchServices(q1);
+    std::this_thread::sleep_for(std::chrono::seconds{1});
     auto agents = c3._results;
     std::sort(agents.begin(), agents.end());
     REQUIRE(agents.size() == 2);
@@ -230,6 +232,7 @@ TEST_CASE("local description", "[ServiceDiscovery]") {
     Constraint wireless_c{wireless, eqTrue};
     QueryModel q1{{wireless_c}, station};
     c3.searchAgents(q1);
+    std::this_thread::sleep_for(std::chrono::seconds{1});
     auto agents = c3._results;
     std::sort(agents.begin(), agents.end());
     REQUIRE(agents.size() == 2);
@@ -238,6 +241,7 @@ TEST_CASE("local description", "[ServiceDiscovery]") {
     Constraint manufacturer_c{manufacturer, eqYoushiko};
     QueryModel q2{{manufacturer_c}};
     c3.searchAgents(q2);
+    std::this_thread::sleep_for(std::chrono::seconds{1});
     auto agents2 = c3._results;
     REQUIRE(agents2.size() == 1);
     REQUIRE(agents2 == std::vector<std::string>({"Agent1"}));

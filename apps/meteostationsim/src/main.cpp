@@ -9,39 +9,41 @@
 #include "oefcoreproxy.hpp"
 #include <unordered_set>
 
-class MeteoStation : public fetch::oef::AgentInterface, public fetch::oef::OEFCoreNetworkProxy
+class MeteoStation : public virtual fetch::oef::AgentInterface, public virtual fetch::oef::OEFCoreNetworkProxy
 {
 private:
-  fetch::oef::OEFCoreProxy _oefCore;
   float _unitPrice;
   std::unordered_set<std::string> _conversations;
   
 public:
   MeteoStation(const std::string &agentId, asio::io_context &io_context, const std::string &host)
-    : fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host}, _oefCore{*this, *this} {
+    : fetch::oef::OEFCoreInterface{agentId}, fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host} {
+      if(handshake())
+        loop(*this);
+      
       static std::vector<VariantType> properties = { VariantType{true}, VariantType{true}, VariantType{true}, VariantType{false}};
-    static std::random_device rd;
-    static std::mt19937 g(rd());
-    static Attribute wind{"wind_speed", Type::Bool, true};
-    static Attribute temp{"temperature", Type::Bool, true};
-    static Attribute air{"air_pressure", Type::Bool, true};
-    static Attribute humidity{"humidity", Type::Bool, true};
-    static std::vector<Attribute> attributes{wind,temp,air,humidity};
-    static DataModel weather{"weather_data", attributes, "All possible weather data."};
-
-    std::shuffle(properties.begin(), properties.end(), g);
-    static std::normal_distribution<float> dist{1.0, 0.1}; // mean,stddev
-    _unitPrice = dist(g);
-    std::cerr << _agentPublicKey << " " << _unitPrice << std::endl;
-    std::unordered_map<std::string,VariantType> props;
-    int i = 0;
-    for(auto &a : attributes) {
-      props[a.name()] = properties[i];
-      ++i;
+      static std::random_device rd;
+      static std::mt19937 g(rd());
+      static Attribute wind{"wind_speed", Type::Bool, true};
+      static Attribute temp{"temperature", Type::Bool, true};
+      static Attribute air{"air_pressure", Type::Bool, true};
+      static Attribute humidity{"humidity", Type::Bool, true};
+      static std::vector<Attribute> attributes{wind,temp,air,humidity};
+      static DataModel weather{"weather_data", attributes, "All possible weather data."};
+      
+      std::shuffle(properties.begin(), properties.end(), g);
+      static std::normal_distribution<float> dist{1.0, 0.1}; // mean,stddev
+      _unitPrice = dist(g);
+      std::cerr << _agentPublicKey << " " << _unitPrice << std::endl;
+      std::unordered_map<std::string,VariantType> props;
+      int i = 0;
+      for(auto &a : attributes) {
+        props[a.name()] = properties[i];
+        ++i;
+      }
+      Instance instance{weather, props};
+      registerService(instance);
     }
-    Instance instance{weather, props};
-    registerService(instance);
-  }
   MeteoStation(const MeteoStation &) = delete;
   MeteoStation operator=(const MeteoStation &) = delete;
 

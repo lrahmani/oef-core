@@ -1,9 +1,13 @@
 #include <iostream>
 #include "multiclient.h"
 
-class SimpleMultiClient : public fetch::oef::AgentInterface {
+class SimpleMultiClient : public virtual fetch::oef::AgentInterface, public virtual fetch::oef::OEFCoreNetworkProxy {
 public:
-  SimpleMultiClient() {}
+  SimpleMultiClient(const std::string &agentId, asio::io_context &io_context, const std::string &host) :
+    fetch::oef::OEFCoreInterface{agentId}, fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host} {
+      if(handshake())
+        loop(*this);
+    }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
   void onSearchResult(const std::vector<std::string> &results) override {}
   void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {}
@@ -24,9 +28,7 @@ int main(int argc, char* argv[])
       std::cerr << "Usage: client <agentID> <host>\n";
       return 1;
     }
-    SimpleMultiClient agent;
-    fetch::oef::OEFCoreNetworkProxy oefCore{argv[1], pool.getIoContext(), argv[2]};
-    fetch::oef::OEFCoreProxy proxy{oefCore, agent};
+    SimpleMultiClient agent{argv[1], pool.getIoContext(), argv[2]};
     // std::cout << "Enter destination: ";
     // std::string destId;
     // std::getline(std::cin, destId);

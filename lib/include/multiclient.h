@@ -238,6 +238,7 @@ namespace fetch {
         _sd.unregisterAgent(instance, agentPublicKey);
       }
       std::vector<std::string> searchAgents(const QueryModel &model) const {
+        logger.trace("SchedulerPB::searchServices");
         std::vector<std::string> res;
         for(const auto &s : _agents) {
           if(s.second.match(model))
@@ -246,7 +247,10 @@ namespace fetch {
         return res;
       }
       std::vector<std::string> searchServices(const QueryModel &model) const {
-        return _sd.query(model);
+        logger.trace("SchedulerPB::searchServices");
+        auto res = _sd.query(model);
+        logger.trace("SchedulerPB::searchServices size {}", res.size());
+        return res;
       }
       void send(const std::string &agentPublicKey, const std::shared_ptr<Buffer> &buffer) {
         logger.trace("SchedulerPB::send {}", agentPublicKey);
@@ -263,14 +267,12 @@ namespace fetch {
       
     
     class OEFCoreLocalPB : public virtual OEFCoreInterface {
-    protected:
-      const std::string _agentPublicKey;
     private:
       SchedulerPB &_scheduler;
       
       static fetch::oef::Logger logger;
     public:
-      OEFCoreLocalPB(const std::string &agentPublicKey, SchedulerPB &scheduler) : _agentPublicKey{agentPublicKey},
+      OEFCoreLocalPB(const std::string &agentPublicKey, SchedulerPB &scheduler) : OEFCoreInterface{agentPublicKey},
                                                                                   _scheduler{scheduler} {}
       void stop() {
         _scheduler.disconnect(_agentPublicKey);
@@ -324,8 +326,6 @@ namespace fetch {
     };
     
     class OEFCoreNetworkProxy : virtual public OEFCoreInterface {
-    protected:
-      const std::string _agentPublicKey;
     private:
       asio::io_context &_io_context;
       tcp::socket _socket;
@@ -334,7 +334,7 @@ namespace fetch {
 
     public:
       OEFCoreNetworkProxy(const std::string &agentPublicKey, asio::io_context &io_context, const std::string &host)
-        : _agentPublicKey{agentPublicKey}, _io_context{io_context}, _socket{_io_context} {
+        : OEFCoreInterface{agentPublicKey}, _io_context{io_context}, _socket{_io_context} {
           tcp::resolver resolver(_io_context);
           asio::connect(_socket, resolver.resolve(host, std::to_string(static_cast<int>(Ports::Agents))));
       }
