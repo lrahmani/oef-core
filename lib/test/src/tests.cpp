@@ -10,14 +10,14 @@
 using fetch::oef::Server;
 using fetch::oef::MultiClient;
 
-class SimpleAgent : public virtual fetch::oef::AgentInterface, public virtual fetch::oef::OEFCoreNetworkProxy {
+class SimpleAgent : public fetch::oef::Agent {
  public:
   std::vector<std::string> _results;
   SimpleAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
-    : fetch::oef::OEFCoreInterface{agentId}, fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host} {
-      if(handshake())
-        loop(*this);
-    }
+    : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host})}
+  {
+    start();
+  }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
   void onSearchResult(const std::vector<std::string> &results) override {
     _results = results;
@@ -29,14 +29,14 @@ class SimpleAgent : public virtual fetch::oef::AgentInterface, public virtual fe
   void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
 };
 
-class SimpleAgentLocal : public virtual fetch::oef::AgentInterface, public virtual fetch::oef::OEFCoreLocalPB {
+class SimpleAgentLocal : public fetch::oef::Agent {
  public:
   std::vector<std::string> _results;
   SimpleAgentLocal(const std::string &agentId, fetch::oef::SchedulerPB &scheduler)
-    : fetch::oef::OEFCoreInterface{agentId}, fetch::oef::OEFCoreLocalPB{agentId, scheduler} {
-      if(handshake())
-        loop(*this);
-    }
+    : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreLocalPB{agentId, scheduler})}
+  {
+    start();
+  }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
   void onSearchResult(const std::vector<std::string> &results) override {
     std::cerr << "onSearchResult " << results.size() << std::endl;

@@ -242,6 +242,7 @@ namespace fetch {
                           try {
                             logger.trace("Server::newSession received {} bytes", buffer->size());
                             auto id = deserialize<fetch::oef::pb::Agent_Server_ID>(*buffer);
+                            logger.trace("Debug {}", to_string(id));
                             logger.trace("Server::newSession connection from {}", id.public_key());
                             if(!_ad.exist(id.public_key())) { // not yet connected
                               secretHandshake(id.public_key(), context);

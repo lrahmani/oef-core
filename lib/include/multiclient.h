@@ -274,7 +274,7 @@ namespace fetch {
     public:
       OEFCoreLocalPB(const std::string &agentPublicKey, SchedulerPB &scheduler) : OEFCoreInterface{agentPublicKey},
                                                                                   _scheduler{scheduler} {}
-      void stop() {
+      void stop() override {
         _scheduler.disconnect(_agentPublicKey);
       }
       ~OEFCoreLocalPB() {
@@ -313,7 +313,7 @@ namespace fetch {
       void unregisterService(const Instance &instance) override {
         _scheduler.unregisterService(_agentPublicKey, instance);
       }
-      void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) {
+      void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) override {
         fetch::oef::pb::Server_AgentMessage message;
         auto content = message.mutable_content();
         content->set_conversation_id(conversationId);
@@ -339,7 +339,7 @@ namespace fetch {
           asio::connect(_socket, resolver.resolve(host, std::to_string(static_cast<int>(Ports::Agents))));
       }
       OEFCoreNetworkProxy(OEFCoreNetworkProxy &&) = default;
-      void stop() {
+      void stop() override {
         _socket.shutdown(asio::socket_base::shutdown_both);
         _socket.close();
       }
@@ -354,7 +354,7 @@ namespace fetch {
         std::condition_variable condVar;
         fetch::oef::pb::Agent_Server_ID id;
         id.set_public_key(_agentPublicKey);
-        logger.trace("OEFCoreNetworkProxy::handshake");
+        logger.trace("OEFCoreNetworkProxy::handshake from [{}]", _agentPublicKey);
         asyncWriteBuffer(_socket, serialize(id), 5,
             [this,&connected,&condVar,&finished,&lock](std::error_code ec, std::size_t length){
               if(ec) {
@@ -442,7 +442,7 @@ namespace fetch {
         Unregister service{instance};
         asyncWriteBuffer(_socket, serialize(service.handle()), 5);
       }
-      void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) {
+      void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) override {
         Message message{conversationId, dest, msg};
         asyncWriteBuffer(_socket, serialize(message.handle()), 5);
       }
@@ -505,15 +505,16 @@ namespace fetch {
                            asyncReadBuffer(_socket, 5,
                                            [this](std::error_code ec,std::shared_ptr<Buffer> buffer) {
                                              auto p = deserialize<fetch::oef::pb::Server_Phrase>(*buffer);
-                                             std::string answer_s = p.phrase();
-                                             logger.trace("Multiclient::secretHandshake received phrase: [{}]", answer_s);
-                                             // normally should encrypt with private key
-                                             std::reverse(std::begin(answer_s), std::end(answer_s));
-                                             logger.trace("Multiclient::secretHandshake sending back phrase: [{}]", answer_s);
-                                             fetch::oef::pb::Agent_Server_Answer answer;
-                                             answer.set_answer(answer_s);
-                                             asyncWriteBuffer(_socket, serialize(answer), 5,
-                                                              [this](std::error_code, std::size_t length){
+                                             if(!p.has_failure()) {
+                                               std::string answer_s = p.phrase();
+                                               logger.trace("Multiclient::secretHandshake received phrase: [{}]", answer_s);
+                                               // normally should encrypt with private key
+                                               std::reverse(std::begin(answer_s), std::end(answer_s));
+                                               logger.trace("Multiclient::secretHandshake sending back phrase: [{}]", answer_s);
+                                               fetch::oef::pb::Agent_Server_Answer answer;
+                                               answer.set_answer(answer_s);
+                                               asyncWriteBuffer(_socket, serialize(answer), 5,
+                                                                [this](std::error_code, std::size_t length){
                                                                 asyncReadBuffer(_socket, 5,
                                                                                 [this](std::error_code ec,std::shared_ptr<Buffer> buffer) {
                                                                                   auto c = deserialize<fetch::oef::pb::Server_Connected>(*buffer);
@@ -525,8 +526,9 @@ namespace fetch {
                                                                                     read();
                                                                                   }
                                                                                 });
-                                                              });
-                                           });
+                                                                });
+                                             }
+                                             });
                          });
         std::unique_lock<std::mutex> lck(_lock);
         while(!_connected) {
