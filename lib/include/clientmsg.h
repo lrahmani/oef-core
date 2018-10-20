@@ -1,6 +1,7 @@
 #pragma once
 
 #include "agent.pb.h"
+#include "schema.h"
 
 class Register {
  private:

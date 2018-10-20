@@ -85,14 +85,14 @@ class IoContextPool {
   }
   void run() {
     // Create a pool of threads to run all of the io_contexts.
-    for(std::size_t i = 0; i < _io_contexts.size(); ++i) {
-      _threads.emplace_back(std::shared_ptr<std::thread>(new std::thread{[this,i](){ _io_contexts[i]->run(); }}));
+    for(auto &context : _io_contexts) {
+      _threads.emplace_back(std::make_shared<std::thread>([&context](){ context->run(); }));
     }
   }
   void stop() {
     // Explicitly stop all io_contexts.
-    for (std::size_t i = 0; i < _io_contexts.size(); ++i)
-      _io_contexts[i]->stop();
+    for (auto &context : _io_contexts)
+      context->stop();
   }
   asio::io_context& getIoContext() {
     // Use a round-robin scheme to choose the next io_context to use.

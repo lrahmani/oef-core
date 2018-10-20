@@ -9,7 +9,7 @@
 #include "oefcoreproxy.hpp"
 #include <unordered_set>
 
-class MeteoStation : public virtual fetch::oef::AgentInterface, public virtual fetch::oef::OEFCoreNetworkProxy
+class MeteoStation : public fetch::oef::Agent
 {
 private:
   float _unitPrice;
@@ -17,10 +17,8 @@ private:
   
 public:
   MeteoStation(const std::string &agentId, asio::io_context &io_context, const std::string &host)
-    : fetch::oef::OEFCoreInterface{agentId}, fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host} {
-      if(handshake())
-        loop(*this);
-      
+    : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host})} {
+      start();
       static std::vector<VariantType> properties = { VariantType{true}, VariantType{true}, VariantType{true}, VariantType{false}};
       static std::random_device rd;
       static std::mt19937 g(rd());
@@ -34,7 +32,7 @@ public:
       std::shuffle(properties.begin(), properties.end(), g);
       static std::normal_distribution<float> dist{1.0, 0.1}; // mean,stddev
       _unitPrice = dist(g);
-      std::cerr << _agentPublicKey << " " << _unitPrice << std::endl;
+      std::cerr << getPublicKey() << " " << _unitPrice << std::endl;
       std::unordered_map<std::string,VariantType> props;
       int i = 0;
       for(auto &a : attributes) {

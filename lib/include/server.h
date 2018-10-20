@@ -27,7 +27,7 @@ namespace fetch {
         std::lock_guard<std::mutex> lock(_lock);
         if(exist(id))
           return false;
-        _sessions[id] = session;
+        _sessions[id] = std::move(session);
         return true;
       }
       bool remove(const std::string &id) {
@@ -56,9 +56,7 @@ namespace fetch {
     private:
       struct Context {
         tcp::socket _socket;
-        uint32_t _len;
-        std::vector<char> _buffer;
-      Context(tcp::socket socket) : _socket{std::move(socket)} {}
+      explicit Context(tcp::socket socket) : _socket{std::move(socket)} {}
       };
       
       // Careful: order matters.

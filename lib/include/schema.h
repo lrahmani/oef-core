@@ -190,29 +190,29 @@ class Set {
     const auto &vals = set.vals();
     bool res = false;
     v.match([&vals,&res](int i) {
-        for(auto &v : vals.i().vals()) {
-          if(v == i) {
+        for(auto &val : vals.i().vals()) {
+          if(val == i) {
             res = true; 
             return;
           }
         }
       },[&vals,&res](float f) {
-        for(auto &v : vals.f().vals()) {
-          if(v == f) {
+        for(auto &val : vals.f().vals()) {
+          if(val == f) {
             res = true; 
             return;
           }
         }
       },[&vals,&res](const std::string &st) {
-        for(auto &v : vals.s().vals()) {
-          if(v == st) {
+        for(auto &val : vals.s().vals()) {
+          if(val == st) {
             res = true; 
             return;
           }
         }
       },[&vals,&res](bool b) {
-        for(auto &v : vals.b().vals()) {
-          if(v == b) {
+        for(auto &val : vals.b().vals()) {
+          if(val == b) {
             res = true; 
             return;
           }
@@ -624,8 +624,8 @@ class Data {
   std::vector<std::string> _values;
   fetch::oef::pb::Data _data;
  public:
-  explicit Data(const std::string &name, const std::string &type, const std::vector<std::string> &values)
-    : _name{name}, _type{type}, _values{values} {
+  explicit Data(std::string name, std::string type, const std::vector<std::string> &values)
+    : _name{std::move(name)}, _type{std::move(type)}, _values{values} {
     _data.set_name(name);
     _data.set_type(type);
     for(auto &s : values) {

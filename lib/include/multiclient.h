@@ -24,8 +24,8 @@ namespace fetch {
       T _state;
       bool _finished = false;
     public:
-    Conversation(const std::string &uuid, const std::string &dest) : _uuid{Uuid{uuid}}, _dest{dest} {}
-    Conversation(const std::string &dest) : _uuid{Uuid::uuid4()}, _dest{dest} {}
+    Conversation(const std::string &uuid, std::string dest) : _uuid{Uuid{uuid}}, _dest{std::move(dest)} {}
+    explicit Conversation(std::string dest) : _uuid{Uuid::uuid4()}, _dest{std::move(dest)} {}
       std::string dest() const { return _dest; }
       std::string uuid() const { return _uuid.to_string(); }
       uint32_t msgId() const { return _msgId; }
@@ -277,7 +277,7 @@ namespace fetch {
       void stop() override {
         _scheduler.disconnect(_agentPublicKey);
       }
-      ~OEFCoreLocalPB() {
+      ~OEFCoreLocalPB() override {
         _scheduler.disconnect(_agentPublicKey);
       }
       bool handshake() override {
@@ -343,7 +343,7 @@ namespace fetch {
         _socket.shutdown(asio::socket_base::shutdown_both);
         _socket.close();
       }
-      ~OEFCoreNetworkProxy() {
+      ~OEFCoreNetworkProxy() override {
         if(_socket.is_open())
           stop();
       }
@@ -390,7 +390,7 @@ namespace fetch {
                                   condVar.notify_all();
                                 } else {
                                   asyncReadBuffer(_socket, 5,
-                                      [this,&connected,&condVar,&finished,&lock](std::error_code ec,std::shared_ptr<Buffer> buffer) {
+                                      [&connected,&condVar,&finished,&lock](std::error_code ec,std::shared_ptr<Buffer> buffer) {
                                         auto c = deserialize<fetch::oef::pb::Server_Connected>(*buffer);
                                         logger.info("OEFCoreNetworkProxy::handshake received connected: {}", c.status());
                                         connected = c.status();
@@ -472,7 +472,7 @@ namespace fetch {
               logger.trace("Multiclient::read");
               try {
                 auto msg = deserialize<fetch::oef::pb::Server_AgentMessage>(*buffer);
-                std::string cid = ""; // oef
+                std::string cid; // oef
                 if(msg.has_content())
                   cid = msg.content().conversation_id();
                 auto iter = _conversations.find(cid);

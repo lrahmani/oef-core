@@ -1,12 +1,11 @@
 #include <iostream>
 #include "multiclient.h"
 
-class SimpleMultiClient : public virtual fetch::oef::AgentInterface, public virtual fetch::oef::OEFCoreNetworkProxy {
+class SimpleMultiClient : public fetch::oef::Agent {
 public:
   SimpleMultiClient(const std::string &agentId, asio::io_context &io_context, const std::string &host) :
-    fetch::oef::OEFCoreInterface{agentId}, fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host} {
-      if(handshake())
-        loop(*this);
+    fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host})} {
+      start();
     }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
   void onSearchResult(const std::vector<std::string> &results) override {}

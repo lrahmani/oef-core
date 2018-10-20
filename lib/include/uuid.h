@@ -12,7 +12,7 @@ class Uuid {
   explicit Uuid(const std::string &s) : _ab{0}, _cd{0} {
     char sep;
     uint64_t a,b,c,d,e;
-    auto idx = s.find_first_of("-");
+    auto idx = s.find_first_of('-');
     if(idx != std::string::npos) {
       std::stringstream ss{s};
       if(ss >> std::hex >> a >> sep >> b >> sep >> c >> sep >> d >> sep >> e) {
@@ -57,9 +57,7 @@ class Uuid {
       return true;
     if(_ab > other._ab)
       return false;
-    if(_cd < other._cd)
-      return true;
-    return false;
+    return _cd < other._cd;
   }
   std::string to_string() const {
     std::stringstream ss;

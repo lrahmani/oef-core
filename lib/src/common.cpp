@@ -21,7 +21,7 @@ void asyncReadBuffer(asio::ip::tcp::socket &socket, uint32_t timeout, std::funct
 
 void asyncWriteBuffer(asio::ip::tcp::socket &socket, std::shared_ptr<Buffer> s, uint32_t timeout) {
   std::vector<asio::const_buffer> buffers;
-  uint32_t len = s->size();
+  uint32_t len = uint32_t(s->size());
   buffers.emplace_back(asio::buffer(&len, sizeof(len)));
   buffers.emplace_back(asio::buffer(s->data(), len));
   uint32_t total = len+sizeof(len);
@@ -32,7 +32,7 @@ void asyncWriteBuffer(asio::ip::tcp::socket &socket, std::shared_ptr<Buffer> s, 
 }
 void asyncWriteBuffer(asio::ip::tcp::socket &socket, std::shared_ptr<Buffer> s, uint32_t timeout, std::function<void(std::error_code, std::size_t length)> handler) {
   std::vector<asio::const_buffer> buffers;
-  uint32_t len = s->size();
+  uint32_t len = uint32_t(s->size());
   buffers.emplace_back(asio::buffer(&len, sizeof(len)));
   buffers.emplace_back(asio::buffer(s->data(), len));
   uint32_t total = len+sizeof(len);

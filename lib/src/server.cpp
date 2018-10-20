@@ -33,8 +33,8 @@ namespace fetch {
       static fetch::oef::Logger logger;
       
     public:
-      explicit AgentSession(const std::string &id, AgentDiscovery &ad, ServiceDirectory &sd, tcp::socket socket)
-        : _id{id}, _ad{ad}, _sd{sd}, _socket(std::move(socket)) {}
+      explicit AgentSession(std::string id, AgentDiscovery &ad, ServiceDirectory &sd, tcp::socket socket)
+        : _id{std::move(id)}, _ad{ad}, _sd{sd}, _socket(std::move(socket)) {}
       virtual ~AgentSession() {
         logger.trace("~AgentSession");
         //_socket.shutdown(asio::socket_base::shutdown_both);
@@ -45,7 +45,7 @@ namespace fetch {
         read();
       }
       void write(std::shared_ptr<Buffer> buffer) {
-        asyncWriteBuffer(_socket, buffer, 5);
+        asyncWriteBuffer(_socket, std::move(buffer), 5);
       }
       void send(const fetch::oef::pb::Server_AgentMessage &msg) {
         asyncWriteBuffer(_socket, serialize(msg), 10 /* sec ? */);
@@ -142,7 +142,7 @@ namespace fetch {
             });
         }
       }
-      void process(std::shared_ptr<Buffer> buffer) {
+      void process(const std::shared_ptr<Buffer> &buffer) {
         auto envelope = deserialize<fetch::oef::pb::Envelope>(*buffer);
         auto payload_case = envelope.payload_case();
         switch(payload_case) {

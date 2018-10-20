@@ -39,7 +39,7 @@ namespace fetch {
       std::string _section{""};
       std::shared_ptr<spdlog::logger> _logger{nullptr};
     public:
-      Logger(const std::string &section);
+      explicit Logger(const std::string &section);
       
       std::string section() const noexcept { return _section; }
       

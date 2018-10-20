@@ -29,7 +29,7 @@ namespace fetch {
     protected:
       const std::string _agentPublicKey;
     public:
-      OEFCoreInterface(const std::string &agentPublicKey) : _agentPublicKey{agentPublicKey} {}
+      explicit OEFCoreInterface(std::string agentPublicKey) : _agentPublicKey{std::move(agentPublicKey)} {}
       virtual bool handshake() = 0;
       virtual void registerDescription(const Instance &instance) = 0;
       virtual void registerService(const Instance &instance) = 0;
@@ -39,7 +39,7 @@ namespace fetch {
       virtual void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) = 0;
       virtual void loop(AgentInterface &agent) = 0;
       virtual void stop() = 0;
-      virtual ~OEFCoreInterface() {}
+      virtual ~OEFCoreInterface() = default;
       std::string getPublicKey() const { return _agentPublicKey; }
     };
 
@@ -47,7 +47,7 @@ namespace fetch {
     private:
       std::unique_ptr<OEFCoreInterface> _oefCore;
     protected:
-      Agent(std::unique_ptr<OEFCoreInterface> oefCore) : _oefCore{std::move(oefCore)} {}
+      explicit Agent(std::unique_ptr<OEFCoreInterface> oefCore) : _oefCore{std::move(oefCore)} {}
       void start() {
         if(_oefCore->handshake())
           _oefCore->loop(*this);

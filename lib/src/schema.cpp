@@ -1,11 +1,5 @@
 #include "schema.h"
 
-
-std::string t_to_string(int) { return "int"; }
-std::string t_to_string(float) { return "float"; }
-std::string t_to_string(bool) { return "bool"; }
-std::string t_to_string(const std::string &) { return "string"; }
-
 std::string to_string(const VariantType &v) {
   std::string res;
   v.match([&res](int i) { res = std::to_string(i); },

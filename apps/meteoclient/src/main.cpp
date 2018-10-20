@@ -9,24 +9,23 @@
 #include "multiclient.h"
 #include "uuid.h"
 
-class MeteoClientAgent : public virtual fetch::oef::AgentInterface, public virtual fetch::oef::OEFCoreNetworkProxy {
+class MeteoClientAgent : public fetch::oef::Agent {
  private:
   std::unordered_map<std::string,std::string> _conversationsIds;
   std::string _bestStation;
-  float _bestPrice = -1.0;
+  float _bestPrice = -1.0f;
   size_t _nbAnswers = 0;
   bool _waitingForData = false;
   uint32_t _dataReceived = 0;
 
 public:
   MeteoClientAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
-    : fetch::oef::OEFCoreInterface{agentId}, fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host} {
-      if(handshake())
-        loop(*this);
+    : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host})} {
+      start();
     }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
   void onSearchResult(const std::vector<std::string> &results) override {
-    if(results.size() == 0)
+    if(results.empty())
       std::cerr << "No candidates\n";
     for(auto &c : results) {
       auto uuid = Uuid::uuid4();
