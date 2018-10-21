@@ -11,9 +11,6 @@ namespace stde = std::experimental;
 
 namespace fetch {
   namespace oef {
-    using CFPType = var::variant<std::string,QueryModel,stde::nullopt_t>;
-    using ProposeType = var::variant<std::string,std::vector<Instance>>;
-    
     class AgentInterface {
     public:
       virtual void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) = 0;
@@ -37,6 +34,12 @@ namespace fetch {
       virtual void searchServices(const QueryModel &model) = 0;
       virtual void unregisterService(const Instance &instance) = 0;
       virtual void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) = 0;
+      virtual void sendCFP(const std::string &conversationId, const std::string &dest, const CFPType &constraints, uint32_t msgId = 1, uint32_t target = 0) = 0;
+      /*
+      virtual void sendPropose(const std::string &conversationId, const std::string &dest, const ProposeType &proposals, uint32_t msgId, uint32_t target) = 0;
+      virtual void sendAccept(const std::string &conversationId, const std::string &dest, uint32_t msgId, uint32_t target) = 0;
+      virtual void sendClose(const std::string &conversationId, const std::string &dest, uint32_t msgId, uint32_t target) = 0;
+       */
       virtual void loop(AgentInterface &agent) = 0;
       virtual void stop() = 0;
       virtual ~OEFCoreInterface() = default;

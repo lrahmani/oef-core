@@ -319,10 +319,13 @@ namespace fetch {
         content->set_conversation_id(conversationId);
         content->set_origin(_agentPublicKey);
         content->set_content(msg);
-        // todo fipa
         auto buffer = serialize(message);
         _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       }
+      void sendCFP(const std::string &conversationId, const std::string &dest, const CFPType &constraints, uint32_t msgId = 1, uint32_t target = 0) override {
+        CFP cfp{conversationId, dest, constraints, msgId, target};
+        _scheduler.sendTo(_agentPublicKey, dest, serialize(cfp.handle().message()));
+      };
     };
     
     class OEFCoreNetworkProxy : virtual public OEFCoreInterface {
@@ -445,6 +448,10 @@ namespace fetch {
       void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) override {
         Message message{conversationId, dest, msg};
         asyncWriteBuffer(_socket, serialize(message.handle()), 5);
+      }
+      void sendCFP(const std::string &conversationId, const std::string &dest, const CFPType &constraints, uint32_t msgId = 1, uint32_t target = 0) override {
+        CFP cfp{conversationId, dest, constraints, msgId, target};
+        asyncWriteBuffer(_socket, serialize(cfp.handle()), 5);
       }
     };
 

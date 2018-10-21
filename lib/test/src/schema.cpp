@@ -196,7 +196,7 @@ namespace Test {
     REQUIRE(agents3.size() == 1);
     QueryModel q4{{temp_c,wind_c,air_c, humidity_c}, weather};
     auto agents4 = sd.query(q4);
-    REQUIRE(agents4.size() == 0);
+    REQUIRE(agents4.empty());
 
     // auto e1 = Envelope::makeDescription(youshiko);
     // std::string s = toJsonString<Envelope>(e1);

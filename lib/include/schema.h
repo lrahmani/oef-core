@@ -645,3 +645,9 @@ class Data {
   std::vector<std::string> values() const { return _values; }
   
 };
+namespace fetch {
+  namespace oef {
+    using CFPType = var::variant<std::string, QueryModel, stde::nullopt_t>;
+    using ProposeType = var::variant<std::string, std::vector<Instance>>;
+  };
+};
