@@ -6,14 +6,12 @@
 The quickest way to set up a OEF node is to run the Docker image `oef-core-image`:
 
 - Build:
-
  
-    ./oef-core-image/scripts/docker-run.sh
+        ./oef-core-image/scripts/docker-build-img.sh
     
 - Run:
 
-   
-    docker run -it -w /build -p 3333:3333 oef-core-image
+        docker run -it -w /build -p 3333:3333 oef-core-image
     
 You can access the node at `127.0.0.1:3333`.
 
