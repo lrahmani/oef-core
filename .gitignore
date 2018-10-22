@@ -1,1 +1,6 @@
 build
+log.txt
+
+# clion stuff
+.idea
+cmake-build-debug
