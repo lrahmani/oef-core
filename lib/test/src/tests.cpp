@@ -26,7 +26,7 @@ class SimpleAgent : public fetch::oef::Agent {
   void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
   void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
   void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
-  void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
+  void onDecline(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
 };
 
 class SimpleAgentLocal : public fetch::oef::Agent {
@@ -46,7 +46,7 @@ class SimpleAgentLocal : public fetch::oef::Agent {
   void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
   void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
   void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
-  void onClose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
+  void onDecline(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
 };
 
 TEST_CASE("testing register", "[ServiceDiscovery]") {

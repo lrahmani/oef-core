@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <mutex>
 #include <condition_variable>
+#include <google/protobuf/text_format.h>
 
 namespace fetch {
   namespace oef {
@@ -103,7 +104,7 @@ namespace fetch {
           agent.onAccept(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target());
           break;
         case fetch::oef::pb::Fipa_Message::kDecline:
-          agent.onClose(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target());
+          agent.onDecline(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target());
           break;
         case fetch::oef::pb::Fipa_Message::MSG_NOT_SET:
           logger.error("MessageDecoder::loop error on fipa {}", static_cast<int>(fipa.msg_case()));
@@ -264,8 +265,7 @@ namespace fetch {
           _queue.push(std::pair<std::string,std::shared_ptr<Buffer>>(to, buffer));
       }
     };
-      
-    
+
     class OEFCoreLocalPB : public virtual OEFCoreInterface {
     private:
       SchedulerPB &_scheduler;
@@ -319,13 +319,24 @@ namespace fetch {
         content->set_conversation_id(conversationId);
         content->set_origin(_agentPublicKey);
         content->set_content(msg);
-        auto buffer = serialize(message);
         _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       }
       void sendCFP(const std::string &conversationId, const std::string &dest, const CFPType &constraints, uint32_t msgId = 1, uint32_t target = 0) override {
         CFP cfp{conversationId, dest, constraints, msgId, target};
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(cfp.handle().message()));
+        _scheduler.sendTo(_agentPublicKey, dest, serialize(cfp.handle()));
       };
+      void sendPropose(const std::string &conversationId, const std::string &dest, const ProposeType &proposals, uint32_t msgId, uint32_t target) override {
+        Propose propose{conversationId, dest, proposals, msgId, target};
+        _scheduler.sendTo(_agentPublicKey, dest, serialize(propose.handle()));
+      }
+      void sendAccept(const std::string &conversationId, const std::string &dest, uint32_t msgId, uint32_t target) override {
+        Accept accept{conversationId, dest, msgId, target};
+        _scheduler.sendTo(_agentPublicKey, dest, serialize(accept.handle()));
+      }
+      void sendDecline(const std::string &conversationId, const std::string &dest, uint32_t msgId, uint32_t target) override {
+        Decline decline{conversationId, dest, msgId, target};
+        _scheduler.sendTo(_agentPublicKey, dest, serialize(decline.handle()));
+      }
     };
     
     class OEFCoreNetworkProxy : virtual public OEFCoreInterface {
@@ -452,6 +463,18 @@ namespace fetch {
       void sendCFP(const std::string &conversationId, const std::string &dest, const CFPType &constraints, uint32_t msgId = 1, uint32_t target = 0) override {
         CFP cfp{conversationId, dest, constraints, msgId, target};
         asyncWriteBuffer(_socket, serialize(cfp.handle()), 5);
+      }
+      void sendPropose(const std::string &conversationId, const std::string &dest, const ProposeType &proposals, uint32_t msgId, uint32_t target) override {
+        Propose propose{conversationId, dest, proposals, msgId, target};
+        asyncWriteBuffer(_socket, serialize(propose.handle()), 5);
+      }
+      void sendAccept(const std::string &conversationId, const std::string &dest, uint32_t msgId, uint32_t target) override {
+        Accept accept{conversationId, dest, msgId, target};
+        asyncWriteBuffer(_socket, serialize(accept.handle()), 5);
+      }
+      void sendDecline(const std::string &conversationId, const std::string &dest, uint32_t msgId, uint32_t target) override {
+        Decline decline{conversationId, dest, msgId, target};
+        asyncWriteBuffer(_socket, serialize(decline.handle()), 5);
       }
     };
 

@@ -72,6 +72,66 @@ public:
   const fetch::oef::pb::Envelope &handle() const { return _envelope; }
 };
 
+class Propose {
+private:
+  fetch::oef::pb::Envelope _envelope;
+public:
+  explicit Propose(const std::string &conversationID, const std::string &dest, const fetch::oef::ProposeType &proposals, uint32_t msgId, uint32_t target) {
+    auto *message = _envelope.mutable_message();
+    message->set_conversation_id(conversationID);
+    message->set_destination(dest);
+    auto *fipa_msg = message->mutable_fipa();
+    fipa_msg->set_msg_id(msgId);
+    fipa_msg->set_target(target);
+    auto *props = fipa_msg->mutable_propose();
+    proposals.match(
+        [props](const std::string &content) { props->set_content(content); },
+        [props](const std::vector<Instance> &instances) {
+          auto *p = props->mutable_proposals();
+          auto *objs = p->mutable_objects();
+          objs->Reserve(instances.size());
+          for(auto &instance: instances) {
+            auto *inst = objs->Add();
+            inst->CopyFrom(instance.handle());
+          }
+        });
+  }
+  const fetch::oef::pb::Envelope &handle() const { return _envelope; }
+};
+
+class Accept {
+private:
+  fetch::oef::pb::Envelope _envelope;
+public:
+  explicit Accept(const std::string &conversationID, const std::string &dest, uint32_t msgId, uint32_t target) {
+    auto *message = _envelope.mutable_message();
+    message->set_conversation_id(conversationID);
+    message->set_destination(dest);
+    auto *fipa_msg = message->mutable_fipa();
+    fipa_msg->set_msg_id(msgId);
+    fipa_msg->set_target(target);
+    (void) fipa_msg->mutable_accept();
+  }
+  const fetch::oef::pb::Envelope &handle() const { return _envelope; }
+};
+
+class Decline {
+private:
+  fetch::oef::pb::Envelope _envelope;
+public:
+  explicit Decline(const std::string &conversationID, const std::string &dest, uint32_t msgId, uint32_t target) {
+    auto *message = _envelope.mutable_message();
+    message->set_conversation_id(conversationID);
+    message->set_destination(dest);
+    auto *fipa_msg = message->mutable_fipa();
+    fipa_msg->set_msg_id(msgId);
+    fipa_msg->set_target(target);
+    (void) fipa_msg->mutable_decline();
+  }
+  const fetch::oef::pb::Envelope &handle() const { return _envelope; }
+};
+
+
 class Search {
  private:
   fetch::oef::pb::Envelope _envelope;
