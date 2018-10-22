@@ -9,6 +9,8 @@
 #include "multiclient.h"
 #include "uuid.h"
 
+using namespace fetch::oef;
+
 class MeteoClientAgent : public fetch::oef::Agent {
  private:
   std::unordered_map<std::string,std::string> _conversationsIds;

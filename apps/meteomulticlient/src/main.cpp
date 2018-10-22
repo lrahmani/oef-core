@@ -11,6 +11,7 @@
 
 using fetch::oef::MultiClient;
 using fetch::oef::Conversation;
+using namespace fetch::oef;
 
 enum class MeteoClientState {OEF_WAITING_FOR_CANDIDATES = 1,
                              CLIENT_WAITING_FOR_PRICE = 2,

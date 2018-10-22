@@ -5,10 +5,12 @@
 #include <google/protobuf/text_format.h>
 #include "common.h"
 
+using namespace fetch::oef;
+
 namespace Test {
 
   TEST_CASE("schema", "[creation]") {
-    DataModel d1{"Person", {
+    fetch::oef::DataModel d1{"Person", {
         Attribute{"firstName", Type::String, true, "The first name."},
           Attribute{"lastName", Type::String, true},
             Attribute{"age", Type::Int, false, "The age of the person."}}};

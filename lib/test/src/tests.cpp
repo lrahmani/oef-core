@@ -7,8 +7,7 @@
 #include "sd.h"
 #include "multiclient.h"
 
-using fetch::oef::Server;
-using fetch::oef::MultiClient;
+using namespace fetch::oef;
 
 class SimpleAgent : public fetch::oef::Agent {
  public:

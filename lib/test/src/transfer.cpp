@@ -8,7 +8,8 @@
 #include "oefcoreproxy.hpp"
 #include "multiclient.h"
 
-using fetch::oef::Server;
+using namespace fetch::oef;
+
 enum class AgentAction {
                         NONE,
                         ON_ERROR,

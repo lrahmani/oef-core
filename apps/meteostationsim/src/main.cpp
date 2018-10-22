@@ -9,6 +9,8 @@
 #include "oefcoreproxy.hpp"
 #include <unordered_set>
 
+using namespace fetch::oef;
+
 class MeteoStation : public fetch::oef::Agent
 {
 private:
