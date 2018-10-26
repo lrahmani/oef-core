@@ -17,6 +17,7 @@ class SimpleAgent : public fetch::oef::Agent {
   {
     start();
   }
+  virtual ~SimpleAgent() = default;
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
   void onSearchResult(const std::vector<std::string> &results) override {
     _results = results;
@@ -36,6 +37,7 @@ class SimpleAgentLocal : public fetch::oef::Agent {
   {
     start();
   }
+  virtual ~SimpleAgentLocal() = default;
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
   void onSearchResult(const std::vector<std::string> &results) override {
     std::cerr << "onSearchResult " << results.size() << std::endl;
@@ -299,73 +301,6 @@ TEST_CASE( "testing Server", "[Server]" ) {
     }
     pool.stop();
     REQUIRE(as.nbAgents() == nbClients);
-  }
-  std::this_thread::sleep_for(std::chrono::seconds{1});
-  REQUIRE(as.nbAgents() == 0);
-  
-  as.stop();
-  std::cerr << "Server stopped\n";
-}
-
-class SimpleMultiClient : public MultiClient<bool,SimpleMultiClient> {
-public:
-  SimpleMultiClient(asio::io_context &io_context, const std::string &id, const std::string &host) :
-    fetch::oef::MultiClient<bool,SimpleMultiClient>{io_context, id, host} {}
-  void onMsg(const fetch::oef::pb::Server_AgentMessage &msg, fetch::oef::Conversation<bool> &Conversation) {
-  }
-};
-
-TEST_CASE( "testing multiclient", "[Client]" ) {
-  fetch::oef::Server as;
-  std::cerr << "Server created\n";
-  as.run();
-  std::cerr << "Server started\n";
-  REQUIRE(as.nbAgents() == 0);
-  SECTION("1 agent") {
-    IoContextPool pool(1);
-    pool.run();
-    SimpleMultiClient c1(pool.getIoContext(), "Agent1", "127.0.0.1");
-    std::cerr << "Debug1 before stop" << std::endl;
-    std::this_thread::sleep_for(std::chrono::seconds{1});
-    REQUIRE(as.nbAgents() == 1);
-    pool.stop();
-    //    c1.stop();
-    std::cerr << "Debug1 after stop" << std::endl;
-  }
-  std::this_thread::sleep_for(std::chrono::seconds{1});
-  REQUIRE(as.nbAgents() == 0);
-  //too fast ?
-  
-  SECTION("1000 agents") {
-    // need to increase max nb file open
-    // > ulimit -n 8000
-    // ulimit -n 1048576
-    IoContextPool pool(10);
-    pool.run();
-
-    std::vector<std::unique_ptr<SimpleMultiClient>> clients;
-    std::vector<std::future<std::unique_ptr<SimpleMultiClient>>> futures;
-    size_t nbClients = 1000;
-    try {
-      for(size_t i = 1; i <= nbClients; ++i) {
-        std::string name = "Agent_";
-        name += std::to_string(i);
-        futures.push_back(std::async(std::launch::async,
-                                     [&pool](const std::string &n){
-                                       return std::make_unique<SimpleMultiClient>(pool.getIoContext(), n, "127.0.0.1");
-                                     }, name));
-      }
-      std::cerr << "Futures created\n";
-      for(auto &fut : futures) {
-        clients.emplace_back(fut.get());
-      }
-      std::cerr << "Futures got\n";
-    } catch(std::exception &e) {
-      std::cerr << "BUG " << e.what() << "\n";
-    }
-    std::this_thread::sleep_for(std::chrono::seconds{1});
-    REQUIRE(as.nbAgents() == nbClients);
-    pool.stop();
   }
   std::this_thread::sleep_for(std::chrono::seconds{1});
   REQUIRE(as.nbAgents() == 0);
