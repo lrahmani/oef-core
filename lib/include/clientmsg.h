@@ -72,7 +72,7 @@ namespace fetch {
                     [cfp](const QueryModel &query) { auto *q = cfp->mutable_query(); q->CopyFrom(query.handle());},
                     [cfp](stde::nullopt_t) { (void)cfp->mutable_nothing(); } );
       }
-      const fetch::oef::pb::Envelope &handle() const { return _envelope; }
+      fetch::oef::pb::Envelope &handle() { return _envelope; }
     };
     
     class Propose {
@@ -99,7 +99,7 @@ namespace fetch {
                           }
                         });
       }
-      const fetch::oef::pb::Envelope &handle() const { return _envelope; }
+      fetch::oef::pb::Envelope &handle() { return _envelope; }
     };
     
     class Accept {
@@ -115,7 +115,7 @@ namespace fetch {
         fipa_msg->set_target(target);
         (void) fipa_msg->mutable_accept();
       }
-      const fetch::oef::pb::Envelope &handle() const { return _envelope; }
+      fetch::oef::pb::Envelope &handle() { return _envelope; }
     };
     
     class Decline {
@@ -131,7 +131,7 @@ namespace fetch {
         fipa_msg->set_target(target);
         (void) fipa_msg->mutable_decline();
       }
-      const fetch::oef::pb::Envelope &handle() const { return _envelope; }
+      fetch::oef::pb::Envelope &handle() { return _envelope; }
     };
     
     

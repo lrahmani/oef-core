@@ -54,10 +54,12 @@ namespace fetch {
 
       static void dispatch(AgentInterface &agent, const fetch::oef::pb::Fipa_Message &fipa,
                     const fetch::oef::pb::Server_AgentMessage_Content &content) {
+        logger.trace("dispatch msg {}", fipa.msg_case());
         switch(fipa.msg_case()) {
         case fetch::oef::pb::Fipa_Message::kCfp:
           {
             auto &cfp = fipa.cfp();
+            logger.trace("dispatch cfp {}", cfp.payload_case());
             CFPType constraints;
             switch(cfp.payload_case()) {
             case fetch::oef::pb::Fipa_Cfp::kQuery:
@@ -72,6 +74,8 @@ namespace fetch {
             case fetch::oef::pb::Fipa_Cfp::PAYLOAD_NOT_SET:
               break;
             }
+            logger.trace("dispatch cfp from {} cid {} msgId {} target {}", content.origin(), content.conversation_id(),
+                         fipa.msg_id(), fipa.target());
             agent.onCFP(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target(),
                         constraints);
           }
@@ -80,6 +84,7 @@ namespace fetch {
           {
             auto &propose = fipa.propose();
             ProposeType proposals;
+            logger.trace("dispatch propose {}", propose.payload_case());
             switch(propose.payload_case()) {
             case fetch::oef::pb::Fipa_Propose::kProposals:
               {
@@ -96,14 +101,20 @@ namespace fetch {
             case fetch::oef::pb::Fipa_Propose::PAYLOAD_NOT_SET:
               break;
             }
+            logger.trace("dispatch propose from {} cid {} msgId {} target {}", content.origin(), content.conversation_id(),
+                         fipa.msg_id(), fipa.target());
             agent.onPropose(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target(),
                             proposals);
           }
           break;
         case fetch::oef::pb::Fipa_Message::kAccept:
+          logger.trace("dispatch accept from {} cid {} msgId {} target {}", content.origin(), content.conversation_id(),
+                       fipa.msg_id(), fipa.target());
           agent.onAccept(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target());
           break;
         case fetch::oef::pb::Fipa_Message::kDecline:
+          logger.trace("dispatch decline from {} cid {} msgId {} target {}", content.origin(), content.conversation_id(),
+                       fipa.msg_id(), fipa.target());
           agent.onDecline(content.origin(), content.conversation_id(), fipa.msg_id(), fipa.target());
           break;
         case fetch::oef::pb::Fipa_Message::MSG_NOT_SET:
@@ -323,19 +334,39 @@ namespace fetch {
       }
       void sendCFP(const std::string &conversationId, const std::string &dest, const CFPType &constraints, uint32_t msgId = 1, uint32_t target = 0) override {
         CFP cfp{conversationId, dest, constraints, msgId, target};
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(cfp.handle()));
+        fetch::oef::pb::Server_AgentMessage message;
+        auto content = message.mutable_content();
+        content->set_conversation_id(conversationId);
+        content->set_origin(_agentPublicKey);
+        content->set_allocated_fipa(cfp.handle().release_message()->release_fipa());
+        _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       };
       void sendPropose(const std::string &conversationId, const std::string &dest, const ProposeType &proposals, uint32_t msgId, uint32_t target) override {
         Propose propose{conversationId, dest, proposals, msgId, target};
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(propose.handle()));
+        fetch::oef::pb::Server_AgentMessage message;
+        auto content = message.mutable_content();
+        content->set_conversation_id(conversationId);
+        content->set_origin(_agentPublicKey);
+        content->set_allocated_fipa(propose.handle().release_message()->release_fipa());
+        _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       }
       void sendAccept(const std::string &conversationId, const std::string &dest, uint32_t msgId, uint32_t target) override {
         Accept accept{conversationId, dest, msgId, target};
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(accept.handle()));
+        fetch::oef::pb::Server_AgentMessage message;
+        auto content = message.mutable_content();
+        content->set_conversation_id(conversationId);
+        content->set_origin(_agentPublicKey);
+        content->set_allocated_fipa(accept.handle().release_message()->release_fipa());
+        _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       }
       void sendDecline(const std::string &conversationId, const std::string &dest, uint32_t msgId, uint32_t target) override {
         Decline decline{conversationId, dest, msgId, target};
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(decline.handle()));
+        fetch::oef::pb::Server_AgentMessage message;
+        auto content = message.mutable_content();
+        content->set_conversation_id(conversationId);
+        content->set_origin(_agentPublicKey);
+        content->set_allocated_fipa(decline.handle().release_message()->release_fipa());
+        _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       }
     };
     
