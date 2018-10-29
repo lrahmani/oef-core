@@ -17,41 +17,28 @@
 namespace fetch {
   namespace oef {
     template <typename T>
-    class Conversation {
+    class Dialogues;
+
+    template <typename T>
+    class Dialogue {
     private:
       Uuid _uuid;
       std::string _dest;
       uint32_t _msgId = 0;
       T _state;
-      static std::unordered_map<std::string, std::shared_ptr<Conversation<T>>> _conversations;
-      Conversation(const std::string &uuid, std::string dest) : _uuid{Uuid{uuid}}, _dest{std::move(dest)} {}
-      explicit Conversation(std::string dest) : _uuid{Uuid::uuid4()}, _dest{std::move(dest)} {}
+      Dialogues<T> &_dialogues;
+      friend class Dialogues<T>;
+      Dialogue(const std::string &uuid, std::string dest, Dialogues<T> &dialogues) :
+      _uuid{Uuid{uuid}}, _dest{std::move(dest)}, _dialogues{dialogues} {}
+      explicit Dialogue(std::string dest, Dialogues<T> &dialogues) :
+      _uuid{Uuid::uuid4()}, _dest{std::move(dest)}, _dialogues{dialogues} {}
     public:
-      static Conversation<T> &create(const std::string &dest) {
-        auto conv = std::make_shared<Conversation<T>>(dest);
-        _conversations[conv->uuid()] = conv;
-        return *conv;
-      }
-      static Conversation<T> &get(const std::string &id, const std::string &dest) {
-        auto iter = _conversations.find(id);
-        if(iter != _conversations.end())
-          return *(iter->second);
-        auto conv = std::make_shared<Conversation<T>>(id, dest);
-        _conversations[id] = conv;
-        return *conv;
-      }
-      static Conversation<T> &get(const std::string &id) {
-        std::shared_ptr<Conversation<T>> conv = _conversations[id];
-        assert(conv);
-        return *conv;
-      }
-      static bool exist(const std::string &id) { return _conversations.find(id) != _conversations.end(); }
       std::string dest() const { return _dest; }
       std::string uuid() const { return _uuid.to_string(); }
       uint32_t msgId() const { return _msgId; }
       void incrementMsgId() { ++_msgId; }
       void setFinished() {
-        _conversations.erase(uuid());
+        _dialogues.erase(uuid());
       }
       const T getState() const { return _state; }
       void setState(const T& t) { _state = t; }
@@ -67,6 +54,44 @@ namespace fetch {
         return envelope(t.SerializeAsString());
       }
     };
+
+    template <typename T>
+    class Dialogues {
+    private:
+      std::unordered_map<std::string, std::shared_ptr<Dialogue<T>>> _dialogues;
+
+      static fetch::oef::Logger logger;
+    public:
+      Dialogue<T> &create(const std::string &dest) {
+        auto dialogue = std::shared_ptr<Dialogue<T>>(new Dialogue<T>{dest, *this});
+        _dialogues[dialogue->uuid()] = dialogue;
+        logger.trace("create dest {} id {} size {}", dialogue->dest(), dialogue->uuid(), _dialogues.size());
+        return *dialogue;
+      }
+      Dialogue<T> &get(const std::string &id, const std::string &dest) {
+        auto iter = _dialogues.find(id);
+        if(iter != _dialogues.end()) {
+          logger.trace("get2 exists dest {} id {} size {}", iter->second->dest(), iter->second->uuid(), _dialogues.size());
+          return *(iter->second);
+        }
+        auto dialogue = std::shared_ptr<Dialogue<T>>(new Dialogue<T>{id, dest, *this});
+        _dialogues[id] = dialogue;
+        logger.trace("get2 new dest {} id {} size {}", dialogue->dest(), dialogue->uuid(), _dialogues.size());
+        return *dialogue;
+      }
+      Dialogue<T> &get(const std::string &id) {
+        std::shared_ptr<Dialogue<T>> dialogue = _dialogues[id];
+        logger.trace("get1 id {} size {} exists {}", id, _dialogues.size(), bool(dialogue));
+        assert(dialogue);
+        return *dialogue;
+      }
+      void erase(const std::string &id) {
+        _dialogues.erase(id);
+      }
+    };
+
+    template <typename T>
+    fetch::oef::Logger Dialogues<T>::logger = fetch::oef::Logger("oefcore-dialogues");
 
     class MessageDecoder {
     private:
