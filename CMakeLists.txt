@@ -18,7 +18,9 @@ find_package(Threads REQUIRED)
 include(GNUInstallDirs)
 
 add_subdirectory(3rd EXCLUDE_FROM_ALL)
+set(THIRD_PARTY_INCLUDE_PATH ${THIRD_PARTY_INCLUDE_PATH} PARENT_SCOPE)
 include_directories(${THIRD_PARTY_INCLUDE_PATH})
+
 #add_subdirectory(proto)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/lib/)
 add_subdirectory(lib)
