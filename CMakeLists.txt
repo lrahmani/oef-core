@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-set(PROJECT_NAME oef)
+set(PROJECT_NAME OEFCore)
 project(${PROJECT_NAME} VERSION 0.5 LANGUAGES CXX)
 add_compile_options(-std=c++1y)
 
