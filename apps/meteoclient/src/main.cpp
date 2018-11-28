@@ -26,7 +26,7 @@ public:
       start();
     }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
-  void onSearchResult(const std::vector<std::string> &results) override {
+  void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
     if(results.empty())
       std::cerr << "No candidates\n";
     for(auto &c : results) {
@@ -102,7 +102,7 @@ int main(int argc, char* argv[])
 
     // Construct a Query schema and send it to the Node
     QueryModel q1{{temperature_c,air_c,humidity_c}, weather};
-    client.searchServices(q1);
+    client.searchServices(1, q1);
     pool.join();
   } catch (std::exception& e) {
     std::cerr << "Exception: " << e.what() << "\n";

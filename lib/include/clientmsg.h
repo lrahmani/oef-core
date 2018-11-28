@@ -11,7 +11,7 @@ namespace fetch {
       fetch::oef::pb::Envelope _envelope;
     public:
       explicit Register(const Instance &instance) {
-        auto *reg = _envelope.mutable_register_();
+        auto *reg = _envelope.mutable_register_service();
         auto *inst = reg->mutable_description();
         inst->CopyFrom(instance.handle());
       }
@@ -23,19 +23,30 @@ namespace fetch {
       fetch::oef::pb::Envelope _envelope;
     public:
       explicit Unregister(const Instance &instance) {
-        auto *reg = _envelope.mutable_unregister();
+        auto *reg = _envelope.mutable_unregister_service();
         auto *inst = reg->mutable_description();
         inst->CopyFrom(instance.handle());
       }
       const fetch::oef::pb::Envelope &handle() const { return _envelope; }
     };
     
-    class Query {
+    class UnregisterDescription {
     private:
       fetch::oef::pb::Envelope _envelope;
     public:
-      explicit Query(const QueryModel &model) {
-        auto *desc = _envelope.mutable_query();
+      explicit UnregisterDescription() {
+        (void) _envelope.mutable_unregister_description();
+      }
+      const fetch::oef::pb::Envelope &handle() const { return _envelope; }
+    };
+    
+    class SearchServices {
+    private:
+      fetch::oef::pb::Envelope _envelope;
+    public:
+      explicit SearchServices(uint32_t search_id, const QueryModel &model) {
+        auto *desc = _envelope.mutable_search_services();
+        desc->set_search_id(search_id);
         auto *mod = desc->mutable_query();
         mod->CopyFrom(model.handle());
       }
@@ -47,7 +58,7 @@ namespace fetch {
       fetch::oef::pb::Envelope _envelope;
     public:
       explicit Message(const std::string &conversationID, const std::string &dest, const std::string &msg) {
-        auto *message = _envelope.mutable_message();
+        auto *message = _envelope.mutable_send_message();
         message->set_conversation_id(conversationID);
         message->set_destination(dest);
         message->set_content(msg);
@@ -60,7 +71,7 @@ namespace fetch {
       fetch::oef::pb::Envelope _envelope;
     public:
       explicit CFP(const std::string &conversationID, const std::string &dest, const fetch::oef::CFPType &query, uint32_t msgId = 1, uint32_t target = 0) {
-        auto *message = _envelope.mutable_message();
+        auto *message = _envelope.mutable_send_message();
         message->set_conversation_id(conversationID);
         message->set_destination(dest);
         auto *fipa_msg = message->mutable_fipa();
@@ -80,7 +91,7 @@ namespace fetch {
       fetch::oef::pb::Envelope _envelope;
     public:
       explicit Propose(const std::string &conversationID, const std::string &dest, const fetch::oef::ProposeType &proposals, uint32_t msgId, uint32_t target) {
-        auto *message = _envelope.mutable_message();
+        auto *message = _envelope.mutable_send_message();
         message->set_conversation_id(conversationID);
         message->set_destination(dest);
         auto *fipa_msg = message->mutable_fipa();
@@ -107,7 +118,7 @@ namespace fetch {
       fetch::oef::pb::Envelope _envelope;
     public:
       explicit Accept(const std::string &conversationID, const std::string &dest, uint32_t msgId, uint32_t target) {
-        auto *message = _envelope.mutable_message();
+        auto *message = _envelope.mutable_send_message();
         message->set_conversation_id(conversationID);
         message->set_destination(dest);
         auto *fipa_msg = message->mutable_fipa();
@@ -123,7 +134,7 @@ namespace fetch {
       fetch::oef::pb::Envelope _envelope;
     public:
       explicit Decline(const std::string &conversationID, const std::string &dest, uint32_t msgId, uint32_t target) {
-        auto *message = _envelope.mutable_message();
+        auto *message = _envelope.mutable_send_message();
         message->set_conversation_id(conversationID);
         message->set_destination(dest);
         auto *fipa_msg = message->mutable_fipa();
@@ -135,12 +146,13 @@ namespace fetch {
     };
     
     
-    class Search {
+    class SearchAgents {
     private:
       fetch::oef::pb::Envelope _envelope;
     public:
-      explicit Search(const QueryModel &model) {
-        auto *desc = _envelope.mutable_search();
+      explicit SearchAgents(uint32_t search_id, const QueryModel &model) {
+        auto *desc = _envelope.mutable_search_agents();
+        desc->set_search_id(search_id);
         auto *mod = desc->mutable_query();
         mod->CopyFrom(model.handle());
       }
@@ -152,7 +164,7 @@ namespace fetch {
       fetch::oef::pb::Envelope _envelope;
     public:
       explicit Description(const Instance &instance) {
-        auto *desc = _envelope.mutable_description();
+        auto *desc = _envelope.mutable_register_description();
         auto *inst = desc->mutable_description();
         inst->CopyFrom(instance.handle());
       }

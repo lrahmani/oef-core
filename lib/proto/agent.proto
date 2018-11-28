@@ -37,7 +37,8 @@ message Server {
         required bool status = 1;
     }
     message SearchResult {
-        repeated string agents = 1;
+        required int32 search_id = 1;
+        repeated string agents = 2;
     }
     
     message AgentMessage {
@@ -54,11 +55,12 @@ message Server {
                 REGISTER_SERVICE = 0;
                 UNREGISTER_SERVICE = 1;
                 REGISTER_DESCRIPTION = 2;
-                SEND_MESSAGE = 3;
+                UNREGISTER_DESCRIPTION = 3;
+                SEND_MESSAGE = 4;
             }
             required Operation operation = 1;
             optional string conversation_id = 2;
-            optional int32 msgId = 3;
+            optional int32 msg_id = 3;
         }
         oneof payload {
             Content content = 1; // from agent
@@ -73,17 +75,20 @@ message AgentDescription {
 }
 
 message AgentSearch {
-    required Query.Model query = 1; 
+    required int32 search_id = 1;
+    required Query.Model query = 2;
 }
 
 message Envelope {
+    message Nothing {}
     oneof payload {
-        Agent.Message message = 1;
-        AgentDescription register = 2;
-        AgentDescription unregister = 3;
-        AgentDescription description = 4;
-        AgentSearch query = 5;
-        AgentSearch search = 6;
+        Agent.Message send_message = 1;
+        AgentDescription register_service = 2;
+        AgentDescription unregister_service = 3;
+        AgentDescription register_description = 4;
+        Nothing unregister_description = 5;
+        AgentSearch search_services = 6;
+        AgentSearch search_agents = 7;
     }
 }
 

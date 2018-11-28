@@ -16,7 +16,7 @@ class SimpleAgent : public fetch::oef::Agent {
       start();
     }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
-  void onSearchResult(const std::vector<std::string> &results) override {
+  void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
     _results = results;
   }
   void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {}

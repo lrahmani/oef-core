@@ -19,7 +19,7 @@ class SimpleAgent : public fetch::oef::Agent {
   }
   virtual ~SimpleAgent() = default;
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
-  void onSearchResult(const std::vector<std::string> &results) override {
+  void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
     _results = results;
   }
   void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {}
@@ -39,7 +39,7 @@ class SimpleAgentLocal : public fetch::oef::Agent {
   }
   virtual ~SimpleAgentLocal() = default;
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
-  void onSearchResult(const std::vector<std::string> &results) override {
+  void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
     std::cerr << "onSearchResult " << results.size() << std::endl;
     _results = results;
   }
@@ -85,7 +85,7 @@ TEST_CASE("testing register", "[ServiceDiscovery]") {
     ConstraintType eqTrue{Relation{Relation::Op::Eq, true}};
     Constraint luxury_c{luxury, eqTrue};
     QueryModel q1{{luxury_c}, car};
-    c3.searchServices(q1);
+    c3.searchServices(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
     auto agents = c3._results;
     std::sort(agents.begin(), agents.end());
@@ -132,7 +132,7 @@ TEST_CASE("local testing register", "[ServiceDiscovery]") {
     ConstraintType eqTrue{Relation{Relation::Op::Eq, true}};
     Constraint luxury_c{luxury, eqTrue};
     QueryModel q1{{luxury_c}, car};
-    c3.searchServices(q1);
+    c3.searchServices(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
     auto agents = c3._results;
     std::sort(agents.begin(), agents.end());
@@ -182,7 +182,7 @@ TEST_CASE("description", "[ServiceDiscovery]") {
     ConstraintType eqTrue{Relation{Relation::Op::Eq, true}};
     Constraint wireless_c{wireless, eqTrue};
     QueryModel q1{{wireless_c}, station};
-    c3.searchAgents(q1);
+    c3.searchAgents(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
     auto agents = c3._results;
     std::sort(agents.begin(), agents.end());
@@ -191,7 +191,7 @@ TEST_CASE("description", "[ServiceDiscovery]") {
     ConstraintType eqYoushiko{Relation{Relation::Op::Eq, std::string{"Youshiko"}}};
     Constraint manufacturer_c{manufacturer, eqYoushiko};
     QueryModel q2{{manufacturer_c}};
-    c3.searchAgents(q2);
+    c3.searchAgents(1, q2);
     std::this_thread::sleep_for(std::chrono::seconds{1});
     auto agents2 = c3._results;
     REQUIRE(agents2.size() == 1);
@@ -232,7 +232,7 @@ TEST_CASE("local description", "[ServiceDiscovery]") {
     ConstraintType eqTrue{Relation{Relation::Op::Eq, true}};
     Constraint wireless_c{wireless, eqTrue};
     QueryModel q1{{wireless_c}, station};
-    c3.searchAgents(q1);
+    c3.searchAgents(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
     auto agents = c3._results;
     std::sort(agents.begin(), agents.end());
@@ -241,7 +241,7 @@ TEST_CASE("local description", "[ServiceDiscovery]") {
     ConstraintType eqYoushiko{Relation{Relation::Op::Eq, std::string{"Youshiko"}}};
     Constraint manufacturer_c{manufacturer, eqYoushiko};
     QueryModel q2{{manufacturer_c}};
-    c3.searchAgents(q2);
+    c3.searchAgents(1, q2);
     std::this_thread::sleep_for(std::chrono::seconds{1});
     auto agents2 = c3._results;
     REQUIRE(agents2.size() == 1);

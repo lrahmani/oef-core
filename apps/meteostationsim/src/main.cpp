@@ -48,7 +48,7 @@ public:
   MeteoStation operator=(const MeteoStation &) = delete;
 
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
-  void onSearchResult(const std::vector<std::string> &results) override {}
+  void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {}
   void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
     if(_conversations.find(conversationId) == _conversations.end()) { // first contact
       _conversations.insert(conversationId);

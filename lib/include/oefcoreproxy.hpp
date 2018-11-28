@@ -14,7 +14,7 @@ namespace fetch {
     class AgentInterface {
     public:
       virtual void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) = 0;
-      virtual void onSearchResult(const std::vector<std::string> &results) = 0;
+      virtual void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) = 0;
       virtual void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) = 0;
       virtual void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const CFPType &constraints) = 0;
       virtual void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const ProposeType &proposals) = 0;
@@ -30,8 +30,9 @@ namespace fetch {
       virtual bool handshake() = 0;
       virtual void registerDescription(const Instance &instance) = 0;
       virtual void registerService(const Instance &instance) = 0;
-      virtual void searchAgents(const QueryModel &model) = 0;
-      virtual void searchServices(const QueryModel &model) = 0;
+      virtual void searchAgents(uint32_t search_id, const QueryModel &model) = 0;
+      virtual void searchServices(uint32_t search_id, const QueryModel &model) = 0;
+      virtual void unregisterDescription() = 0;
       virtual void unregisterService(const Instance &instance) = 0;
       virtual void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) = 0;
       virtual void sendCFP(const std::string &conversationId, const std::string &dest, const CFPType &constraints, uint32_t msgId = 1, uint32_t target = 0) = 0;
@@ -61,14 +62,17 @@ namespace fetch {
       void registerService(const Instance &instance) {
         _oefCore->registerService(instance);
       }
-      void searchAgents(const QueryModel &model) {
-        _oefCore->searchAgents(model);
+      void searchAgents(uint32_t search_id, const QueryModel &model) {
+        _oefCore->searchAgents(search_id, model);
       }
-      void searchServices(const QueryModel &model) {
-        _oefCore->searchServices(model);
+      void searchServices(uint32_t search_id, const QueryModel &model) {
+        _oefCore->searchServices(search_id, model);
       }
       void unregisterService(const Instance &instance) {
         _oefCore->unregisterService(instance);
+      }
+      void unregisterDescription() {
+        _oefCore->unregisterDescription();
       }
       void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) {
         _oefCore->sendMessage(conversationId, dest, msg);

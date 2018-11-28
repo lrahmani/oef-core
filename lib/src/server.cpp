@@ -57,49 +57,50 @@ namespace fetch {
         return query.check(*_description);
       }
     private:
-      void processDescription(const fetch::oef::pb::AgentDescription &desc) {
+      void processRegisterDescription(const fetch::oef::pb::AgentDescription &desc) {
         _description = Instance(desc.description());
-        DEBUG(logger, "AgentSession::processDescription setting description to agent {} : {}", _id, to_string(desc));
+        DEBUG(logger, "AgentSession::processRegisterDescription setting description to agent {} : {}", _id, to_string(desc));
         if(!_description) {
           fetch::oef::pb::Server_AgentMessage answer;
           auto *error = answer.mutable_error();
           error->set_operation(fetch::oef::pb::Server_AgentMessage_Error::REGISTER_DESCRIPTION);
-          logger.trace("AgentSession::processDescription sending error {} to {}", error->operation(), _id);
+          logger.trace("AgentSession::processRegisterDescription sending error {} to {}", error->operation(), _id);
           send(answer);
         }
       }
-      void processRegister(const fetch::oef::pb::AgentDescription &desc) {
-        DEBUG(logger, "AgentSession::processRegister registering agent {} : {}", _id, to_string(desc));
+      void processRegisterService(const fetch::oef::pb::AgentDescription &desc) {
+        DEBUG(logger, "AgentSession::processRegisterService registering agent {} : {}", _id, to_string(desc));
         bool success = _sd.registerAgent(Instance(desc.description()), _id);
         if(!success) {
           fetch::oef::pb::Server_AgentMessage answer;
           auto *error = answer.mutable_error();
           error->set_operation(fetch::oef::pb::Server_AgentMessage_Error::REGISTER_SERVICE);
-          logger.trace("AgentSession::processRegister sending error {} to {}", error->operation(), _id);
+          logger.trace("AgentSession::processRegisterService sending error {} to {}", error->operation(), _id);
           send(answer);
         }
       }
-      void processUnregister(const fetch::oef::pb::AgentDescription &desc) {
-        DEBUG(logger, "AgentSession::processUnregister unregistering agent {} : {}", _id, to_string(desc));
+      void processUnregisterService(const fetch::oef::pb::AgentDescription &desc) {
+        DEBUG(logger, "AgentSession::processUnregisterService unregistering agent {} : {}", _id, to_string(desc));
         bool success = _sd.unregisterAgent(Instance(desc.description()), _id);
         if(!success) {
           fetch::oef::pb::Server_AgentMessage answer;
           auto *error = answer.mutable_error();
           error->set_operation(fetch::oef::pb::Server_AgentMessage_Error::UNREGISTER_SERVICE);
-          logger.trace("AgentSession::processUnregister sending error {} to {}", error->operation(), _id);
+          logger.trace("AgentSession::processUnregisterService sending error {} to {}", error->operation(), _id);
           send(answer);
         }
       }
-      void processSearch(const fetch::oef::pb::AgentSearch &search) {
+      void processSearchAgents(const fetch::oef::pb::AgentSearch &search) {
         QueryModel model{search.query()};
-        DEBUG(logger, "AgentSession::processSearch from agent {} : {}", _id, to_string(search));
+        DEBUG(logger, "AgentSession::processSearchAgents from agent {} : {}", _id, to_string(search));
         auto agents_vec = _ad.search(model);
         fetch::oef::pb::Server_AgentMessage answer;
         auto agents = answer.mutable_agents();
+        agents->set_search_id(search.search_id());
         for(auto &a : agents_vec) {
           agents->add_agents(a);
         }
-        logger.trace("AgentSession::processSearch sending {} agents to {}", agents_vec.size(), _id);
+        logger.trace("AgentSession::processSearchAgents sending {} agents to {}", agents_vec.size(), _id);
         send(answer);
       }
       void processQuery(const fetch::oef::pb::AgentSearch &search) {
@@ -108,6 +109,7 @@ namespace fetch {
         auto agents_vec = _sd.query(model);
         fetch::oef::pb::Server_AgentMessage answer;
         auto agents = answer.mutable_agents();
+        agents->set_search_id(search.search_id());
         for(auto &a : agents_vec) {
           agents->add_agents(a);
         }
@@ -146,23 +148,23 @@ namespace fetch {
         auto envelope = deserialize<fetch::oef::pb::Envelope>(*buffer);
         auto payload_case = envelope.payload_case();
         switch(payload_case) {
-        case fetch::oef::pb::Envelope::kMessage:
-          processMessage(envelope.release_message());
+        case fetch::oef::pb::Envelope::kSendMessage:
+          processMessage(envelope.release_send_message());
           break;
-        case fetch::oef::pb::Envelope::kRegister:
-          processRegister(envelope.register_());
+        case fetch::oef::pb::Envelope::kRegisterService:
+          processRegisterService(envelope.register_service());
           break;
-        case fetch::oef::pb::Envelope::kUnregister:
-          processUnregister(envelope.unregister());
+        case fetch::oef::pb::Envelope::kUnregisterService:
+          processUnregisterService(envelope.unregister_service());
           break;
-        case fetch::oef::pb::Envelope::kDescription:
-          processDescription(envelope.description());
+        case fetch::oef::pb::Envelope::kRegisterDescription:
+          processRegisterDescription(envelope.register_description());
           break;
-        case fetch::oef::pb::Envelope::kSearch:
-          processSearch(envelope.search());
+        case fetch::oef::pb::Envelope::kSearchAgents:
+          processSearchAgents(envelope.search_agents());
           break;
-        case fetch::oef::pb::Envelope::kQuery:
-          processQuery(envelope.query());
+        case fetch::oef::pb::Envelope::kSearchServices:
+          processQuery(envelope.search_services());
           break;
         case fetch::oef::pb::Envelope::PAYLOAD_NOT_SET:
           logger.error("AgentSession::process cannot process payload {} from {}", payload_case, _id);

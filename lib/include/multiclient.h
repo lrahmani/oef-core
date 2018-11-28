@@ -44,7 +44,7 @@ namespace fetch {
       void setState(const T& t) { _state = t; }
       std::shared_ptr<Buffer> envelope(const std::string &outgoing) {
         fetch::oef::pb::Envelope env;
-        auto *message = env.mutable_message();
+        auto *message = env.mutable_send_message();
         message->set_conversation_id(_uuid.to_string());
         message->set_destination(_dest);
         message->set_content(outgoing);
@@ -176,7 +176,7 @@ namespace fetch {
               logger.trace("MessageDecoder::loop error");
               auto &error = msg.error();
               agent.onError(error.operation(), error.has_conversation_id() ? error.conversation_id() : "",
-                            error.has_msgid() ? error.msgid() : 0);
+                            error.has_msg_id() ? error.msg_id() : 0);
             }
             break;
           case fetch::oef::pb::Server_AgentMessage::kAgents:
@@ -186,7 +186,7 @@ namespace fetch {
               for(auto &s : msg.agents().agents()) {
                 searchResults.emplace_back(s);
               }
-              agent.onSearchResult(searchResults);
+              agent.onSearchResult(msg.agents().search_id(), searchResults);
             }
             break;
           case fetch::oef::pb::Server_AgentMessage::kContent:
@@ -286,6 +286,13 @@ namespace fetch {
         else
           _agents[agentPublicKey]._description = instance;
       }
+      void unregisterDescription(const std::string &agentPublicKey) {
+        logger.trace("SchedulerPB::unregisterDescription {}", agentPublicKey);
+        if(_agents.find(agentPublicKey) == _agents.end())
+          logger.error("SchedulerPB::unregisterDescription {} is not registered", agentPublicKey);
+        else
+          _agents[agentPublicKey]._description = stde::nullopt;
+      }
       void registerService(const std::string &agentPublicKey, const Instance &instance) {
         logger.trace("SchedulerPB::registerService {}", agentPublicKey);
         _sd.registerAgent(instance, agentPublicKey);
@@ -294,7 +301,7 @@ namespace fetch {
         logger.trace("SchedulerPB::unregisterService {}", agentPublicKey);
         _sd.unregisterAgent(instance, agentPublicKey);
       }
-      std::vector<std::string> searchAgents(const QueryModel &model) const {
+      std::vector<std::string> searchAgents(uint32_t, const QueryModel &model) const {
         logger.trace("SchedulerPB::searchServices");
         std::vector<std::string> res;
         for(const auto &s : _agents) {
@@ -303,7 +310,7 @@ namespace fetch {
         }
         return res;
       }
-      std::vector<std::string> searchServices(const QueryModel &model) const {
+      std::vector<std::string> searchServices(uint32_t, const QueryModel &model) const {
         logger.trace("SchedulerPB::searchServices");
         auto res = _sd.query(model);
         logger.trace("SchedulerPB::searchServices size {}", res.size());
@@ -345,22 +352,27 @@ namespace fetch {
       void registerDescription(const Instance &instance) override {
         _scheduler.registerDescription(_agentPublicKey, instance);
       }
+      void unregisterDescription() override {
+        _scheduler.unregisterDescription(_agentPublicKey);
+      }
       void registerService(const Instance &instance) override {
         _scheduler.registerService(_agentPublicKey, instance);
       }
-      void searchAgents(const QueryModel &model) override {
-        auto agents_vec = _scheduler.searchAgents(model);
+      void searchAgents(uint32_t search_id, const QueryModel &model) override {
+        auto agents_vec = _scheduler.searchAgents(search_id, model);
         fetch::oef::pb::Server_AgentMessage answer;
         auto agents = answer.mutable_agents();
+        agents->set_search_id(search_id);
         for(auto &a : agents_vec) {
           agents->add_agents(a);
         }
         _scheduler.send(_agentPublicKey, serialize(answer));
       }
-      void searchServices(const QueryModel &model) override {
-        auto agents_vec = _scheduler.searchServices(model);
+      void searchServices(uint32_t search_id, const QueryModel &model) override {
+        auto agents_vec = _scheduler.searchServices(search_id, model);
         fetch::oef::pb::Server_AgentMessage answer;
         auto agents = answer.mutable_agents();
+        agents->set_search_id(search_id);
         for(auto &a : agents_vec) {
           agents->add_agents(a);
         }
@@ -383,7 +395,7 @@ namespace fetch {
         auto content = message.mutable_content();
         content->set_conversation_id(conversationId);
         content->set_origin(_agentPublicKey);
-        content->set_allocated_fipa(cfp.handle().release_message()->release_fipa());
+        content->set_allocated_fipa(cfp.handle().release_send_message()->release_fipa());
         _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       };
       void sendPropose(const std::string &conversationId, const std::string &dest, const ProposeType &proposals, uint32_t msgId, uint32_t target) override {
@@ -392,7 +404,7 @@ namespace fetch {
         auto content = message.mutable_content();
         content->set_conversation_id(conversationId);
         content->set_origin(_agentPublicKey);
-        content->set_allocated_fipa(propose.handle().release_message()->release_fipa());
+        content->set_allocated_fipa(propose.handle().release_send_message()->release_fipa());
         _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       }
       void sendAccept(const std::string &conversationId, const std::string &dest, uint32_t msgId, uint32_t target) override {
@@ -401,7 +413,7 @@ namespace fetch {
         auto content = message.mutable_content();
         content->set_conversation_id(conversationId);
         content->set_origin(_agentPublicKey);
-        content->set_allocated_fipa(accept.handle().release_message()->release_fipa());
+        content->set_allocated_fipa(accept.handle().release_send_message()->release_fipa());
         _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       }
       void sendDecline(const std::string &conversationId, const std::string &dest, uint32_t msgId, uint32_t target) override {
@@ -410,7 +422,7 @@ namespace fetch {
         auto content = message.mutable_content();
         content->set_conversation_id(conversationId);
         content->set_origin(_agentPublicKey);
-        content->set_allocated_fipa(decline.handle().release_message()->release_fipa());
+        content->set_allocated_fipa(decline.handle().release_send_message()->release_fipa());
         _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
       }
     };
@@ -520,16 +532,20 @@ namespace fetch {
         Register service{instance};
         asyncWriteBuffer(_socket, serialize(service.handle()), 5);
       }
-      void searchAgents(const QueryModel &model) override {
-        Search search{model};
-        asyncWriteBuffer(_socket, serialize(search.handle()), 5);
+      void searchAgents(uint32_t search_id, const QueryModel &model) override {
+        SearchAgents searchAgents{search_id, model};
+        asyncWriteBuffer(_socket, serialize(searchAgents.handle()), 5);
       }
-      void searchServices(const QueryModel &model) override {
-        Query query{model};
-        asyncWriteBuffer(_socket, serialize(query.handle()), 5);
+      void searchServices(uint32_t search_id, const QueryModel &model) override {
+        SearchServices searchServices{search_id, model};
+        asyncWriteBuffer(_socket, serialize(searchServices.handle()), 5);
       }
       void unregisterService(const Instance &instance) override {
         Unregister service{instance};
+        asyncWriteBuffer(_socket, serialize(service.handle()), 5);
+      }
+      void unregisterDescription() override {
+        UnregisterDescription service{};
         asyncWriteBuffer(_socket, serialize(service.handle()), 5);
       }
       void sendMessage(const std::string &conversationId, const std::string &dest, const std::string &msg) override {

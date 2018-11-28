@@ -35,7 +35,7 @@ class SimpleAgentTransfer : public fetch::oef::Agent {
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {
     _action = AgentAction::ON_ERROR;
   }
-  void onSearchResult(const std::vector<std::string> &results) override {
+  void onSearchResult(uint32_t, const std::vector<std::string> &results) override {
     _action = AgentAction::ON_SEARCH_RESULT;
   }
   void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
@@ -73,7 +73,7 @@ class SimpleAgentTransferLocal : public fetch::oef::Agent {
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {
     _action = AgentAction::ON_ERROR;
   }
-  void onSearchResult(const std::vector<std::string> &results) override {
+  void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
     _action = AgentAction::ON_SEARCH_RESULT;
   }
   void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
