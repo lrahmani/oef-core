@@ -30,7 +30,7 @@ DOCKER_IMAGE_TAG=oef-core-image
 # means parent folders, will **NOT** be accessible during docker build process.
 # It defaults to the **very same** directory where `docker-env.sh` file is
 # located.
-DOCKER_BUILD_CONTEXT_DIR=$(readlink -f ./oef-core-image)/..
+DOCKER_BUILD_CONTEXT_DIR=..
 
 # ---------------------------------------------------------------------------
 # This variable Defines path to custom dockerfile.
