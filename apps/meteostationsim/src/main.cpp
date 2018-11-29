@@ -15,7 +15,7 @@ class MeteoStation : public fetch::oef::Agent
 {
 private:
   float _unitPrice;
-  std::unordered_set<std::string> _conversations;
+  std::unordered_set<uint32_t> _dialogues;
   
 public:
   MeteoStation(const std::string &agentId, asio::io_context &io_context, const std::string &host)
@@ -47,13 +47,13 @@ public:
   MeteoStation(const MeteoStation &) = delete;
   MeteoStation operator=(const MeteoStation &) = delete;
 
-  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
-  void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {}
-  void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
-    if(_conversations.find(conversationId) == _conversations.end()) { // first contact
-      _conversations.insert(conversationId);
+  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {}
+  void onSearchResult(uint32_t, const std::vector<std::string> &results) override {}
+  void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {
+    if(_dialogues.find(dialogueId) == _dialogues.end()) { // first contact
+      _dialogues.insert(dialogueId);
       Data price{"price", "float", {std::to_string(_unitPrice)}};
-      sendMessage(conversationId, from, price.handle().SerializeAsString());
+      sendMessage(dialogueId, from, price.handle().SerializeAsString());
     } else {
       fetch::oef::pb::Boolean accepted;
       accepted.ParseFromString(content);
@@ -64,20 +64,20 @@ public:
         std::mt19937 g(rd());
         std::normal_distribution<float> dist{15.0, 2.0};
         Data temp{"temperature", "float", {std::to_string(dist(g))}};
-        sendMessage(conversationId, from, temp.handle().SerializeAsString());
+        sendMessage(dialogueId, from, temp.handle().SerializeAsString());
         Data air{"air pressure", "float", {std::to_string(dist(g))}};
-        sendMessage(conversationId, from, air.handle().SerializeAsString());
+        sendMessage(dialogueId, from, air.handle().SerializeAsString());
         Data humid{"humidity", "float", {std::to_string(dist(g))}};
-        sendMessage(conversationId, from, humid.handle().SerializeAsString());
+        sendMessage(dialogueId, from, humid.handle().SerializeAsString());
       } else {
         std::cerr << "I lost\n";
       }
     }
   }
-  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
-  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
-  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
-  void onDecline(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
+  void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
+  void onPropose(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
+  void onAccept(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
+  void onDecline(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
 };
 
 int main(int argc, char* argv[])

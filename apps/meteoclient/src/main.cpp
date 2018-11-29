@@ -13,7 +13,7 @@ using namespace fetch::oef;
 
 class MeteoClientAgent : public fetch::oef::Agent {
  private:
-  std::unordered_map<std::string,std::string> _conversationsIds;
+  std::unordered_map<std::string,uint32_t> _dialoguesIds;
   std::string _bestStation;
   float _bestPrice = -1.0f;
   size_t _nbAnswers = 0;
@@ -25,17 +25,17 @@ public:
     : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host})} {
       start();
     }
-  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {}
+  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {}
   void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
     if(results.empty())
       std::cerr << "No candidates\n";
     for(auto &c : results) {
-      auto uuid = Uuid::uuid4();
-      _conversationsIds[c] = uuid.to_string();
-      sendMessage(uuid.to_string(), c, ""); // should be cfp
+      auto uuid = Uuid32::uuid();
+      _dialoguesIds[c] = uuid.val();
+      sendMessage(uuid.val(), c, ""); // should be cfp
     }
   }
-  void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
+  void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {
     if(!_waitingForData) {
       Data price{content};
       assert(price.values().size() == 1);
@@ -45,12 +45,12 @@ public:
         _bestStation = from;
       }
       ++_nbAnswers;
-      std::cerr << "Nb Answers " << _nbAnswers << " " << _conversationsIds.size() << std::endl;
-      if(_nbAnswers == _conversationsIds.size()) {
+      std::cerr << "Nb Answers " << _nbAnswers << " " << _dialoguesIds.size() << std::endl;
+      if(_nbAnswers == _dialoguesIds.size()) {
         _waitingForData = true;
         std::cerr << "Best station " << _bestStation << " price " << _bestPrice << std::endl;
         fetch::oef::pb::Boolean accepted;
-        for(auto &p : _conversationsIds) {
+        for(auto &p : _dialoguesIds) {
           accepted.set_status(p.first == _bestStation);
           sendMessage(p.second, p.first, accepted.SerializeAsString());
         }
@@ -64,10 +64,10 @@ public:
         stop();
     }
   }
-  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
-  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
-  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
-  void onDecline(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {}
+  void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
+  void onPropose(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
+  void onAccept(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
+  void onDecline(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
  };
 
 int main(int argc, char* argv[])

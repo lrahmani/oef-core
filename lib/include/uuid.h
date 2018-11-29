@@ -4,6 +4,21 @@
 #include <random>
 #include <iomanip>      // std::setfill, std::setw
 
+class Uuid32 {
+ private:
+  uint32_t _ab;
+  explicit Uuid32(uint32_t ab) : _ab{ab}  {}
+ public:
+  static Uuid32 uuid() {
+    static std::random_device rd;
+    static std::uniform_int_distribution<uint32_t> dist(0, (uint32_t)(~0));
+
+    uint32_t ab = dist(rd);
+    return Uuid32{ab};
+  }
+  uint32_t val() const { return _ab; }
+};
+
 class Uuid {
  private:
   uint64_t _ab, _cd;

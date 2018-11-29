@@ -23,7 +23,7 @@ enum class AgentAction {
 class SimpleAgentTransfer : public fetch::oef::Agent {
  public:
   std::string _from;
-  std::string _conversationId;
+  uint32_t _dialogueId;
   std::string _content;
   AgentAction _action = AgentAction::NONE;
   
@@ -32,28 +32,28 @@ class SimpleAgentTransfer : public fetch::oef::Agent {
   {
     start();
   }
-  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {
+  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {
     _action = AgentAction::ON_ERROR;
   }
   void onSearchResult(uint32_t, const std::vector<std::string> &results) override {
     _action = AgentAction::ON_SEARCH_RESULT;
   }
-  void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
+  void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {
     _from = from;
-    _conversationId = conversationId;
+    _dialogueId = dialogueId;
     _content = content;
     _action = AgentAction::ON_MESSAGE;
   }
-  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {
+  void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {
     _action = AgentAction::ON_CFP;
   }
-  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {
+  void onPropose(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {
     _action = AgentAction::ON_PROPOSE;
   }
-  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {
+  void onAccept(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {
     _action = AgentAction::ON_ACCEPT;
   }
-  void onDecline(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {
+  void onDecline(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {
     _action = AgentAction::ON_DECLINE;
   }
  };
@@ -61,7 +61,7 @@ class SimpleAgentTransfer : public fetch::oef::Agent {
 class SimpleAgentTransferLocal : public fetch::oef::Agent {
  public:
   std::string _from;
-  std::string _conversationId;
+  uint32_t _dialogueId;
   std::string _content;
   AgentAction _action = AgentAction::NONE;
 
@@ -70,30 +70,30 @@ class SimpleAgentTransferLocal : public fetch::oef::Agent {
   {
     start();
   }
-  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, const std::string &conversationId, uint32_t msgId) override {
+  void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {
     _action = AgentAction::ON_ERROR;
   }
   void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
     _action = AgentAction::ON_SEARCH_RESULT;
   }
-  void onMessage(const std::string &from, const std::string &conversationId, const std::string &content) override {
-    std::cerr << "onMessage " << getPublicKey() << " from " << from << " cid " << conversationId << " content " << content << std::endl;
+  void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {
+    std::cerr << "onMessage " << getPublicKey() << " from " << from << " cid " << dialogueId << " content " << content << std::endl;
     _from = from;
-    _conversationId = conversationId;
+    _dialogueId = dialogueId;
     _content = content;
     _action = AgentAction::ON_MESSAGE;
   }
-  void onCFP(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {
-    std::cerr << "onCFP " << getPublicKey() << " from " << from << " cid " << conversationId << std::endl;
+  void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {
+    std::cerr << "onCFP " << getPublicKey() << " from " << from << " cid " << dialogueId << std::endl;
     _action = AgentAction::ON_CFP;
   }
-  void onPropose(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {
+  void onPropose(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {
     _action = AgentAction::ON_PROPOSE;
   }
-  void onAccept(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {
+  void onAccept(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {
     _action = AgentAction::ON_ACCEPT;
   }
-  void onDecline(const std::string &from, const std::string &conversationId, uint32_t msgId, uint32_t target) override {
+  void onDecline(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {
     _action = AgentAction::ON_DECLINE;
   }
  };
@@ -121,54 +121,54 @@ namespace Test {
       SimpleAgentTransfer c3("Agent3", pool.getIoContext(), "127.0.0.1");
       REQUIRE(as.nbAgents() == 3);
       std::cerr << "Clients created\n";
-      c1.sendMessage("1", "Agent2", "Hello world");
-      c1.sendMessage("1", "Agent3", "Hello world");
+      c1.sendMessage(1, "Agent2", "Hello world");
+      c1.sendMessage(1, "Agent3", "Hello world");
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c1._action == AgentAction::NONE);
       REQUIRE(c2._action == AgentAction::ON_MESSAGE);
       REQUIRE(c3._action == AgentAction::ON_MESSAGE);
       REQUIRE(c2._from == "Agent1");
       REQUIRE(c3._from == "Agent1");
-      REQUIRE(c2._conversationId == "1");
-      REQUIRE(c3._conversationId == "1");
+      REQUIRE(c2._dialogueId == 1);
+      REQUIRE(c3._dialogueId == 1);
       REQUIRE(c2._content == "Hello world");
       REQUIRE(c3._content == "Hello world");
-      c2.sendMessage("2", "Agent3", "Welcome back");
-      c2.sendMessage("2", "Agent1", "Welcome back");
+      c2.sendMessage(2, "Agent3", "Welcome back");
+      c2.sendMessage(2, "Agent1", "Welcome back");
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c1._from == "Agent2");
       REQUIRE(c3._from == "Agent2");
-      REQUIRE(c1._conversationId == "2");
-      REQUIRE(c3._conversationId == "2");
+      REQUIRE(c1._dialogueId == 2);
+      REQUIRE(c3._dialogueId == 2);
       REQUIRE(c1._content == "Welcome back");
       REQUIRE(c3._content == "Welcome back");
-      c3.sendMessage("3", "Agent1", "Here I am");
-      c3.sendMessage("3", "Agent2", "Here I am");
+      c3.sendMessage(3, "Agent1", "Here I am");
+      c3.sendMessage(3, "Agent2", "Here I am");
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c1._from == "Agent3");
       REQUIRE(c2._from == "Agent3");
-      REQUIRE(c1._conversationId == "3");
-      REQUIRE(c2._conversationId == "3");
+      REQUIRE(c1._dialogueId == 3);
+      REQUIRE(c2._dialogueId == 3);
       REQUIRE(c1._content == "Here I am");
       REQUIRE(c2._content == "Here I am");
       std::cerr << "Data sent\n";
-      c1.sendCFP("4", "Agent2", fetch::oef::CFPType{stde::nullopt});
-      c1.sendCFP("4", "Agent3", fetch::oef::CFPType{std::string{"message"}});
+      c1.sendCFP(4, "Agent2", fetch::oef::CFPType{stde::nullopt});
+      c1.sendCFP(4, "Agent3", fetch::oef::CFPType{std::string{"message"}});
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c2._action == AgentAction::ON_CFP);
       REQUIRE(c3._action == AgentAction::ON_CFP);
-      c1.sendPropose("5", "Agent2", fetch::oef::ProposeType{std::vector<Instance>{}}, 2, 1);
-      c1.sendPropose("5", "Agent3", fetch::oef::ProposeType{std::string{"message"}}, 2, 1);
+      c1.sendPropose(5, "Agent2", fetch::oef::ProposeType{std::vector<Instance>{}}, 2, 1);
+      c1.sendPropose(5, "Agent3", fetch::oef::ProposeType{std::string{"message"}}, 2, 1);
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c2._action == AgentAction::ON_PROPOSE);
       REQUIRE(c3._action == AgentAction::ON_PROPOSE);
-      c1.sendAccept("6", "Agent2", 3, 2);
-      c1.sendAccept("6", "Agent3", 3, 2);
+      c1.sendAccept(6, "Agent2", 3, 2);
+      c1.sendAccept(6, "Agent3", 3, 2);
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c2._action == AgentAction::ON_ACCEPT);
       REQUIRE(c3._action == AgentAction::ON_ACCEPT);
-      c1.sendDecline("7", "Agent2", 4, 3);
-      c1.sendDecline("7", "Agent3", 4, 3);
+      c1.sendDecline(7, "Agent2", 4, 3);
+      c1.sendDecline(7, "Agent3", 4, 3);
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c2._action == AgentAction::ON_DECLINE);
       REQUIRE(c3._action == AgentAction::ON_DECLINE);
@@ -203,54 +203,54 @@ namespace Test {
       SimpleAgentTransferLocal c3("Agent3", scheduler);
       REQUIRE(scheduler.nbAgents() == 3);
       std::cerr << "Clients created\n";
-      c1.sendMessage("1", "Agent2", "Hello world");
-      c1.sendMessage("1", "Agent3", "Hello world");
+      c1.sendMessage(1, "Agent2", "Hello world");
+      c1.sendMessage(1, "Agent3", "Hello world");
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c1._action == AgentAction::NONE);
       REQUIRE(c2._action == AgentAction::ON_MESSAGE);
       REQUIRE(c3._action == AgentAction::ON_MESSAGE);
       REQUIRE(c2._from == "Agent1");
       REQUIRE(c3._from == "Agent1");
-      REQUIRE(c2._conversationId == "1");
-      REQUIRE(c3._conversationId == "1");
+      REQUIRE(c2._dialogueId == 1);
+      REQUIRE(c3._dialogueId == 1);
       REQUIRE(c2._content == "Hello world");
       REQUIRE(c3._content == "Hello world");
-      c2.sendMessage("2", "Agent3", "Welcome back");
-      c2.sendMessage("2", "Agent1", "Welcome back");
+      c2.sendMessage(2, "Agent3", "Welcome back");
+      c2.sendMessage(2, "Agent1", "Welcome back");
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c1._from == "Agent2");
       REQUIRE(c3._from == "Agent2");
-      REQUIRE(c1._conversationId == "2");
-      REQUIRE(c3._conversationId == "2");
+      REQUIRE(c1._dialogueId == 2);
+      REQUIRE(c3._dialogueId == 2);
       REQUIRE(c1._content == "Welcome back");
       REQUIRE(c3._content == "Welcome back");
-      c3.sendMessage("3", "Agent1", "Here I am");
-      c3.sendMessage("3", "Agent2", "Here I am");
+      c3.sendMessage(3, "Agent1", "Here I am");
+      c3.sendMessage(3, "Agent2", "Here I am");
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c1._from == "Agent3");
       REQUIRE(c2._from == "Agent3");
-      REQUIRE(c1._conversationId == "3");
-      REQUIRE(c2._conversationId == "3");
+      REQUIRE(c1._dialogueId == 3);
+      REQUIRE(c2._dialogueId == 3);
       REQUIRE(c1._content == "Here I am");
       REQUIRE(c2._content == "Here I am");
       std::cerr << "Data sent\n";
-      c1.sendCFP("4", "Agent2", fetch::oef::CFPType{stde::nullopt});
-      c1.sendCFP("4", "Agent3", fetch::oef::CFPType{std::string{"message"}});
+      c1.sendCFP(4, "Agent2", fetch::oef::CFPType{stde::nullopt});
+      c1.sendCFP(4, "Agent3", fetch::oef::CFPType{std::string{"message"}});
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c2._action == AgentAction::ON_CFP);
       REQUIRE(c3._action == AgentAction::ON_CFP);
-      c1.sendPropose("5", "Agent2", fetch::oef::ProposeType{std::vector<Instance>{}}, 2, 1);
-      c1.sendPropose("5", "Agent3", fetch::oef::ProposeType{std::string{"message"}}, 2, 1);
+      c1.sendPropose(5, "Agent2", fetch::oef::ProposeType{std::vector<Instance>{}}, 2, 1);
+      c1.sendPropose(5, "Agent3", fetch::oef::ProposeType{std::string{"message"}}, 2, 1);
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c2._action == AgentAction::ON_PROPOSE);
       REQUIRE(c3._action == AgentAction::ON_PROPOSE);
-      c1.sendAccept("6", "Agent2", 3, 2);
-      c1.sendAccept("6", "Agent3", 3, 2);
+      c1.sendAccept(6, "Agent2", 3, 2);
+      c1.sendAccept(6, "Agent3", 3, 2);
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c2._action == AgentAction::ON_ACCEPT);
       REQUIRE(c3._action == AgentAction::ON_ACCEPT);
-      c1.sendDecline("7", "Agent2", 4, 3);
-      c1.sendDecline("7", "Agent3", 4, 3);
+      c1.sendDecline(7, "Agent2", 4, 3);
+      c1.sendDecline(7, "Agent3", 4, 3);
       std::this_thread::sleep_for(std::chrono::seconds{1});
       REQUIRE(c2._action == AgentAction::ON_DECLINE);
       REQUIRE(c3._action == AgentAction::ON_DECLINE);

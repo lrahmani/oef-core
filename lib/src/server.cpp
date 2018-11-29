@@ -127,8 +127,8 @@ namespace fetch {
         if(session) {
           fetch::oef::pb::Server_AgentMessage message;
           auto content = message.mutable_content();
-          std::string cid = msg->conversation_id();
-          content->set_conversation_id(cid);
+          uint32_t did = msg->dialogue_id();
+          content->set_dialogue_id(did);
           content->set_origin(_id);
           if(msg->has_content())
             content->set_allocated_content(msg->release_content());
@@ -136,12 +136,12 @@ namespace fetch {
             content->set_allocated_fipa(msg->release_fipa());
           DEBUG(logger, "AgentSession::processMessage to agent {} : {}", msg->destination(), to_string(message));
           auto buffer = serialize(message);
-          asyncWriteBuffer(session->_socket, buffer, 5, [this,cid](std::error_code ec, std::size_t length) {
+          asyncWriteBuffer(session->_socket, buffer, 5, [this,did](std::error_code ec, std::size_t length) {
               if(ec) {
                 fetch::oef::pb::Server_AgentMessage answer;
                 auto *error = answer.mutable_error();
                 error->set_operation(fetch::oef::pb::Server_AgentMessage_Error::SEND_MESSAGE);
-                error->set_conversation_id(cid);
+                error->set_dialogue_id(did);
                 logger.trace("AgentSession::processMessage sending error {} to {}", error->operation(), _id);
                 send(answer);
               }

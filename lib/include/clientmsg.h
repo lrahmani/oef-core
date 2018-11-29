@@ -57,9 +57,9 @@ namespace fetch {
     private:
       fetch::oef::pb::Envelope _envelope;
     public:
-      explicit Message(const std::string &conversationID, const std::string &dest, const std::string &msg) {
+      explicit Message(uint32_t dialogueId, const std::string &dest, const std::string &msg) {
         auto *message = _envelope.mutable_send_message();
-        message->set_conversation_id(conversationID);
+        message->set_dialogue_id(dialogueId);
         message->set_destination(dest);
         message->set_content(msg);
       }
@@ -70,9 +70,9 @@ namespace fetch {
     private:
       fetch::oef::pb::Envelope _envelope;
     public:
-      explicit CFP(const std::string &conversationID, const std::string &dest, const fetch::oef::CFPType &query, uint32_t msgId = 1, uint32_t target = 0) {
+      explicit CFP(uint32_t dialogueId, const std::string &dest, const fetch::oef::CFPType &query, uint32_t msgId = 1, uint32_t target = 0) {
         auto *message = _envelope.mutable_send_message();
-        message->set_conversation_id(conversationID);
+        message->set_dialogue_id(dialogueId);
         message->set_destination(dest);
         auto *fipa_msg = message->mutable_fipa();
         fipa_msg->set_msg_id(msgId);
@@ -90,9 +90,9 @@ namespace fetch {
     private:
       fetch::oef::pb::Envelope _envelope;
     public:
-      explicit Propose(const std::string &conversationID, const std::string &dest, const fetch::oef::ProposeType &proposals, uint32_t msgId, uint32_t target) {
+      explicit Propose(uint32_t dialogueId, const std::string &dest, const fetch::oef::ProposeType &proposals, uint32_t msgId, uint32_t target) {
         auto *message = _envelope.mutable_send_message();
-        message->set_conversation_id(conversationID);
+        message->set_dialogue_id(dialogueId);
         message->set_destination(dest);
         auto *fipa_msg = message->mutable_fipa();
         fipa_msg->set_msg_id(msgId);
@@ -117,9 +117,9 @@ namespace fetch {
     private:
       fetch::oef::pb::Envelope _envelope;
     public:
-      explicit Accept(const std::string &conversationID, const std::string &dest, uint32_t msgId, uint32_t target) {
+      explicit Accept(uint32_t dialogueId, const std::string &dest, uint32_t msgId, uint32_t target) {
         auto *message = _envelope.mutable_send_message();
-        message->set_conversation_id(conversationID);
+        message->set_dialogue_id(dialogueId);
         message->set_destination(dest);
         auto *fipa_msg = message->mutable_fipa();
         fipa_msg->set_msg_id(msgId);
@@ -133,9 +133,9 @@ namespace fetch {
     private:
       fetch::oef::pb::Envelope _envelope;
     public:
-      explicit Decline(const std::string &conversationID, const std::string &dest, uint32_t msgId, uint32_t target) {
+      explicit Decline(uint32_t dialogueId, const std::string &dest, uint32_t msgId, uint32_t target) {
         auto *message = _envelope.mutable_send_message();
-        message->set_conversation_id(conversationID);
+        message->set_dialogue_id(dialogueId);
         message->set_destination(dest);
         auto *fipa_msg = message->mutable_fipa();
         fipa_msg->set_msg_id(msgId);

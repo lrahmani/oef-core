@@ -15,7 +15,7 @@ message Agent {
         }
     }
     message Message {
-        required string conversation_id = 1; // conversation ID
+        required int32 dialogue_id = 1;
         required string destination = 2;
         oneof payload {
             bytes content = 3;
@@ -43,7 +43,7 @@ message Server {
     
     message AgentMessage {
         message Content {
-            required string conversation_id = 1;
+            required int32 dialogue_id = 1;
             required string origin = 2;
             oneof payload {
                   bytes content = 3;
@@ -59,7 +59,7 @@ message Server {
                 SEND_MESSAGE = 4;
             }
             required Operation operation = 1;
-            optional string conversation_id = 2;
+            optional int32 dialogue_id = 2;
             optional int32 msg_id = 3;
         }
         oneof payload {
