@@ -68,6 +68,10 @@ namespace fetch {
           send(answer);
         }
       }
+      void processUnregisterDescription() {
+        _description = stde::nullopt;
+        DEBUG(logger, "AgentSession::processUnregisterDescription setting description to agent {}", _id);
+      }
       void processRegisterService(const fetch::oef::pb::AgentDescription &desc) {
         DEBUG(logger, "AgentSession::processRegisterService registering agent {} : {}", _id, to_string(desc));
         bool success = _sd.registerAgent(Instance(desc.description()), _id);
@@ -159,6 +163,9 @@ namespace fetch {
           break;
         case fetch::oef::pb::Envelope::kRegisterDescription:
           processRegisterDescription(envelope.register_description());
+          break;
+        case fetch::oef::pb::Envelope::kUnregisterDescription:
+          processUnregisterDescription();
           break;
         case fetch::oef::pb::Envelope::kSearchAgents:
           processSearchAgents(envelope.search_agents());
