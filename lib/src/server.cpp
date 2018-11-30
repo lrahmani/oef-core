@@ -10,7 +10,7 @@
 namespace fetch {
   namespace oef {
     fetch::oef::Logger Server::logger = fetch::oef::Logger("oef-node");
-    fetch::oef::Logger AgentDiscovery::logger = fetch::oef::Logger("agent-discovery");
+    fetch::oef::Logger AgentDirectory::logger = fetch::oef::Logger("agent-directory");
     fetch::oef::Logger fetch::oef::OEFCoreNetworkProxy::logger = fetch::oef::Logger("oefcore-network");
     fetch::oef::Logger fetch::oef::OEFCoreLocalPB::logger = fetch::oef::Logger("oefcore-local-pb");
     fetch::oef::Logger fetch::oef::MessageDecoder::logger = fetch::oef::Logger("oefcore-pb");
@@ -24,20 +24,20 @@ namespace fetch {
     class AgentSession : public std::enable_shared_from_this<AgentSession>
     {
     private:
-      const std::string _id;
-      stde::optional<Instance> _description;
-      AgentDiscovery &_ad;
-      ServiceDirectory &_sd;
-      tcp::socket _socket;
+      const std::string publicKey_;
+      stde::optional<Instance> description_;
+      AgentDirectory &agentDirectory_;
+      ServiceDirectory &serviceDirectory_;
+      tcp::socket socket_;
 
       static fetch::oef::Logger logger;
       
     public:
-      explicit AgentSession(std::string id, AgentDiscovery &ad, ServiceDirectory &sd, tcp::socket socket)
-        : _id{std::move(id)}, _ad{ad}, _sd{sd}, _socket(std::move(socket)) {}
+      explicit AgentSession(std::string publicKey, AgentDirectory &agentDirectory, ServiceDirectory &serviceDirectory, tcp::socket socket)
+        : publicKey_{std::move(publicKey)}, agentDirectory_{agentDirectory}, serviceDirectory_{serviceDirectory}, socket_(std::move(socket)) {}
       virtual ~AgentSession() {
         logger.trace("~AgentSession");
-        //_socket.shutdown(asio::socket_base::shutdown_both);
+        //socket_.shutdown(asio::socket_base::shutdown_both);
       }
       AgentSession(const AgentSession &) = delete;
       AgentSession operator=(const AgentSession &) = delete;
@@ -45,104 +45,107 @@ namespace fetch {
         read();
       }
       void write(std::shared_ptr<Buffer> buffer) {
-        asyncWriteBuffer(_socket, std::move(buffer), 5);
+        asyncWriteBuffer(socket_, std::move(buffer), 5);
       }
       void send(const fetch::oef::pb::Server_AgentMessage &msg) {
-        asyncWriteBuffer(_socket, serialize(msg), 10 /* sec ? */);
+        asyncWriteBuffer(socket_, serialize(msg), 10 /* sec ? */);
       }
-      std::string id() const { return _id; }
+      std::string id() const { return publicKey_; }
       bool match(const QueryModel &query) const {
-        if(!_description)
+        if(!description_) {
           return false;
-        return query.check(*_description);
+        }
+        return query.check(*description_);
       }
     private:
       void processRegisterDescription(const fetch::oef::pb::AgentDescription &desc) {
-        _description = Instance(desc.description());
-        DEBUG(logger, "AgentSession::processRegisterDescription setting description to agent {} : {}", _id, to_string(desc));
-        if(!_description) {
+        description_ = Instance(desc.description());
+        DEBUG(logger, "AgentSession::processRegisterDescription setting description to agent {} : {}", publicKey_, to_string(desc));
+        if(!description_) {
           fetch::oef::pb::Server_AgentMessage answer;
           auto *error = answer.mutable_error();
           error->set_operation(fetch::oef::pb::Server_AgentMessage_Error::REGISTER_DESCRIPTION);
-          logger.trace("AgentSession::processRegisterDescription sending error {} to {}", error->operation(), _id);
+          logger.trace("AgentSession::processRegisterDescription sending error {} to {}", error->operation(), publicKey_);
           send(answer);
         }
       }
       void processUnregisterDescription() {
-        _description = stde::nullopt;
-        DEBUG(logger, "AgentSession::processUnregisterDescription setting description to agent {}", _id);
+        description_ = stde::nullopt;
+        DEBUG(logger, "AgentSession::processUnregisterDescription setting description to agent {}", publicKey_);
       }
       void processRegisterService(const fetch::oef::pb::AgentDescription &desc) {
-        DEBUG(logger, "AgentSession::processRegisterService registering agent {} : {}", _id, to_string(desc));
-        bool success = _sd.registerAgent(Instance(desc.description()), _id);
+        DEBUG(logger, "AgentSession::processRegisterService registering agent {} : {}", publicKey_, to_string(desc));
+        bool success = serviceDirectory_.registerAgent(Instance(desc.description()), publicKey_);
         if(!success) {
           fetch::oef::pb::Server_AgentMessage answer;
           auto *error = answer.mutable_error();
           error->set_operation(fetch::oef::pb::Server_AgentMessage_Error::REGISTER_SERVICE);
-          logger.trace("AgentSession::processRegisterService sending error {} to {}", error->operation(), _id);
+          logger.trace("AgentSession::processRegisterService sending error {} to {}", error->operation(), publicKey_);
           send(answer);
         }
       }
       void processUnregisterService(const fetch::oef::pb::AgentDescription &desc) {
-        DEBUG(logger, "AgentSession::processUnregisterService unregistering agent {} : {}", _id, to_string(desc));
-        bool success = _sd.unregisterAgent(Instance(desc.description()), _id);
+        DEBUG(logger, "AgentSession::processUnregisterService unregistering agent {} : {}", publicKey_, to_string(desc));
+        bool success = serviceDirectory_.unregisterAgent(Instance(desc.description()), publicKey_);
         if(!success) {
           fetch::oef::pb::Server_AgentMessage answer;
           auto *error = answer.mutable_error();
           error->set_operation(fetch::oef::pb::Server_AgentMessage_Error::UNREGISTER_SERVICE);
-          logger.trace("AgentSession::processUnregisterService sending error {} to {}", error->operation(), _id);
+          logger.trace("AgentSession::processUnregisterService sending error {} to {}", error->operation(), publicKey_);
           send(answer);
         }
       }
       void processSearchAgents(const fetch::oef::pb::AgentSearch &search) {
         QueryModel model{search.query()};
-        DEBUG(logger, "AgentSession::processSearchAgents from agent {} : {}", _id, to_string(search));
-        auto agents_vec = _ad.search(model);
+        DEBUG(logger, "AgentSession::processSearchAgents from agent {} : {}", publicKey_, to_string(search));
+        auto agents_vec = agentDirectory_.search(model);
         fetch::oef::pb::Server_AgentMessage answer;
         auto agents = answer.mutable_agents();
         agents->set_search_id(search.search_id());
         for(auto &a : agents_vec) {
           agents->add_agents(a);
         }
-        logger.trace("AgentSession::processSearchAgents sending {} agents to {}", agents_vec.size(), _id);
+        logger.trace("AgentSession::processSearchAgents sending {} agents to {}", agents_vec.size(), publicKey_);
         send(answer);
       }
       void processQuery(const fetch::oef::pb::AgentSearch &search) {
         QueryModel model{search.query()};
-        DEBUG(logger, "AgentSession::processQuery from agent {} : {}", _id, to_string(search));
-        auto agents_vec = _sd.query(model);
+        DEBUG(logger, "AgentSession::processQuery from agent {} : {}", publicKey_, to_string(search));
+        auto agents_vec = serviceDirectory_.query(model);
         fetch::oef::pb::Server_AgentMessage answer;
         auto agents = answer.mutable_agents();
         agents->set_search_id(search.search_id());
         for(auto &a : agents_vec) {
           agents->add_agents(a);
         }
-        logger.trace("AgentSession::processQuery sending {} agents to {}", agents_vec.size(), _id);
+        logger.trace("AgentSession::processQuery sending {} agents to {}", agents_vec.size(), publicKey_);
         send(answer);
       }
       void processMessage(fetch::oef::pb::Agent_Message *msg) {
-        auto session = _ad.session(msg->destination());
-        DEBUG(logger, "AgentSession::processMessage from agent {} : {}", _id, to_string(*msg));
-        logger.trace("AgentSession::processMessage to {} from {}", msg->destination(), _id);
+        auto session = agentDirectory_.session(msg->destination());
+        DEBUG(logger, "AgentSession::processMessage from agent {} : {}", publicKey_, to_string(*msg));
+        logger.trace("AgentSession::processMessage to {} from {}", msg->destination(), publicKey_);
         if(session) {
           fetch::oef::pb::Server_AgentMessage message;
           auto content = message.mutable_content();
           uint32_t did = msg->dialogue_id();
           content->set_dialogue_id(did);
-          content->set_origin(_id);
-          if(msg->has_content())
+          content->set_origin(publicKey_);
+          if(msg->has_content()) {
             content->set_allocated_content(msg->release_content());
-          if(msg->has_fipa())
+          }
+          if(msg->has_fipa()) {
             content->set_allocated_fipa(msg->release_fipa());
+          }
           DEBUG(logger, "AgentSession::processMessage to agent {} : {}", msg->destination(), to_string(message));
           auto buffer = serialize(message);
-          asyncWriteBuffer(session->_socket, buffer, 5, [this,did](std::error_code ec, std::size_t length) {
+          asyncWriteBuffer(session->socket_, buffer, 5, [this,did](std::error_code ec, std::size_t length) {
               if(ec) {
                 fetch::oef::pb::Server_AgentMessage answer;
                 auto *error = answer.mutable_error();
                 error->set_operation(fetch::oef::pb::Server_AgentMessage_Error::SEND_MESSAGE);
                 error->set_dialogue_id(did);
-                logger.trace("AgentSession::processMessage sending error {} to {}", error->operation(), _id);
+                logger.trace("AgentSession::processMessage sending error {} to {}", error->operation(), publicKey_);
                 send(answer);
               }
             });
@@ -174,16 +177,16 @@ namespace fetch {
           processQuery(envelope.search_services());
           break;
         case fetch::oef::pb::Envelope::PAYLOAD_NOT_SET:
-          logger.error("AgentSession::process cannot process payload {} from {}", payload_case, _id);
+          logger.error("AgentSession::process cannot process payload {} from {}", payload_case, publicKey_);
         }
       }
       void read() {
         auto self(shared_from_this());
-        asyncReadBuffer(_socket, 5, [this, self](std::error_code ec, std::shared_ptr<Buffer> buffer) {
+        asyncReadBuffer(socket_, 5, [this, self](std::error_code ec, std::shared_ptr<Buffer> buffer) {
                                 if(ec) {
-                                  _ad.remove(_id);
-                                  _sd.unregisterAll(_id);
-                                  logger.info("AgentSession::read error on id {} ec {}", _id, ec);
+                                  agentDirectory_.remove(publicKey_);
+                                  serviceDirectory_.unregisterAll(publicKey_);
+                                  logger.info("AgentSession::read error on id {} ec {}", publicKey_, ec);
                                 } else {
                                   process(buffer);
                                   read();
@@ -193,33 +196,34 @@ namespace fetch {
     };
     fetch::oef::Logger AgentSession::logger = fetch::oef::Logger("oef-node::agent-session");
 
-    std::vector<std::string> AgentDiscovery::search(const QueryModel &query) const {
+    std::vector<std::string> AgentDirectory::search(const QueryModel &query) const {
       std::lock_guard<std::mutex> lock(_lock);
       std::vector<std::string> res;
       for(const auto &s : _sessions) {
-        if(s.second->match(query))
+        if(s.second->match(query)) {
           res.emplace_back(s.first);
+        }
       }
       return res;
     }
 
-    void Server::secretHandshake(const std::string &id, const std::shared_ptr<Context> &context) {
+    void Server::secretHandshake(const std::string &publicKey, const std::shared_ptr<Context> &context) {
       fetch::oef::pb::Server_Phrase phrase;
       phrase.set_phrase("RandomlyGeneratedString");
       auto phrase_buffer = serialize(phrase);
       logger.trace("Server::secretHandshake sending phrase size {}", phrase_buffer->size());
-      asyncWriteBuffer(context->_socket, phrase_buffer, 10 /* sec ? */);
+      asyncWriteBuffer(context->socket_, phrase_buffer, 10 /* sec ? */);
       logger.trace("Server::secretHandshake waiting answer");
-      asyncReadBuffer(context->_socket, 5,
-                      [this,id,context](std::error_code ec, std::shared_ptr<Buffer> buffer) {
+      asyncReadBuffer(context->socket_, 5,
+                      [this,publicKey,context](std::error_code ec, std::shared_ptr<Buffer> buffer) {
                         if(ec) {
                           logger.error("Server::secretHandshake read failure {}", ec.value());
                         } else {
                           try {
                             auto ans = deserialize<fetch::oef::pb::Agent_Server_Answer>(*buffer);
                             logger.trace("Server::secretHandshake secret [{}]", ans.answer());
-                            auto session = std::make_shared<AgentSession>(id, _ad, _sd, std::move(context->_socket));
-                            if(_ad.add(id, session)) {
+                            auto session = std::make_shared<AgentSession>(publicKey, agentDirectory_, serviceDirectory_, std::move(context->socket_));
+                            if(agentDirectory_.add(publicKey, session)) {
                               session->start();
                               fetch::oef::pb::Server_Connected status;
                               status.set_status(true);
@@ -227,15 +231,15 @@ namespace fetch {
                             } else {
                               fetch::oef::pb::Server_Connected status;
                               status.set_status(false);
-                              logger.info("Server::secretHandshake ID already connected (interleaved) id {}", id);
-                              asyncWriteBuffer(context->_socket, serialize(status), 10 /* sec ? */);
+                              logger.info("Server::secretHandshake PublicKey already connected (interleaved) publicKey {}", publicKey);
+                              asyncWriteBuffer(context->socket_, serialize(status), 10 /* sec ? */);
                             }
                             // should check the secret with the public key i.e. ID.
                           } catch(std::exception &) {
-                            logger.error("Server::secretHandshake error on Answer id {}", id);
+                            logger.error("Server::secretHandshake error on Answer publicKey {}", publicKey);
                             fetch::oef::pb::Server_Connected status;
                             status.set_status(false);
-                            asyncWriteBuffer(context->_socket, serialize(status), 10 /* sec ? */);
+                            asyncWriteBuffer(context->socket_, serialize(status), 10 /* sec ? */);
                           }
                           // everything is fine -> send connection OK.
                         }
@@ -243,7 +247,7 @@ namespace fetch {
     }
     void Server::newSession(tcp::socket socket) {
       auto context = std::make_shared<Context>(std::move(socket));
-      asyncReadBuffer(context->_socket, 5,
+      asyncReadBuffer(context->socket_, 5,
                       [this,context](std::error_code ec, std::shared_ptr<Buffer> buffer) {
                         if(ec) {
                           logger.error("Server::newSession read failure {}", ec.value());
@@ -253,19 +257,19 @@ namespace fetch {
                             auto id = deserialize<fetch::oef::pb::Agent_Server_ID>(*buffer);
                             logger.trace("Debug {}", to_string(id));
                             logger.trace("Server::newSession connection from {}", id.public_key());
-                            if(!_ad.exist(id.public_key())) { // not yet connected
+                            if(!agentDirectory_.exist(id.public_key())) { // not yet connected
                               secretHandshake(id.public_key(), context);
                             } else {
                               logger.info("Server::newSession ID {} already connected", id.public_key());
                               fetch::oef::pb::Server_Phrase failure;
                               (void)failure.mutable_failure();
-                              asyncWriteBuffer(context->_socket, serialize(failure), 10 /* sec ? */);
+                              asyncWriteBuffer(context->socket_, serialize(failure), 10 /* sec ? */);
                             }
                           } catch(std::exception &) {
                             logger.error("Server::newSession error parsing ID");
                             fetch::oef::pb::Server_Phrase failure;
                             (void)failure.mutable_failure();
-                            asyncWriteBuffer(context->_socket, serialize(failure), 10 /* sec ? */);
+                            asyncWriteBuffer(context->socket_, serialize(failure), 10 /* sec ? */);
                           }
                         }
                       });
@@ -286,18 +290,20 @@ namespace fetch {
       logger.trace("~Server stopping");
       stop();
       logger.trace("~Server stopped");
-      _ad.clear();
+      agentDirectory_.clear();
       //    _acceptor.close();
       logger.trace("~Server waiting for threads");
-      for(auto &t : _threads)
-        if(t)
+      for(auto &t : _threads) {
+        if(t) {
           t->join();
+        }
+      }
       logger.trace("~Server threads stopped");
     }
     void Server::run() {
       for(auto &t : _threads) {
         if(!t) {
-          t = std::unique_ptr<std::thread>(new std::thread([this]() {do_accept(); _io_context.run();}));
+          t = std::make_unique<std::thread>([this]() {do_accept(); _io_context.run();});
         }
       }
     }

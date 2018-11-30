@@ -13,12 +13,12 @@ using namespace fetch::oef;
 
 class MeteoClientAgent : public fetch::oef::Agent {
  private:
-  std::unordered_map<std::string,uint32_t> _dialoguesIds;
-  std::string _bestStation;
-  float _bestPrice = -1.0f;
-  size_t _nbAnswers = 0;
-  bool _waitingForData = false;
-  uint32_t _dataReceived = 0;
+  std::unordered_map<std::string,uint32_t> dialoguesIds_;
+  std::string bestStation_;
+  float bestPrice_ = -1.0f;
+  size_t nbAnswers_ = 0;
+  bool waitingForData_ = false;
+  uint32_t dataReceived_ = 0;
 
 public:
   MeteoClientAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
@@ -27,41 +27,43 @@ public:
     }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {}
   void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
-    if(results.empty())
+    if(results.empty()) {
       std::cerr << "No candidates\n";
+    }
     for(auto &c : results) {
       auto uuid = Uuid32::uuid();
-      _dialoguesIds[c] = uuid.val();
+      dialoguesIds_[c] = uuid.val();
       sendMessage(uuid.val(), c, ""); // should be cfp
     }
   }
   void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {
-    if(!_waitingForData) {
+    if(!waitingForData_) {
       Data price{content};
       assert(price.values().size() == 1);
       float currentPrice = std::stof(price.values().front());
-      if(_bestPrice == -1.0 || _bestPrice > currentPrice) {
-        _bestPrice = currentPrice;
-        _bestStation = from;
+      if(bestPrice_ == -1.0 || bestPrice_ > currentPrice) {
+        bestPrice_ = currentPrice;
+        bestStation_ = from;
       }
-      ++_nbAnswers;
-      std::cerr << "Nb Answers " << _nbAnswers << " " << _dialoguesIds.size() << std::endl;
-      if(_nbAnswers == _dialoguesIds.size()) {
-        _waitingForData = true;
-        std::cerr << "Best station " << _bestStation << " price " << _bestPrice << std::endl;
+      ++nbAnswers_;
+      std::cerr << "Nb Answers " << nbAnswers_ << " " << dialoguesIds_.size() << std::endl;
+      if(nbAnswers_ == dialoguesIds_.size()) {
+        waitingForData_ = true;
+        std::cerr << "Best station " << bestStation_ << " price " << bestPrice_ << std::endl;
         fetch::oef::pb::Boolean accepted;
-        for(auto &p : _dialoguesIds) {
-          accepted.set_status(p.first == _bestStation);
+        for(auto &p : dialoguesIds_) {
+          accepted.set_status(p.first == bestStation_);
           sendMessage(p.second, p.first, accepted.SerializeAsString());
         }
       }
     } else {
-      assert(from == _bestStation);
+      assert(from == bestStation_);
       Data temp{content};
       std::cerr << "**Received " << temp.name() << " = " << temp.values().front() << std::endl;
-      ++_dataReceived;
-      if(_dataReceived == 3)
+      ++dataReceived_;
+      if(dataReceived_ == 3) {
         stop();
+      }
     }
   }
   void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}

@@ -14,8 +14,8 @@ using namespace fetch::oef;
 class MeteoStation : public fetch::oef::Agent
 {
 private:
-  float _unitPrice;
-  std::unordered_set<uint32_t> _dialogues;
+  float unitPrice_;
+  std::unordered_set<uint32_t> dialogues_;
   
 public:
   MeteoStation(const std::string &agentId, asio::io_context &io_context, const std::string &host)
@@ -33,8 +33,8 @@ public:
       
       std::shuffle(properties.begin(), properties.end(), g);
       static std::normal_distribution<float> dist{1.0, 0.1}; // mean,stddev
-      _unitPrice = dist(g);
-      std::cerr << getPublicKey() << " " << _unitPrice << std::endl;
+      unitPrice_ = dist(g);
+      std::cerr << getPublicKey() << " " << unitPrice_ << std::endl;
       std::unordered_map<std::string,VariantType> props;
       int i = 0;
       for(auto &a : attributes) {
@@ -50,9 +50,9 @@ public:
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {}
   void onSearchResult(uint32_t, const std::vector<std::string> &results) override {}
   void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {
-    if(_dialogues.find(dialogueId) == _dialogues.end()) { // first contact
-      _dialogues.insert(dialogueId);
-      Data price{"price", "float", {std::to_string(_unitPrice)}};
+    if(dialogues_.find(dialogueId) == dialogues_.end()) { // first contact
+      dialogues_.insert(dialogueId);
+      Data price{"price", "float", {std::to_string(unitPrice_)}};
       sendMessage(dialogueId, from, price.handle().SerializeAsString());
     } else {
       fetch::oef::pb::Boolean accepted;
@@ -91,19 +91,16 @@ int main(int argc, char* argv[])
     | clara::Opt(nbStations, "stations")["--stations"]["-n"]("Number of meteo stations to simulate.");
 
   auto result = parser.parse(clara::Args(argc, argv));
-  if(showHelp || argc == 1)
+  if(showHelp || argc == 1) {
     std::cout << parser << std::endl;
-  else
-  {
-    try
-    {
+  } else {
+    try {
       IoContextPool pool(2);
       pool.run();
       std::vector<std::unique_ptr<MeteoStation>> stations;
-      for(uint32_t i = 1; i <= nbStations; ++i)
-      {
+      for(uint32_t i = 1; i <= nbStations; ++i) {
         std::string name = "Station_" + std::to_string(i);
-        stations.emplace_back(std::unique_ptr<MeteoStation>(new MeteoStation{name, pool.getIoContext(), host}));
+        stations.emplace_back(std::make_unique<MeteoStation>(name, pool.getIoContext(), host));
       }
       pool.join();
     } catch(std::exception &e) {

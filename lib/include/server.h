@@ -9,7 +9,7 @@ namespace fetch {
   namespace oef {
     class AgentSession;
 
-    class AgentDiscovery {
+    class AgentDirectory {
     private:
       mutable std::mutex _lock;
       std::unordered_map<std::string,std::shared_ptr<AgentSession>> _sessions;
@@ -17,9 +17,9 @@ namespace fetch {
       static fetch::oef::Logger logger;
       
     public:
-      AgentDiscovery() = default;
-      AgentDiscovery(const AgentDiscovery &) = delete;
-      AgentDiscovery operator=(const AgentDiscovery &) = delete;
+      AgentDirectory() = default;
+      AgentDirectory(const AgentDirectory &) = delete;
+      AgentDirectory operator=(const AgentDirectory &) = delete;
       bool exist(const std::string &id) const {
         return _sessions.find(id) != _sessions.end();
       }
@@ -55,20 +55,20 @@ namespace fetch {
     class Server {
     private:
       struct Context {
-        tcp::socket _socket;
-      explicit Context(tcp::socket socket) : _socket{std::move(socket)} {}
+        tcp::socket socket_;
+      explicit Context(tcp::socket socket) : socket_{std::move(socket)} {}
       };
       
       // Careful: order matters.
       asio::io_context _io_context;
       std::vector<std::unique_ptr<std::thread>> _threads;
       tcp::acceptor _acceptor;
-      AgentDiscovery _ad;
-      ServiceDirectory _sd;
+      AgentDirectory agentDirectory_;
+      ServiceDirectory serviceDirectory_;
 
       static fetch::oef::Logger logger;
 
-      void secretHandshake(const std::string &id, const std::shared_ptr<Context> &context);  
+      void secretHandshake(const std::string &publicKey, const std::shared_ptr<Context> &context);  
       void newSession(tcp::socket socket);
       void do_accept();
     public:
@@ -83,7 +83,7 @@ namespace fetch {
       virtual ~Server();
       void run();
       void run_in_thread();
-      size_t nbAgents() const { return _ad.size(); }
+      size_t nbAgents() const { return agentDirectory_.size(); }
       void stop();
     };
   }

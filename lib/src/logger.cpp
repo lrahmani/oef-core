@@ -12,7 +12,7 @@
 #include <spdlog/sinks/msvc_sink.h>
 #endif  // _DEBUG && _MSC_VER
 
-fetch::oef::Logger::Logger(const std::string &section) : _section{section} {
+fetch::oef::Logger::Logger(std::string section) : _section{std::move(section)} {
   _logger = spdlog::get(fetch::oef::Logger::logger_name);
 
   if (_logger == nullptr) {

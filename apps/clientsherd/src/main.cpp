@@ -10,20 +10,21 @@
 
 class SimpleAgent : public fetch::oef::Agent {
  public:
-  std::vector<std::string> _results;
+  std::vector<std::string> results_;
   SimpleAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
     : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host})} {
       start();
     }
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {}
   void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
-    _results = results;
+    results_ = results;
   }
   void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {}
   void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
   void onPropose(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
   void onAccept(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
   void onDecline(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
+  ~SimpleAgent() {}
  };
 
 

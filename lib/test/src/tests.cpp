@@ -11,7 +11,7 @@ using namespace fetch::oef;
 
 class SimpleAgent : public fetch::oef::Agent {
  public:
-  std::vector<std::string> _results;
+  std::vector<std::string> results_;
   SimpleAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
     : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host})}
   {
@@ -20,7 +20,7 @@ class SimpleAgent : public fetch::oef::Agent {
   virtual ~SimpleAgent() = default;
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {}
   void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
-    _results = results;
+    results_ = results;
   }
   void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {}
   void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
@@ -31,7 +31,7 @@ class SimpleAgent : public fetch::oef::Agent {
 
 class SimpleAgentLocal : public fetch::oef::Agent {
  public:
-  std::vector<std::string> _results;
+  std::vector<std::string> results_;
   SimpleAgentLocal(const std::string &agentId, fetch::oef::SchedulerPB &scheduler)
     : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreLocalPB{agentId, scheduler})}
   {
@@ -41,7 +41,7 @@ class SimpleAgentLocal : public fetch::oef::Agent {
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {}
   void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {
     std::cerr << "onSearchResult " << results.size() << std::endl;
-    _results = results;
+    results_ = results;
   }
   void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {}
   void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
@@ -87,7 +87,7 @@ TEST_CASE("testing register", "[ServiceDiscovery]") {
     QueryModel q1{{luxury_c}, car};
     c3.searchServices(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents = c3._results;
+    auto agents = c3.results_;
     std::sort(agents.begin(), agents.end());
     REQUIRE(agents.size() == 2);
     REQUIRE(agents == std::vector<std::string>({"Agent1", "Agent2"}));
@@ -134,7 +134,7 @@ TEST_CASE("local testing register", "[ServiceDiscovery]") {
     QueryModel q1{{luxury_c}, car};
     c3.searchServices(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents = c3._results;
+    auto agents = c3.results_;
     std::sort(agents.begin(), agents.end());
     REQUIRE(agents.size() == 2);
     REQUIRE(agents == std::vector<std::string>({"Agent1", "Agent2"}));
@@ -184,7 +184,7 @@ TEST_CASE("description", "[ServiceDiscovery]") {
     QueryModel q1{{wireless_c}, station};
     c3.searchAgents(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents = c3._results;
+    auto agents = c3.results_;
     std::sort(agents.begin(), agents.end());
     REQUIRE(agents.size() == 2);
     REQUIRE(agents == std::vector<std::string>({"Agent1", "Agent2"}));
@@ -193,7 +193,7 @@ TEST_CASE("description", "[ServiceDiscovery]") {
     QueryModel q2{{manufacturer_c}};
     c3.searchAgents(1, q2);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents2 = c3._results;
+    auto agents2 = c3.results_;
     REQUIRE(agents2.size() == 1);
     REQUIRE(agents2 == std::vector<std::string>({"Agent1"}));
     
@@ -234,7 +234,7 @@ TEST_CASE("local description", "[ServiceDiscovery]") {
     QueryModel q1{{wireless_c}, station};
     c3.searchAgents(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents = c3._results;
+    auto agents = c3.results_;
     std::sort(agents.begin(), agents.end());
     REQUIRE(agents.size() == 2);
     REQUIRE(agents == std::vector<std::string>({"Agent1", "Agent2"}));
@@ -243,7 +243,7 @@ TEST_CASE("local description", "[ServiceDiscovery]") {
     QueryModel q2{{manufacturer_c}};
     c3.searchAgents(1, q2);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents2 = c3._results;
+    auto agents2 = c3.results_;
     REQUIRE(agents2.size() == 1);
     REQUIRE(agents2 == std::vector<std::string>({"Agent1"}));
     
