@@ -58,7 +58,7 @@ namespace fetch {
     template <typename T>
     class Dialogues {
     private:
-      std::unordered_map<std::string, std::shared_ptr<Dialogue<T>>> _dialogues;
+      std::unordered_map<uint32_t, std::shared_ptr<Dialogue<T>>> _dialogues;
 
       static fetch::oef::Logger logger;
     public:
@@ -68,7 +68,7 @@ namespace fetch {
         logger.trace("create dest {} id {} size {}", dialogue->dest(), dialogue->uuid(), _dialogues.size());
         return *dialogue;
       }
-      Dialogue<T> &get(const std::string &id, const std::string &dest) {
+      Dialogue<T> &get(uint32_t id, const std::string &dest) {
         auto iter = _dialogues.find(id);
         if(iter != _dialogues.end()) {
           logger.trace("get2 exists dest {} id {} size {}", iter->second->dest(), iter->second->uuid(), _dialogues.size());
@@ -79,13 +79,13 @@ namespace fetch {
         logger.trace("get2 new dest {} id {} size {}", dialogue->dest(), dialogue->uuid(), _dialogues.size());
         return *dialogue;
       }
-      Dialogue<T> &get(const std::string &id) {
+      Dialogue<T> &get(uint32_t id) {
         std::shared_ptr<Dialogue<T>> dialogue = _dialogues[id];
         logger.trace("get1 id {} size {} exists {}", id, _dialogues.size(), bool(dialogue));
         assert(dialogue);
         return *dialogue;
       }
-      void erase(const std::string &id) {
+      void erase(uint32_t id) {
         _dialogues.erase(id);
       }
     };
