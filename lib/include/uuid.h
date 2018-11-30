@@ -7,8 +7,8 @@
 class Uuid32 {
  private:
   uint32_t _ab;
-  explicit Uuid32(uint32_t ab) : _ab{ab}  {}
  public:
+  explicit Uuid32(uint32_t ab) : _ab{ab}  {}
   static Uuid32 uuid() {
     static std::random_device rd;
     static std::uniform_int_distribution<uint32_t> dist(0, (uint32_t)(~0));

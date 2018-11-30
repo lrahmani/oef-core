@@ -28,10 +28,10 @@ namespace fetch {
       T _state;
       Dialogues<T> &_dialogues;
       friend class Dialogues<T>;
-      Dialogue(const std::string &uuid, std::string dest, Dialogues<T> &dialogues) :
-      _uuid{Uuid{uuid}}, _dest{std::move(dest)}, _dialogues{dialogues} {}
+      Dialogue(uint32_t uuid, std::string dest, Dialogues<T> &dialogues) :
+      _uuid{uuid}, _dest{std::move(dest)}, _dialogues{dialogues} {}
       explicit Dialogue(std::string dest, Dialogues<T> &dialogues) :
-      _uuid{Uuid::uuid4()}, _dest{std::move(dest)}, _dialogues{dialogues} {}
+      _uuid{Uuid32::uuid()}, _dest{std::move(dest)}, _dialogues{dialogues} {}
     public:
       std::string dest() const { return _dest; }
       uint32_t uuid() const { return _uuid.val(); }
