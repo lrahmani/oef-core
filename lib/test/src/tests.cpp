@@ -10,8 +10,10 @@
 using namespace fetch::oef;
 
 class SimpleAgent : public fetch::oef::Agent {
- public:
+private:
   std::vector<std::string> results_;
+public:
+  const std::vector<std::string> &results() const { return results_; }
   SimpleAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
     : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host})}
   {
@@ -30,8 +32,10 @@ class SimpleAgent : public fetch::oef::Agent {
 };
 
 class SimpleAgentLocal : public fetch::oef::Agent {
- public:
+private:
   std::vector<std::string> results_;
+public:
+  const std::vector<std::string> &results() const { return results_; }
   SimpleAgentLocal(const std::string &agentId, fetch::oef::SchedulerPB &scheduler)
     : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreLocalPB{agentId, scheduler})}
   {
@@ -87,7 +91,7 @@ TEST_CASE("testing register", "[ServiceDiscovery]") {
     QueryModel q1{{luxury_c}, car};
     c3.searchServices(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents = c3.results_;
+    auto agents = c3.results();
     std::sort(agents.begin(), agents.end());
     REQUIRE(agents.size() == 2);
     REQUIRE(agents == std::vector<std::string>({"Agent1", "Agent2"}));
@@ -134,7 +138,7 @@ TEST_CASE("local testing register", "[ServiceDiscovery]") {
     QueryModel q1{{luxury_c}, car};
     c3.searchServices(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents = c3.results_;
+    auto agents = c3.results();
     std::sort(agents.begin(), agents.end());
     REQUIRE(agents.size() == 2);
     REQUIRE(agents == std::vector<std::string>({"Agent1", "Agent2"}));
@@ -184,7 +188,7 @@ TEST_CASE("description", "[ServiceDiscovery]") {
     QueryModel q1{{wireless_c}, station};
     c3.searchAgents(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents = c3.results_;
+    auto agents = c3.results();
     std::sort(agents.begin(), agents.end());
     REQUIRE(agents.size() == 2);
     REQUIRE(agents == std::vector<std::string>({"Agent1", "Agent2"}));
@@ -193,7 +197,7 @@ TEST_CASE("description", "[ServiceDiscovery]") {
     QueryModel q2{{manufacturer_c}};
     c3.searchAgents(1, q2);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents2 = c3.results_;
+    auto agents2 = c3.results();
     REQUIRE(agents2.size() == 1);
     REQUIRE(agents2 == std::vector<std::string>({"Agent1"}));
     
@@ -234,7 +238,7 @@ TEST_CASE("local description", "[ServiceDiscovery]") {
     QueryModel q1{{wireless_c}, station};
     c3.searchAgents(1, q1);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents = c3.results_;
+    auto agents = c3.results();
     std::sort(agents.begin(), agents.end());
     REQUIRE(agents.size() == 2);
     REQUIRE(agents == std::vector<std::string>({"Agent1", "Agent2"}));
@@ -243,7 +247,7 @@ TEST_CASE("local description", "[ServiceDiscovery]") {
     QueryModel q2{{manufacturer_c}};
     c3.searchAgents(1, q2);
     std::this_thread::sleep_for(std::chrono::seconds{1});
-    auto agents2 = c3.results_;
+    auto agents2 = c3.results();
     REQUIRE(agents2.size() == 1);
     REQUIRE(agents2 == std::vector<std::string>({"Agent1"}));
     

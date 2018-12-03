@@ -9,8 +9,10 @@
 #include "oefcoreproxy.hpp"
 
 class SimpleAgent : public fetch::oef::Agent {
- public:
+private:
   std::vector<std::string> results_;
+ public:
+  const std::vector<std::string> &results() const { return results_; }
   SimpleAgent(const std::string &agentId, asio::io_context &io_context, const std::string &host)
     : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host})} {
       start();
