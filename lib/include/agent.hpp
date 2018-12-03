@@ -1,13 +1,13 @@
 #pragma once
 
-#include "common.h"
-#include "uuid.h"
+#include "common.hpp"
+#include "uuid.hpp"
 #include "agent.pb.h"
 #include "logger.hpp"
 #include "oefcoreproxy.hpp"
-#include "clientmsg.h"
-#include "queue.h"
-#include "sd.h"
+#include "clientmsg.hpp"
+#include "queue.hpp"
+#include "servicedirectory.hpp"
 
 #include <unordered_map>
 #include <mutex>
@@ -338,25 +338,25 @@ namespace fetch {
       OEFCoreLocalPB(const std::string &agentPublicKey, SchedulerPB &scheduler) : OEFCoreInterface{agentPublicKey},
                                                                                   _scheduler{scheduler} {}
       void stop() override {
-        _scheduler.disconnect(_agentPublicKey);
+        _scheduler.disconnect(agentPublicKey_);
       }
       ~OEFCoreLocalPB() override {
-        _scheduler.disconnect(_agentPublicKey);
+        _scheduler.disconnect(agentPublicKey_);
       }
       bool handshake() override {
-        return _scheduler.connect(_agentPublicKey);
+        return _scheduler.connect(agentPublicKey_);
       }
       void loop(AgentInterface &agent) override {
-        _scheduler.loop(_agentPublicKey, agent);
+        _scheduler.loop(agentPublicKey_, agent);
       }
       void registerDescription(const Instance &instance) override {
-        _scheduler.registerDescription(_agentPublicKey, instance);
+        _scheduler.registerDescription(agentPublicKey_, instance);
       }
       void unregisterDescription() override {
-        _scheduler.unregisterDescription(_agentPublicKey);
+        _scheduler.unregisterDescription(agentPublicKey_);
       }
       void registerService(const Instance &instance) override {
-        _scheduler.registerService(_agentPublicKey, instance);
+        _scheduler.registerService(agentPublicKey_, instance);
       }
       void searchAgents(uint32_t search_id, const QueryModel &model) override {
         auto agents_vec = _scheduler.searchAgents(search_id, model);
@@ -366,7 +366,7 @@ namespace fetch {
         for(auto &a : agents_vec) {
           agents->add_agents(a);
         }
-        _scheduler.send(_agentPublicKey, serialize(answer));
+        _scheduler.send(agentPublicKey_, serialize(answer));
       }
       void searchServices(uint32_t search_id, const QueryModel &model) override {
         auto agents_vec = _scheduler.searchServices(search_id, model);
@@ -376,54 +376,54 @@ namespace fetch {
         for(auto &a : agents_vec) {
           agents->add_agents(a);
         }
-        _scheduler.send(_agentPublicKey, serialize(answer));
+        _scheduler.send(agentPublicKey_, serialize(answer));
       }
       void unregisterService(const Instance &instance) override {
-        _scheduler.unregisterService(_agentPublicKey, instance);
+        _scheduler.unregisterService(agentPublicKey_, instance);
       }
       void sendMessage(uint32_t dialogueId, const std::string &dest, const std::string &msg) override {
         fetch::oef::pb::Server_AgentMessage message;
         auto content = message.mutable_content();
         content->set_dialogue_id(dialogueId);
-        content->set_origin(_agentPublicKey);
+        content->set_origin(agentPublicKey_);
         content->set_content(msg);
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
+        _scheduler.sendTo(agentPublicKey_, dest, serialize(message));
       }
       void sendCFP(uint32_t dialogueId, const std::string &dest, const CFPType &constraints, uint32_t msgId = 1, uint32_t target = 0) override {
         CFP cfp{dialogueId, dest, constraints, msgId, target};
         fetch::oef::pb::Server_AgentMessage message;
         auto content = message.mutable_content();
         content->set_dialogue_id(dialogueId);
-        content->set_origin(_agentPublicKey);
+        content->set_origin(agentPublicKey_);
         content->set_allocated_fipa(cfp.handle().release_send_message()->release_fipa());
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
+        _scheduler.sendTo(agentPublicKey_, dest, serialize(message));
       };
       void sendPropose(uint32_t dialogueId, const std::string &dest, const ProposeType &proposals, uint32_t msgId, uint32_t target) override {
         Propose propose{dialogueId, dest, proposals, msgId, target};
         fetch::oef::pb::Server_AgentMessage message;
         auto content = message.mutable_content();
         content->set_dialogue_id(dialogueId);
-        content->set_origin(_agentPublicKey);
+        content->set_origin(agentPublicKey_);
         content->set_allocated_fipa(propose.handle().release_send_message()->release_fipa());
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
+        _scheduler.sendTo(agentPublicKey_, dest, serialize(message));
       }
       void sendAccept(uint32_t dialogueId, const std::string &dest, uint32_t msgId, uint32_t target) override {
         Accept accept{dialogueId, dest, msgId, target};
         fetch::oef::pb::Server_AgentMessage message;
         auto content = message.mutable_content();
         content->set_dialogue_id(dialogueId);
-        content->set_origin(_agentPublicKey);
+        content->set_origin(agentPublicKey_);
         content->set_allocated_fipa(accept.handle().release_send_message()->release_fipa());
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
+        _scheduler.sendTo(agentPublicKey_, dest, serialize(message));
       }
       void sendDecline(uint32_t dialogueId, const std::string &dest, uint32_t msgId, uint32_t target) override {
         Decline decline{dialogueId, dest, msgId, target};
         fetch::oef::pb::Server_AgentMessage message;
         auto content = message.mutable_content();
         content->set_dialogue_id(dialogueId);
-        content->set_origin(_agentPublicKey);
+        content->set_origin(agentPublicKey_);
         content->set_allocated_fipa(decline.handle().release_send_message()->release_fipa());
-        _scheduler.sendTo(_agentPublicKey, dest, serialize(message));
+        _scheduler.sendTo(agentPublicKey_, dest, serialize(message));
       }
     };
     
@@ -455,8 +455,8 @@ namespace fetch {
         std::mutex lock;
         std::condition_variable condVar;
         fetch::oef::pb::Agent_Server_ID id;
-        id.set_public_key(_agentPublicKey);
-        logger.trace("OEFCoreNetworkProxy::handshake from [{}]", _agentPublicKey);
+        id.set_public_key(agentPublicKey_);
+        logger.trace("OEFCoreNetworkProxy::handshake from [{}]", agentPublicKey_);
         asyncWriteBuffer(_socket, serialize(id), 5,
             [this,&connected,&condVar,&finished,&lock](std::error_code ec, std::size_t length){
               if(ec) {
@@ -519,7 +519,7 @@ namespace fetch {
               logger.error("OEFCoreNetworkProxy::loop failure {}", ec.value());
             } else {
               logger.trace("OEFCoreNetworkProxy::loop");
-              MessageDecoder::decode(_agentPublicKey, buffer, agent);
+              MessageDecoder::decode(agentPublicKey_, buffer, agent);
               loop(agent);
             }
           });

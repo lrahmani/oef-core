@@ -1,5 +1,5 @@
 #include "catch.hpp"
-#include "schema.h"
+#include "schema.hpp"
 #include "agent.pb.h"
 #include <google/protobuf/text_format.h>
 

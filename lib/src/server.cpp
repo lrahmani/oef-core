@@ -1,11 +1,11 @@
 #define DEBUG_ON 1
-#include "server.h"
+#include "server.hpp"
 #include <iostream>
 #include <google/protobuf/text_format.h>
 #include <sstream>
 #include <iomanip>
 #include "oefcoreproxy.hpp"
-#include "multiclient.h"
+#include "agent.hpp"
 
 namespace fetch {
   namespace oef {
@@ -196,10 +196,10 @@ namespace fetch {
     };
     fetch::oef::Logger AgentSession::logger = fetch::oef::Logger("oef-node::agent-session");
 
-    std::vector<std::string> AgentDirectory::search(const QueryModel &query) const {
-      std::lock_guard<std::mutex> lock(_lock);
+    const std::vector<std::string> AgentDirectory::search(const QueryModel &query) const {
+      std::lock_guard<std::mutex> lock(lock_);
       std::vector<std::string> res;
-      for(const auto &s : _sessions) {
+      for(const auto &s : sessions_) {
         if(s.second->match(query)) {
           res.emplace_back(s.first);
         }
@@ -276,7 +276,7 @@ namespace fetch {
     }
     void Server::do_accept() {
       logger.trace("Server::do_accept");
-      _acceptor.async_accept([this](std::error_code ec, tcp::socket socket) {
+      acceptor_.async_accept([this](std::error_code ec, tcp::socket socket) {
                                if (!ec) {
                                  logger.trace("Server::do_accept starting new session");
                                  newSession(std::move(socket));
@@ -291,9 +291,9 @@ namespace fetch {
       stop();
       logger.trace("~Server stopped");
       agentDirectory_.clear();
-      //    _acceptor.close();
+      //    acceptor_.close();
       logger.trace("~Server waiting for threads");
-      for(auto &t : _threads) {
+      for(auto &t : threads_) {
         if(t) {
           t->join();
         }
@@ -301,19 +301,19 @@ namespace fetch {
       logger.trace("~Server threads stopped");
     }
     void Server::run() {
-      for(auto &t : _threads) {
+      for(auto &t : threads_) {
         if(!t) {
-          t = std::make_unique<std::thread>([this]() {do_accept(); _io_context.run();});
+          t = std::make_unique<std::thread>([this]() {do_accept(); io_context_.run();});
         }
       }
     }
     void Server::run_in_thread() {
       do_accept();
-      _io_context.run();
+      io_context_.run();
     }
     void Server::stop() {
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      _io_context.stop();
+      io_context_.stop();
     }
   }
 }

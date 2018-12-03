@@ -1,11 +1,11 @@
 #define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include "catch.hpp"
-#include "server.h"
+#include "server.hpp"
 #include <iostream>
 #include <chrono>
 #include <future>
-#include "sd.h"
-#include "multiclient.h"
+#include "servicedirectory.hpp"
+#include "agent.hpp"
 
 using namespace fetch::oef;
 

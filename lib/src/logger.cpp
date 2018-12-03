@@ -12,10 +12,10 @@
 #include <spdlog/sinks/msvc_sink.h>
 #endif  // _DEBUG && _MSC_VER
 
-fetch::oef::Logger::Logger(std::string section) : _section{std::move(section)} {
-  _logger = spdlog::get(fetch::oef::Logger::logger_name);
+fetch::oef::Logger::Logger(std::string section) : section_{std::move(section)} {
+  logger_ = spdlog::get(fetch::oef::Logger::logger_name);
 
-  if (_logger == nullptr) {
+  if (logger_ == nullptr) {
 #ifdef _WIN32
     auto color_sink = std::make_shared<spdlog::sinks::wincolor_stdout_sink_mt>();
 #else
@@ -29,6 +29,6 @@ fetch::oef::Logger::Logger(std::string section) : _section{std::move(section)} {
     auto debug_sink = std::make_shared<spdlog::sinks::msvc_sink_st>();
     dist_sink->add_sink(debug_sink);
 #endif  // _DEBUG && _MSC_VER
-    _logger = spdlog::details::registry::instance().create(fetch::oef::Logger::logger_name, dist_sink);
+    logger_ = spdlog::details::registry::instance().create(fetch::oef::Logger::logger_name, dist_sink);
   }
 }

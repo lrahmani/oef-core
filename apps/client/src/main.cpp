@@ -1,5 +1,5 @@
 #include <iostream>
-#include "multiclient.h"
+#include "agent.hpp"
 #include "oefcoreproxy.hpp"
 
 class SimpleAgent : public fetch::oef::Agent {

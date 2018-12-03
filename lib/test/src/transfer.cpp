@@ -1,12 +1,12 @@
 #include "catch.hpp"
-#include "server.h"
+#include "server.hpp"
 #include <iostream>
 #include <chrono>
 #include <future>
 #include <cassert>
-#include "uuid.h"
+#include "uuid.hpp"
 #include "oefcoreproxy.hpp"
-#include "multiclient.h"
+#include "agent.hpp"
 
 using namespace fetch::oef;
 

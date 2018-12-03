@@ -1,6 +1,6 @@
 #pragma once
 
-#include "schema.h"
+#include "schema.hpp"
 #include "agent.pb.h"
 #include <experimental/optional>
 #include <memory>
@@ -24,9 +24,9 @@ namespace fetch {
 
     class OEFCoreInterface {
     protected:
-      const std::string _agentPublicKey;
+      const std::string agentPublicKey_;
     public:
-      explicit OEFCoreInterface(std::string agentPublicKey) : _agentPublicKey{std::move(agentPublicKey)} {}
+      explicit OEFCoreInterface(std::string agentPublicKey) : agentPublicKey_{std::move(agentPublicKey)} {}
       virtual bool handshake() = 0;
       virtual void registerDescription(const Instance &instance) = 0;
       virtual void registerService(const Instance &instance) = 0;
@@ -42,55 +42,55 @@ namespace fetch {
       virtual void loop(AgentInterface &agent) = 0;
       virtual void stop() = 0;
       virtual ~OEFCoreInterface() = default;
-      std::string getPublicKey() const { return _agentPublicKey; }
+      std::string getPublicKey() const { return agentPublicKey_; }
     };
 
     class Agent : public AgentInterface {
     private:
-      std::unique_ptr<OEFCoreInterface> _oefCore;
+      std::unique_ptr<OEFCoreInterface> oefCore_;
     protected:
-      explicit Agent(std::unique_ptr<OEFCoreInterface> oefCore) : _oefCore{std::move(oefCore)} {}
+      explicit Agent(std::unique_ptr<OEFCoreInterface> oefCore) : oefCore_{std::move(oefCore)} {}
       void start() {
-        if(_oefCore->handshake())
-          _oefCore->loop(*this);
+        if(oefCore_->handshake())
+          oefCore_->loop(*this);
       }
     public:
-      std::string getPublicKey() const { return _oefCore->getPublicKey(); }
+      std::string getPublicKey() const { return oefCore_->getPublicKey(); }
       void registerDescription(const Instance &instance) {
-        _oefCore->registerDescription(instance);
+        oefCore_->registerDescription(instance);
       }
       void registerService(const Instance &instance) {
-        _oefCore->registerService(instance);
+        oefCore_->registerService(instance);
       }
       void searchAgents(uint32_t search_id, const QueryModel &model) {
-        _oefCore->searchAgents(search_id, model);
+        oefCore_->searchAgents(search_id, model);
       }
       void searchServices(uint32_t search_id, const QueryModel &model) {
-        _oefCore->searchServices(search_id, model);
+        oefCore_->searchServices(search_id, model);
       }
       void unregisterService(const Instance &instance) {
-        _oefCore->unregisterService(instance);
+        oefCore_->unregisterService(instance);
       }
       void unregisterDescription() {
-        _oefCore->unregisterDescription();
+        oefCore_->unregisterDescription();
       }
       void sendMessage(uint32_t dialogueId, const std::string &dest, const std::string &msg) {
-        _oefCore->sendMessage(dialogueId, dest, msg);
+        oefCore_->sendMessage(dialogueId, dest, msg);
       }
       void sendCFP(uint32_t dialogueId, const std::string &dest, const CFPType &constraints, uint32_t msgId = 1, uint32_t target = 0) {
-        _oefCore->sendCFP(dialogueId, dest, constraints, msgId, target);
+        oefCore_->sendCFP(dialogueId, dest, constraints, msgId, target);
       }
       void sendPropose(uint32_t dialogueId, const std::string &dest, const ProposeType &proposals, uint32_t msgId, uint32_t target) {
-        _oefCore->sendPropose(dialogueId, dest, proposals, msgId, target);
+        oefCore_->sendPropose(dialogueId, dest, proposals, msgId, target);
       }
       void sendAccept(uint32_t dialogueId, const std::string &dest, uint32_t msgId, uint32_t target) {
-        _oefCore->sendAccept(dialogueId, dest, msgId, target);
+        oefCore_->sendAccept(dialogueId, dest, msgId, target);
       }
       void sendDecline(uint32_t dialogueId, const std::string &dest, uint32_t msgId, uint32_t target) {
-        _oefCore->sendDecline(dialogueId, dest, msgId, target);
+        oefCore_->sendDecline(dialogueId, dest, msgId, target);
       }
       void stop() {
-        _oefCore->stop();
+        oefCore_->stop();
       }
     };
   };
