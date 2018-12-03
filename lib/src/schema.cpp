@@ -1,4 +1,4 @@
-#include "schema.h"
+#include "schema.hpp"
 
 namespace fetch {
   namespace oef {

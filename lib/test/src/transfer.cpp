@@ -1,12 +1,12 @@
 #include "catch.hpp"
-#include "server.h"
+#include "server.hpp"
 #include <iostream>
 #include <chrono>
 #include <future>
 #include <cassert>
-#include "uuid.h"
+#include "uuid.hpp"
 #include "oefcoreproxy.hpp"
-#include "multiclient.h"
+#include "agent.hpp"
 
 using namespace fetch::oef;
 
@@ -21,12 +21,16 @@ enum class AgentAction {
                         ON_DECLINE
 };
 class SimpleAgentTransfer : public fetch::oef::Agent {
- public:
+private:
   std::string from_;
   uint32_t dialogueId_;
   std::string content_;
   AgentAction action_ = AgentAction::NONE;
-  
+public:
+  const std::string from() const { return from_; }
+  uint32_t dialogueId() const { return dialogueId_; }
+  const std::string content() const { return content_; }
+  AgentAction action() const { return action_; }  
   SimpleAgentTransfer(const std::string &agentId, asio::io_context &io_context, const std::string &host)
     : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{agentId, io_context, host})}
   {
@@ -59,12 +63,16 @@ class SimpleAgentTransfer : public fetch::oef::Agent {
  };
 
 class SimpleAgentTransferLocal : public fetch::oef::Agent {
- public:
+private:
   std::string from_;
   uint32_t dialogueId_;
   std::string content_;
   AgentAction action_ = AgentAction::NONE;
-
+public:
+  const std::string from() const { return from_; }
+  uint32_t dialogueId() const { return dialogueId_; }
+  const std::string content() const { return content_; }
+  AgentAction action() const { return action_; }
   SimpleAgentTransferLocal(const std::string &agentId, fetch::oef::SchedulerPB &scheduler)
     : fetch::oef::Agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreLocalPB{agentId, scheduler})}
   {
@@ -124,54 +132,54 @@ namespace Test {
       c1.sendMessage(1, "Agent2", "Hello world");
       c1.sendMessage(1, "Agent3", "Hello world");
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c1.action_ == AgentAction::NONE);
-      REQUIRE(c2.action_ == AgentAction::ON_MESSAGE);
-      REQUIRE(c3.action_ == AgentAction::ON_MESSAGE);
-      REQUIRE(c2.from_ == "Agent1");
-      REQUIRE(c3.from_ == "Agent1");
-      REQUIRE(c2.dialogueId_ == 1);
-      REQUIRE(c3.dialogueId_ == 1);
-      REQUIRE(c2.content_ == "Hello world");
-      REQUIRE(c3.content_ == "Hello world");
+      REQUIRE(c1.action() == AgentAction::NONE);
+      REQUIRE(c2.action() == AgentAction::ON_MESSAGE);
+      REQUIRE(c3.action() == AgentAction::ON_MESSAGE);
+      REQUIRE(c2.from() == "Agent1");
+      REQUIRE(c3.from() == "Agent1");
+      REQUIRE(c2.dialogueId() == 1);
+      REQUIRE(c3.dialogueId() == 1);
+      REQUIRE(c2.content() == "Hello world");
+      REQUIRE(c3.content() == "Hello world");
       c2.sendMessage(2, "Agent3", "Welcome back");
       c2.sendMessage(2, "Agent1", "Welcome back");
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c1.from_ == "Agent2");
-      REQUIRE(c3.from_ == "Agent2");
-      REQUIRE(c1.dialogueId_ == 2);
-      REQUIRE(c3.dialogueId_ == 2);
-      REQUIRE(c1.content_ == "Welcome back");
-      REQUIRE(c3.content_ == "Welcome back");
+      REQUIRE(c1.from() == "Agent2");
+      REQUIRE(c3.from() == "Agent2");
+      REQUIRE(c1.dialogueId() == 2);
+      REQUIRE(c3.dialogueId() == 2);
+      REQUIRE(c1.content() == "Welcome back");
+      REQUIRE(c3.content() == "Welcome back");
       c3.sendMessage(3, "Agent1", "Here I am");
       c3.sendMessage(3, "Agent2", "Here I am");
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c1.from_ == "Agent3");
-      REQUIRE(c2.from_ == "Agent3");
-      REQUIRE(c1.dialogueId_ == 3);
-      REQUIRE(c2.dialogueId_ == 3);
-      REQUIRE(c1.content_ == "Here I am");
-      REQUIRE(c2.content_ == "Here I am");
+      REQUIRE(c1.from() == "Agent3");
+      REQUIRE(c2.from() == "Agent3");
+      REQUIRE(c1.dialogueId() == 3);
+      REQUIRE(c2.dialogueId() == 3);
+      REQUIRE(c1.content() == "Here I am");
+      REQUIRE(c2.content() == "Here I am");
       std::cerr << "Data sent\n";
       c1.sendCFP(4, "Agent2", fetch::oef::CFPType{stde::nullopt});
       c1.sendCFP(4, "Agent3", fetch::oef::CFPType{std::string{"message"}});
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c2.action_ == AgentAction::ON_CFP);
-      REQUIRE(c3.action_ == AgentAction::ON_CFP);
+      REQUIRE(c2.action() == AgentAction::ON_CFP);
+      REQUIRE(c3.action() == AgentAction::ON_CFP);
       c1.sendPropose(5, "Agent2", fetch::oef::ProposeType{std::vector<Instance>{}}, 2, 1);
       c1.sendPropose(5, "Agent3", fetch::oef::ProposeType{std::string{"message"}}, 2, 1);
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c2.action_ == AgentAction::ON_PROPOSE);
-      REQUIRE(c3.action_ == AgentAction::ON_PROPOSE);
+      REQUIRE(c2.action() == AgentAction::ON_PROPOSE);
+      REQUIRE(c3.action() == AgentAction::ON_PROPOSE);
       c1.sendAccept(6, "Agent2", 3, 2);
       c1.sendAccept(6, "Agent3", 3, 2);
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c2.action_ == AgentAction::ON_ACCEPT);
-      REQUIRE(c3.action_ == AgentAction::ON_ACCEPT);
+      REQUIRE(c2.action() == AgentAction::ON_ACCEPT);
+      REQUIRE(c3.action() == AgentAction::ON_ACCEPT);
       c1.sendDecline(7, "Agent2", 4, 3);
       c1.sendDecline(7, "Agent3", 4, 3);
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c2.action_ == AgentAction::ON_DECLINE);
-      REQUIRE(c3.action_ == AgentAction::ON_DECLINE);
+      REQUIRE(c2.action() == AgentAction::ON_DECLINE);
+      REQUIRE(c3.action() == AgentAction::ON_DECLINE);
       
       c1.stop();
       c2.stop();
@@ -206,54 +214,54 @@ namespace Test {
       c1.sendMessage(1, "Agent2", "Hello world");
       c1.sendMessage(1, "Agent3", "Hello world");
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c1.action_ == AgentAction::NONE);
-      REQUIRE(c2.action_ == AgentAction::ON_MESSAGE);
-      REQUIRE(c3.action_ == AgentAction::ON_MESSAGE);
-      REQUIRE(c2.from_ == "Agent1");
-      REQUIRE(c3.from_ == "Agent1");
-      REQUIRE(c2.dialogueId_ == 1);
-      REQUIRE(c3.dialogueId_ == 1);
-      REQUIRE(c2.content_ == "Hello world");
-      REQUIRE(c3.content_ == "Hello world");
+      REQUIRE(c1.action() == AgentAction::NONE);
+      REQUIRE(c2.action() == AgentAction::ON_MESSAGE);
+      REQUIRE(c3.action() == AgentAction::ON_MESSAGE);
+      REQUIRE(c2.from() == "Agent1");
+      REQUIRE(c3.from() == "Agent1");
+      REQUIRE(c2.dialogueId() == 1);
+      REQUIRE(c3.dialogueId() == 1);
+      REQUIRE(c2.content() == "Hello world");
+      REQUIRE(c3.content() == "Hello world");
       c2.sendMessage(2, "Agent3", "Welcome back");
       c2.sendMessage(2, "Agent1", "Welcome back");
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c1.from_ == "Agent2");
-      REQUIRE(c3.from_ == "Agent2");
-      REQUIRE(c1.dialogueId_ == 2);
-      REQUIRE(c3.dialogueId_ == 2);
-      REQUIRE(c1.content_ == "Welcome back");
-      REQUIRE(c3.content_ == "Welcome back");
+      REQUIRE(c1.from() == "Agent2");
+      REQUIRE(c3.from() == "Agent2");
+      REQUIRE(c1.dialogueId() == 2);
+      REQUIRE(c3.dialogueId() == 2);
+      REQUIRE(c1.content() == "Welcome back");
+      REQUIRE(c3.content() == "Welcome back");
       c3.sendMessage(3, "Agent1", "Here I am");
       c3.sendMessage(3, "Agent2", "Here I am");
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c1.from_ == "Agent3");
-      REQUIRE(c2.from_ == "Agent3");
-      REQUIRE(c1.dialogueId_ == 3);
-      REQUIRE(c2.dialogueId_ == 3);
-      REQUIRE(c1.content_ == "Here I am");
-      REQUIRE(c2.content_ == "Here I am");
+      REQUIRE(c1.from() == "Agent3");
+      REQUIRE(c2.from() == "Agent3");
+      REQUIRE(c1.dialogueId() == 3);
+      REQUIRE(c2.dialogueId() == 3);
+      REQUIRE(c1.content() == "Here I am");
+      REQUIRE(c2.content() == "Here I am");
       std::cerr << "Data sent\n";
       c1.sendCFP(4, "Agent2", fetch::oef::CFPType{stde::nullopt});
       c1.sendCFP(4, "Agent3", fetch::oef::CFPType{std::string{"message"}});
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c2.action_ == AgentAction::ON_CFP);
-      REQUIRE(c3.action_ == AgentAction::ON_CFP);
+      REQUIRE(c2.action() == AgentAction::ON_CFP);
+      REQUIRE(c3.action() == AgentAction::ON_CFP);
       c1.sendPropose(5, "Agent2", fetch::oef::ProposeType{std::vector<Instance>{}}, 2, 1);
       c1.sendPropose(5, "Agent3", fetch::oef::ProposeType{std::string{"message"}}, 2, 1);
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c2.action_ == AgentAction::ON_PROPOSE);
-      REQUIRE(c3.action_ == AgentAction::ON_PROPOSE);
+      REQUIRE(c2.action() == AgentAction::ON_PROPOSE);
+      REQUIRE(c3.action() == AgentAction::ON_PROPOSE);
       c1.sendAccept(6, "Agent2", 3, 2);
       c1.sendAccept(6, "Agent3", 3, 2);
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c2.action_ == AgentAction::ON_ACCEPT);
-      REQUIRE(c3.action_ == AgentAction::ON_ACCEPT);
+      REQUIRE(c2.action() == AgentAction::ON_ACCEPT);
+      REQUIRE(c3.action() == AgentAction::ON_ACCEPT);
       c1.sendDecline(7, "Agent2", 4, 3);
       c1.sendDecline(7, "Agent3", 4, 3);
       std::this_thread::sleep_for(std::chrono::seconds{1});
-      REQUIRE(c2.action_ == AgentAction::ON_DECLINE);
-      REQUIRE(c3.action_ == AgentAction::ON_DECLINE);
+      REQUIRE(c2.action() == AgentAction::ON_DECLINE);
+      REQUIRE(c3.action() == AgentAction::ON_DECLINE);
       c1.stop();
       c2.stop();
       c3.stop();

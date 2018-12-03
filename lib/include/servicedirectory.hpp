@@ -1,6 +1,6 @@
 #pragma once
 
-#include "schema.h"
+#include "schema.hpp"
 
 #include <unordered_map>
 #include <set>
@@ -11,65 +11,65 @@ namespace fetch {
   namespace oef {
     class Agents {
     private:
-      std::unordered_set<std::string> _agents;
+      std::unordered_set<std::string> agents_;
     public:
       explicit Agents() {}
       template <typename Archive>
       explicit Agents(const Archive &ar) {
         std::function<void(const Archive &)> f = [this](const Archive &iar) {
-                                                   _agents.emplace(iar.getString());
+                                                   agents_.emplace(iar.getString());
                                                  };      
         ar.parseObjects(f);
       }
       bool insert(const std::string &agent) {
-        return _agents.insert(agent).second;
+        return agents_.insert(agent).second;
       }
       bool erase(const std::string &agent) {
-        return _agents.erase(agent) == 1;
+        return agents_.erase(agent) == 1;
       }
       size_t size() const {
-        return _agents.size();
+        return agents_.size();
       }
       void copy(std::unordered_set<std::string> &s) const {
-        std::copy(_agents.begin(), _agents.end(), std::inserter(s, s.end()));
+        std::copy(agents_.begin(), agents_.end(), std::inserter(s, s.end()));
       }
     };
 
     class ServiceDirectory {
     private:
-      mutable std::mutex _lock;
-      std::unordered_map<Instance,Agents> _data;
+      mutable std::mutex lock_;
+      std::unordered_map<Instance,Agents> data_;
     public:
       explicit ServiceDirectory() = default;
       bool registerAgent(const Instance &instance, const std::string &agent) {
-        std::lock_guard<std::mutex> lock(_lock);
-        return _data[instance].insert(agent);
+        std::lock_guard<std::mutex> lock(lock_);
+        return data_[instance].insert(agent);
       }
       bool unregisterAgent(const Instance &instance, const std::string &agent) {
-        std::lock_guard<std::mutex> lock(_lock);
-        auto iter = _data.find(instance);
-        if(iter == _data.end())
+        std::lock_guard<std::mutex> lock(lock_);
+        auto iter = data_.find(instance);
+        if(iter == data_.end())
           return false;
         bool res = iter->second.erase(agent);
         if(iter->second.size() == 0) {
-          _data.erase(instance);
+          data_.erase(instance);
         }
         return res;
       }
       void unregisterAll(const std::string &agent) {
-        std::lock_guard<std::mutex> lock(_lock);
-        for(auto &p : _data) {
+        std::lock_guard<std::mutex> lock(lock_);
+        for(auto &p : data_) {
           p.second.erase(agent);
         }
       }
       size_t size() const {
-        std::lock_guard<std::mutex> lock(_lock);
-        return _data.size();
+        std::lock_guard<std::mutex> lock(lock_);
+        return data_.size();
       }
       std::vector<std::string> query(const QueryModel &query) const {
-        std::lock_guard<std::mutex> lock(_lock);
+        std::lock_guard<std::mutex> lock(lock_);
         std::unordered_set<std::string> res;
-        for(auto &d : _data) {
+        for(auto &d : data_) {
           if(query.check(d.first)) {
             d.second.copy(res);
           }

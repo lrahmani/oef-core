@@ -5,7 +5,7 @@
 #include <iostream>
 #include "clara.hpp"
 #include <google/protobuf/text_format.h>
-#include "multiclient.h"
+#include "agent.hpp"
 #include "oefcoreproxy.hpp"
 #include <unordered_set>
 

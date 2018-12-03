@@ -36,17 +36,17 @@ namespace fetch {
     class Logger {
       static constexpr const char * const logger_name = "fetch::oef::logger";
     private:
-      std::string _section{""};
-      std::shared_ptr<spdlog::logger> _logger{nullptr};
+      std::string section_{""};
+      std::shared_ptr<spdlog::logger> logger_{nullptr};
     public:
       explicit Logger(std::string section);
       
-      std::string section() const noexcept { return _section; }
+      std::string section() const noexcept { return section_; }
       
       template <typename Arg1, typename... Args>
       void log(const LogLevel level, const char *fmt, const Arg1 &arg1, const Args &... args) {
         auto new_fmt = "[{}] " + std::string(fmt);
-        _logger->log(static_cast<spdlog::level::level_enum>(level), new_fmt.c_str(), section(),
+        logger_->log(static_cast<spdlog::level::level_enum>(level), new_fmt.c_str(), section(),
                      arg1, args...);
       }
 

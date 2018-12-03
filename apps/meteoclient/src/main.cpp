@@ -6,8 +6,8 @@
 #include <unordered_map>
 
 #include "oefcoreproxy.hpp"
-#include "multiclient.h"
-#include "uuid.h"
+#include "agent.hpp"
+#include "uuid.hpp"
 
 using namespace fetch::oef;
 

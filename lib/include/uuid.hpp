@@ -6,9 +6,9 @@
 
 class Uuid32 {
  private:
-  uint32_t _ab;
+  uint32_t val_;
  public:
-  explicit Uuid32(uint32_t ab) : _ab{ab}  {}
+  explicit Uuid32(uint32_t ab) : val_{ab}  {}
   static Uuid32 uuid() {
     static std::random_device rd;
     static std::uniform_int_distribution<uint32_t> dist(0, (uint32_t)(~0));
@@ -16,15 +16,15 @@ class Uuid32 {
     uint32_t ab = dist(rd);
     return Uuid32{ab};
   }
-  uint32_t val() const { return _ab; }
+  uint32_t val() const { return val_; }
 };
 
 class Uuid {
  private:
-  uint64_t _ab, _cd;
-  explicit Uuid(uint64_t ab, uint64_t cd) : _ab{ab}, _cd{cd} {}
+  uint64_t ab_, cd_;
+  explicit Uuid(uint64_t ab, uint64_t cd) : ab_{ab}, cd_{cd} {}
  public:
-  explicit Uuid(const std::string &s) : _ab{0}, _cd{0} {
+  explicit Uuid(const std::string &s) : ab_{0}, cd_{0} {
     char sep;
     uint64_t a,b,c,d,e;
     auto idx = s.find_first_of('-');
@@ -32,8 +32,8 @@ class Uuid {
       std::stringstream ss{s};
       if(ss >> std::hex >> a >> sep >> b >> sep >> c >> sep >> d >> sep >> e) {
         if(ss.eof()) {
-          _ab = (a << 32) | (b << 16) | c;
-          _cd = (d << 48) | e;
+          ab_ = (a << 32) | (b << 16) | c;
+          cd_ = (d << 48) | e;
         }
       }
     }
@@ -59,28 +59,28 @@ class Uuid {
 	/* 	ar.write("UUID", s); */
 	/* } */
   size_t hash() const {
-    return _ab ^ _cd;
+    return ab_ ^ cd_;
   }
   bool operator==(const Uuid &other) {
-    return _ab == other._ab && _cd == other._cd;
+    return ab_ == other.ab_ && cd_ == other.cd_;
   }
   bool operator!=(const Uuid &other) {
     return !operator==(other);
   }
   bool operator<(const Uuid &other) {
-    if(_ab < other._ab)
+    if(ab_ < other.ab_)
       return true;
-    if(_ab > other._ab)
+    if(ab_ > other.ab_)
       return false;
-    return _cd < other._cd;
+    return cd_ < other.cd_;
   }
   std::string to_string() const {
     std::stringstream ss;
     ss << std::hex << std::nouppercase << std::setfill('0');
-    uint32_t a = (_ab >> 32);
-    uint32_t b = (_ab & 0xFFFFFFFF);
-    uint32_t c = (_cd >> 32);
-    uint32_t d = (_cd & 0xFFFFFFFF);
+    uint32_t a = (ab_ >> 32);
+    uint32_t b = (ab_ & 0xFFFFFFFF);
+    uint32_t c = (cd_ >> 32);
+    uint32_t d = (cd_ & 0xFFFFFFFF);
     ss << std::setw(8) << (a) << '-';
     ss << std::setw(4) << (b >> 16) << '-';
     ss << std::setw(4) << (b & 0xFFFF) << '-';

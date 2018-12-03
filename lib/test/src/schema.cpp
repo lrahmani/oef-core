@@ -1,9 +1,9 @@
 #include "catch.hpp"
-#include "schema.h"
+#include "schema.hpp"
 #include <iostream>
-#include "sd.h"
+#include "servicedirectory.hpp"
 #include <google/protobuf/text_format.h>
-#include "common.h"
+#include "common.hpp"
 
 using namespace fetch::oef;
 
