@@ -10,13 +10,19 @@ pipeline {
     
     stage('Build') {
       steps {
-        sh './scripts/build.sh'
+        sh './scripts/build-cmake.sh'
       }
     }
 
     stage('Test') {
       steps {
-        sh './scripts/test.sh'
+        sh './scripts/build-test.sh'
+      }
+    }
+
+    stage('Format') {
+      steps {
+        sh './scripts/code-format-apply.sh ./'
       }
     }
 
