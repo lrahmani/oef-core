@@ -2,7 +2,7 @@ pipeline {
   
   agent {
     docker {
-      image 'ubuntu:18.04'
+      image 'gcr.io/organic-storm-201412/fetch-oefcore-develop'
     }
   }
 
