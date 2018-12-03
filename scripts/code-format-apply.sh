@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [ $# -ne 1 ]; then
 echo -e "\033[0;31m[!] Usage: ./scripts/code-format-apply.sh SRC_ROOT  \033[0m"
 exit
@@ -13,5 +15,5 @@ SRC_files+=$(find ${SRC_dirs} -name "*.cpp" -print -o \
 
 for file in ${SRC_files[@]}; do
   echo "[DEBUG] processing file ${file} ..."
-  clang-format --style=file  ${file}
+  #clang-format --style=file  ${file}
 done
