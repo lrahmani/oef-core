@@ -11,15 +11,22 @@ namespace stde = std::experimental;
 
 namespace fetch {
   namespace oef {
-    class AgentInterface {
+    class ConnectionInterface {
     public:
       virtual void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) = 0;
       virtual void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) = 0;
+    };
+
+    class DialogueInterface {
+    public:
       virtual void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) = 0;
       virtual void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const CFPType &constraints) = 0;
       virtual void onPropose(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const ProposeType &proposals) = 0;
       virtual void onAccept(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) = 0;
       virtual void onDecline(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) = 0;
+    };
+
+    class AgentInterface : public ConnectionInterface, public DialogueInterface {
     };
 
     class OEFCoreInterface {
