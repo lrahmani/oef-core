@@ -59,41 +59,50 @@ public:
     for(auto &c : results) {
       auto uuid = Uuid32::uuid();
       dialoguesIds_[c] = uuid.val();
-      sendMessage(uuid.val(), c, ""); // should be cfp
+      sendCFP(uuid.val(), c, CFPType{stde::nullopt});
     }
   }
   void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {
-    if(!waitingForData_) {
-      Data price{content};
-      assert(price.values().size() == 1);
-      float currentPrice = std::stof(price.values().front());
-      if(bestPrice_ == -1.0 || bestPrice_ > currentPrice) {
-        bestPrice_ = currentPrice;
-        bestStation_ = from;
-      }
-      ++nbAnswers_;
-      std::cerr << "Nb Answers " << nbAnswers_ << " " << dialoguesIds_.size() << std::endl;
-      if(nbAnswers_ == dialoguesIds_.size()) {
-        waitingForData_ = true;
-        std::cerr << "Best station " << bestStation_ << " price " << bestPrice_ << std::endl;
-        fetch::oef::pb::Boolean accepted;
-        for(auto &p : dialoguesIds_) {
-          accepted.set_status(p.first == bestStation_);
-          sendMessage(p.second, p.first, accepted.SerializeAsString());
-        }
-      }
-    } else {
-      assert(from == bestStation_);
-      Data temp{content};
-      std::cerr << "**Received " << temp.name() << " = " << temp.values().front() << std::endl;
-      ++dataReceived_;
-      if(dataReceived_ == 3) {
-        stop();
-      }
+    assert(from == bestStation_);
+    Data temp{content};
+    std::cerr << "**Received " << temp.name() << " = " << temp.values().front() << std::endl;
+    ++dataReceived_;
+    if(dataReceived_ == 3) {
+      stop();
     }
   }
   void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
-  void onPropose(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
+  void onPropose(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {
+    stde::optional<std::string> s_price;
+    proposals.match(
+                    [this](const std::string &s) {
+                      assert(false);
+                    },
+                    [this,&s_price](const std::vector<Instance> &is) {
+                      assert(is.size() == 1);
+                      s_price = is.front().value("price");
+                    });
+    assert(s_price);
+    float currentPrice = std::stof(s_price.value());
+    if(bestPrice_ == -1.0 || bestPrice_ > currentPrice) {
+      bestPrice_ = currentPrice;
+      bestStation_ = from;
+    }
+    ++nbAnswers_;
+    std::cerr << "Nb Answers " << nbAnswers_ << " " << dialoguesIds_.size() << std::endl;
+    if(nbAnswers_ == dialoguesIds_.size()) {
+      waitingForData_ = true;
+      std::cerr << "Best station " << bestStation_ << " price " << bestPrice_ << std::endl;
+      fetch::oef::pb::Boolean accepted;
+      for(auto &p : dialoguesIds_) {
+        if(p.first == bestStation_) {
+          sendAccept(p.second, p.first, msgId + 1, target + 1);
+        } else {
+          sendDecline(p.second, p.first, msgId + 1, target + 1);
+        }
+      }
+    }
+  }
   void onAccept(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
   void onDecline(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
  };

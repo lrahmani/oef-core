@@ -49,35 +49,30 @@ public:
 
   void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {}
   void onSearchResult(uint32_t, const std::vector<std::string> &results) override {}
-  void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {
-    if(dialogues_.find(dialogueId) == dialogues_.end()) { // first contact
-      dialogues_.insert(dialogueId);
-      Data price{"price", "float", {std::to_string(unitPrice_)}};
-      sendMessage(dialogueId, from, price.handle().SerializeAsString());
-    } else {
-      fetch::oef::pb::Boolean accepted;
-      accepted.ParseFromString(content);
-      if(accepted.status()) {
-        // let's send the data
-        std::cerr << "I won!\n";
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::normal_distribution<float> dist{15.0, 2.0};
-        Data temp{"temperature", "float", {std::to_string(dist(g))}};
-        sendMessage(dialogueId, from, temp.handle().SerializeAsString());
-        Data air{"air pressure", "float", {std::to_string(dist(g))}};
-        sendMessage(dialogueId, from, air.handle().SerializeAsString());
-        Data humid{"humidity", "float", {std::to_string(dist(g))}};
-        sendMessage(dialogueId, from, humid.handle().SerializeAsString());
-      } else {
-        std::cerr << "I lost\n";
-      }
-    }
+  void onMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {}
+  void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {
+    auto price = Attribute{"price", Type::Int, true};
+    auto model = DataModel{"weather_data", {price}};
+    auto desc = Instance{model, {{"price", VariantType{unitPrice_}}}};
+    sendPropose(dialogueId, from, ProposeType{std::vector<Instance>({desc})}, msgId + 1, target + 1);
   }
-  void onCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::CFPType &constraints) override {}
   void onPropose(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const fetch::oef::ProposeType &proposals) override {}
-  void onAccept(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
-  void onDecline(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
+  void onAccept(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {
+    // let's send the data
+    std::cerr << "I won!\n";
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::normal_distribution<float> dist{15.0, 2.0};
+    Data temp{"temperature", "float", {std::to_string(dist(g))}};
+    sendMessage(dialogueId, from, temp.handle().SerializeAsString());
+    Data air{"air pressure", "float", {std::to_string(dist(g))}};
+    sendMessage(dialogueId, from, air.handle().SerializeAsString());
+    Data humid{"humidity", "float", {std::to_string(dist(g))}};
+    sendMessage(dialogueId, from, humid.handle().SerializeAsString());
+  }
+  void onDecline(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {
+    std::cerr << "I lost\n";
+  }
 };
 
 int main(int argc, char* argv[])
