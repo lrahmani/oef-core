@@ -8,8 +8,34 @@
 #include "oefcoreproxy.hpp"
 #include "agent.hpp"
 #include "uuid.hpp"
+#include "dialogue.hpp"
 
 using namespace fetch::oef;
+
+struct Shared {
+  std::string bestStation_;
+  float bestPrice_ = -1.0f;
+  size_t nbAnswers_ = 0;
+  uint32_t dataReceived_ = 0;
+};
+
+class MeteoDialogue : public SingleDialogue {
+  Shared &shared_;
+  bool waitingForData_ = false;
+public:
+  MeteoDialogue(DialogueAgent &agent, std::string destination, Shared &shared)
+    : SingleDialogue(agent, destination), shared_{shared} {}
+  void onMessage(const std::string &content) override {
+  }
+  void onCFP(uint32_t msgId, uint32_t target, const CFPType &constraints) override {
+  }
+  void onPropose(uint32_t msgId, uint32_t target, const ProposeType &proposals) override {
+  }
+  void onAccept(uint32_t msgId, uint32_t target) override {
+  }
+  void onDecline(uint32_t msgId, uint32_t target) override {
+  }
+};
 
 class MeteoClientAgent : public fetch::oef::Agent {
  private:
@@ -72,6 +98,15 @@ public:
   void onDecline(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target) override {}
  };
 
+class MyAgent : public DialogueAgent {
+public:
+  MyAgent(std::unique_ptr<OEFCoreInterface> oefCore) : DialogueAgent{std::move(oefCore)} {}
+  void onSearchResult(uint32_t search_id, const std::vector<std::string> &results) override {}
+  void onNewMessage(const std::string &from, uint32_t dialogueId, const std::string &content) override {}
+  void onNewCFP(const std::string &from, uint32_t dialogueId, uint32_t msgId, uint32_t target, const CFPType &constraints) override {}
+  void onConnectionError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation) override {}
+};
+
 int main(int argc, char* argv[])
 {
   try
@@ -85,7 +120,8 @@ int main(int argc, char* argv[])
     spdlog::set_level(spdlog::level::level_enum::trace);
     IoContextPool pool(2);
     pool.run();
-    
+
+    MyAgent agent{std::unique_ptr<fetch::oef::OEFCoreInterface>(new fetch::oef::OEFCoreNetworkProxy{argv[1], pool.getIoContext(), argv[2]})};
     MeteoClientAgent client(argv[1], pool.getIoContext(), argv[2]);
 
     // Build up our DataModel (this is identical to the meteostations DataModel, wouldn't work if not)
