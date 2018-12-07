@@ -40,12 +40,13 @@ namespace fetch {
 
     class DialogueAgent;
     // TODO protocol class: msgId ...
-    class SingleDialogue : public std::enable_shared_from_this<SingleDialogue> {
-    private:
+    class SingleDialogue {
+    protected:
       DialogueAgent &agent_;
       const std::string destination_;
       const uint32_t dialogueId_;
       bool buyer_;
+      static fetch::oef::Logger logger;
     public:
       SingleDialogue(DialogueAgent &agent, std::string destination);
       SingleDialogue(DialogueAgent &agent, std::string destination, uint32_t dialogueId);
@@ -65,7 +66,7 @@ namespace fetch {
     };
 
     class DialogueAgent : public Agent {
-    private:
+    protected:
       std::unordered_map<DialogueKey, std::shared_ptr<SingleDialogue>> dialogues_;
 
       static fetch::oef::Logger logger;

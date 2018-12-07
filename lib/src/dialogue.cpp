@@ -3,20 +3,17 @@
 namespace fetch {
   namespace oef {
     fetch::oef::Logger fetch::oef::DialogueAgent::logger = fetch::oef::Logger("dialogue-agent");
+    fetch::oef::Logger fetch::oef::SingleDialogue::logger = fetch::oef::Logger("dialogue");
     
     SingleDialogue::SingleDialogue(DialogueAgent &agent, std::string destination)
       : agent_{agent}, destination_{std::move(destination)}, dialogueId_{Uuid32::uuid().val()},
         buyer_{true}
-    {
-      agent_.registerDialogue(shared_from_this());
-    }
+    {}
     
     SingleDialogue::SingleDialogue(DialogueAgent &agent, std::string destination, uint32_t dialogueId)
       : agent_{agent}, destination_{std::move(destination)}, dialogueId_{dialogueId},
         buyer_{false}
-    {
-      agent_.registerDialogue(shared_from_this());
-    }
+    {}
     SingleDialogue::~SingleDialogue() {
       agent_.unregisterDialogue(*this);
     }
