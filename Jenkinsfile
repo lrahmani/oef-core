@@ -24,10 +24,11 @@ pipeline {
       steps {
         sh './scripts/code-format-apply.sh ./'
       }
+    }
 
     stage('Lint') {
       steps {
-        sh './scripts/code-static-analyze.sh ./'
+        sh './scripts/code-static-analyze.sh ./ ./build/'
       }
     }
 

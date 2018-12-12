@@ -9,7 +9,7 @@ fi
 source $1/scripts/code-helpers.sh
 
 export SRC_RT=$1
-export SRC_dirs="${SRC_RT}/lib ${SRC_RT}/apps"
+export SRC_dirs="${SRC_RT}lib ${SRC_RT}apps"
 export header_dir_reg="${SRC_RT}lib/include/"
 export header_exclude="[{\"name\":\"${SRC_RT}/3rd/*\"}]"
 
