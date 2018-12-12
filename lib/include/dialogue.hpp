@@ -14,14 +14,14 @@ constexpr size_t hash_combine(size_t lhs, size_t rhs ) {
 
 struct DialogueKey {
   const std::string destination;
-  const uint32_t dialogueId;
+  const uint32_t dialogue_id;
 
-  DialogueKey(std::string dest, uint32_t id) : destination{std::move(dest)}, dialogueId{id} {} 
+  DialogueKey(std::string dest, uint32_t id) : destination{std::move(dest)}, dialogue_id{id} {}
   size_t hash() const {
-    return hash_combine(std::hash<std::string>{}(destination), dialogueId);
+    return hash_combine(std::hash<std::string>{}(destination), dialogue_id);
   }
   bool operator==(const DialogueKey &key) const {
-    return key.destination == destination && key.dialogueId == dialogueId;
+    return key.destination == destination && key.dialogue_id == dialogue_id;
   }
 };
 
@@ -33,7 +33,7 @@ namespace std
       return s.hash();
     }
   };
-}
+} // namespace std
 
 namespace fetch {
   namespace oef {
@@ -79,10 +79,10 @@ namespace fetch {
       
       void onError(fetch::oef::pb::Server_AgentMessage_Error_Operation operation, stde::optional<uint32_t> dialogueId, stde::optional<uint32_t> msgId) override {
         assert(false); // protocol buffer is wrong !!! I need the origin
-        // if(dialogueId) { // it concerns a SingleDialogue
-        //   auto iter = dialogues_.find(DialogueKey{from, dialogueId.});
+        // if(dialogue_id) { // it concerns a SingleDialogue
+        //   auto iter = dialogues_.find(DialogueKey{from, dialogue_id.});
         // if(iter == dialogues_.end()) {
-        //   logger.error("onMessage: dialogue {} {} not found.", from, dialogueId);
+        //   logger.error("onMessage: dialogue {} {} not found.", from, dialogue_id);
         // } else {
         //   iter->second->onMessage(content);
         // }
@@ -149,5 +149,5 @@ namespace fetch {
         return true;
       }
     };
-  }
-}
+  } // namespace oef
+} // namespace fetch

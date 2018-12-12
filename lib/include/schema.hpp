@@ -1,15 +1,15 @@
 #pragma once
 
-#include <unordered_map>
-#include <mutex>
-#include <vector>
-#include <limits>
-#include <unordered_set>
+#include "agent.pb.h"
 #include <experimental/optional>
 #include <iostream>
-#include <typeinfo>
+#include <limits>
 #include "mapbox/variant.hpp"
-#include "agent.pb.h"
+#include <mutex>
+#include <typeinfo>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace stde = std::experimental;
 namespace var = mapbox::util; // for the variant
@@ -27,7 +27,7 @@ namespace fetch {
     
     class Attribute {
     private:
-      fetch::oef::pb::Query_Attribute _attribute;
+      fetch::oef::pb::Query_Attribute attribute_;
       static bool validate(const fetch::oef::pb::Query_Attribute &attribute, const VariantType &value) {
         auto type = attribute.type();
         bool res;
@@ -39,19 +39,19 @@ namespace fetch {
       }
     public:
       explicit Attribute(const std::string &name, Type type, bool required) {
-        _attribute.set_name(name);
-        _attribute.set_type(static_cast<fetch::oef::pb::Query_Attribute_Type>(type));
-        _attribute.set_required(required);
+        attribute_.set_name(name);
+        attribute_.set_type(static_cast<fetch::oef::pb::Query_Attribute_Type>(type));
+        attribute_.set_required(required);
       }
       explicit Attribute(const std::string &name, Type type, bool required,
                          const std::string &description)
         : Attribute{name, type, required} {
-        _attribute.set_description(description);
+        attribute_.set_description(description);
       }
-      const fetch::oef::pb::Query_Attribute &handle() const { return _attribute; }
-      const std::string &name() const { return _attribute.name(); }
-      fetch::oef::pb::Query_Attribute_Type type() const { return _attribute.type(); }
-      bool required() const { return _attribute.required(); }
+      const fetch::oef::pb::Query_Attribute &handle() const { return attribute_; }
+      const std::string &name() const { return attribute_.name(); }
+      fetch::oef::pb::Query_Attribute_Type type() const { return attribute_.type(); }
+      bool required() const { return attribute_.required(); }
       static std::pair<std::string,std::string> instantiate(const std::unordered_map<std::string,VariantType> &values,
                                                             const fetch::oef::pb::Query_Attribute &attribute) {
         auto iter = values.find(attribute.name());
@@ -67,7 +67,7 @@ namespace fetch {
         throw std::invalid_argument(attribute.name() + std::string(" has a wrong type of value ") + to_string(iter->second));
       }
       std::pair<std::string,std::string> instantiate(const std::unordered_map<std::string,VariantType> &values) const {
-        return instantiate(values, _attribute);
+        return instantiate(values, attribute_);
       }
     };
     
@@ -81,28 +81,28 @@ namespace fetch {
                      GtEq = fetch::oef::pb::Query_Relation_Operator_GTEQ,
                      NotEq = fetch::oef::pb::Query_Relation_Operator_NOTEQ};
     private:
-      fetch::oef::pb::Query_Relation _relation;
+      fetch::oef::pb::Query_Relation relation_;
       explicit Relation(Op op) {
-        _relation.set_op(static_cast<fetch::oef::pb::Query_Relation_Operator>(op));
+        relation_.set_op(static_cast<fetch::oef::pb::Query_Relation_Operator>(op));
       }
     public:
       explicit Relation(Op op, const std::string &s) : Relation(op) {
-        auto *val = _relation.mutable_val();
+        auto *val = relation_.mutable_val();
         val->set_s(s);
       }
       explicit Relation(Op op, int i) : Relation(op) {
-        auto *val = _relation.mutable_val();
+        auto *val = relation_.mutable_val();
         val->set_i(i);
       }
       explicit Relation(Op op, bool b) : Relation(op) {
-        auto *val = _relation.mutable_val();
+        auto *val = relation_.mutable_val();
         val->set_b(b);
       }
       explicit Relation(Op op, float f) : Relation(op) {
-        auto *val = _relation.mutable_val();
+        auto *val = relation_.mutable_val();
         val->set_f(f);
       }
-      const fetch::oef::pb::Query_Relation &handle() const { return _relation; }
+      const fetch::oef::pb::Query_Relation &handle() const { return relation_; }
       template <typename T>
       static T get(const fetch::oef::pb::Query_Relation &rel) {
         const auto &val = rel.val();
@@ -147,7 +147,7 @@ namespace fetch {
         return res;
       }
       bool check(const VariantType &v) const {
-        return check(_relation, v);
+        return check(relation_, v);
       }
     };
     
@@ -159,31 +159,35 @@ namespace fetch {
                      In = fetch::oef::pb::Query_Set_Operator_IN,
                      NotIn = fetch::oef::pb::Query_Set_Operator_NOTIN};
     private:
-      fetch::oef::pb::Query_Set _set;
+      fetch::oef::pb::Query_Set set_;
       
     public:
       explicit Set(Op op, const ValueType &values) {
-        _set.set_op(static_cast<fetch::oef::pb::Query_Set_Operator>(op));
-        fetch::oef::pb::Query_Set_Values *vals = _set.mutable_vals();
+        set_.set_op(static_cast<fetch::oef::pb::Query_Set_Operator>(op));
+        fetch::oef::pb::Query_Set_Values *vals = set_.mutable_vals();
         values.match(
                      [vals](const std::unordered_set<int> &s) {
                        fetch::oef::pb::Query_Set_Values_Ints *ints = vals->mutable_i();
-                       for(auto &v : s)
-                         ints->add_vals(v);},
+                       for(auto &v : s) {
+                         ints->add_vals(v);
+                       }},
                      [vals](const std::unordered_set<float> &s) {
                        fetch::oef::pb::Query_Set_Values_Floats *floats = vals->mutable_f();
-                       for(auto &v : s)
-                         floats->add_vals(v);},
+                       for(auto &v : s) {
+                         floats->add_vals(v);
+                       }},
                      [vals](const std::unordered_set<std::string> &s) {
                        fetch::oef::pb::Query_Set_Values_Strings *strings = vals->mutable_s();
-                       for(auto &v : s)
-                         strings->add_vals(v);},
+                       for(auto &v : s) {
+                         strings->add_vals(v);
+                       }},
                      [vals](const std::unordered_set<bool> &s) {
                        fetch::oef::pb::Query_Set_Values_Bools *bools = vals->mutable_b();
-                       for(auto &v : s)
-                         bools->add_vals(v);});
+                       for(auto &v : s) {
+                         bools->add_vals(v);
+                       }});
       }
-      const fetch::oef::pb::Query_Set &handle() const { return _set; }
+      const fetch::oef::pb::Query_Set &handle() const { return set_; }
       static bool check(const fetch::oef::pb::Query_Set &set, const VariantType &v) {
         const auto &vals = set.vals();
         bool res = false;
@@ -220,36 +224,37 @@ namespace fetch {
                     }
                   }
                 });
-        if(set.op() == fetch::oef::pb::Query_Set_Operator_NOTIN)
+        if(set.op() == fetch::oef::pb::Query_Set_Operator_NOTIN) {
           return !res;
+        }
         return res;
       }  
       bool check(const VariantType &v) const {
-        return check(_set, v);
+        return check(set_, v);
       }
     };
     class Range {
     public:
       using ValueType = var::variant<std::pair<int,int>,std::pair<float,float>,std::pair<std::string,std::string>>;
     private:
-      fetch::oef::pb::Query_Range _range;
+      fetch::oef::pb::Query_Range range_;
     public:
       explicit Range(const std::pair<int,int> &r) {
-        fetch::oef::pb::Query_IntPair *p = _range.mutable_i();
+        fetch::oef::pb::Query_IntPair *p = range_.mutable_i();
         p->set_first(r.first);
         p->set_second(r.second);
       }
       explicit Range(const std::pair<float,float> &r) {
-        fetch::oef::pb::Query_FloatPair *p = _range.mutable_f();
+        fetch::oef::pb::Query_FloatPair *p = range_.mutable_f();
         p->set_first(r.first);
         p->set_second(r.second);
       }
       explicit Range(const std::pair<std::string,std::string> &r) {
-        fetch::oef::pb::Query_StringPair *p = _range.mutable_s();
+        fetch::oef::pb::Query_StringPair *p = range_.mutable_s();
         p->set_first(r.first);
         p->set_second(r.second);
       }
-      const fetch::oef::pb::Query_Range &handle() const { return _range; }
+      const fetch::oef::pb::Query_Range &handle() const { return range_; }
       static bool check(const fetch::oef::pb::Query_Range &range, const VariantType &v) {
         bool res = false;
         v.match(
@@ -271,17 +276,17 @@ namespace fetch {
         return res;
       }
       bool check(const VariantType &v) const {
-        return check(_range, v);
+        return check(range_, v);
       }
     };
     
     class DataModel {
     private:
-      fetch::oef::pb::Query_DataModel _model;
+      fetch::oef::pb::Query_DataModel model_;
     public:
       explicit DataModel(const std::string &name, const std::vector<Attribute> &attributes) {
-        _model.set_name(name);
-        auto *atts = _model.mutable_attributes();
+        model_.set_name(name);
+        auto *atts = model_.mutable_attributes();
         for(auto &a : attributes) {
           auto *att = atts->Add();
           att->CopyFrom(a.handle());
@@ -289,25 +294,24 @@ namespace fetch {
       }
       explicit DataModel(const std::string &name, const std::vector<Attribute> &attributes, const std::string &description)
         : DataModel{name, attributes} {
-        _model.set_description(description);
+        model_.set_description(description);
       }
-      const fetch::oef::pb::Query_DataModel &handle() const { return _model; }
+      const fetch::oef::pb::Query_DataModel &handle() const { return model_; }
       bool operator==(const DataModel &other) const
       {
-        if(_model.name() != other._model.name())
-          return false;
+        return model_.name() == other.model_.name();
         // TODO: should check more.
-        return true;
       }
       static stde::optional<fetch::oef::pb::Query_Attribute> attribute(const fetch::oef::pb::Query_DataModel &model,
                                                                        const std::string &name) {
         for(auto &a : model.attributes()) {
-          if(a.name() == name)
+          if(a.name() == name) {
             return stde::optional<fetch::oef::pb::Query_Attribute>{a};
+          }
         }
         return stde::nullopt;
       }
-      std::string name() const { return _model.name(); }
+      std::string name() const { return model_.name(); }
       static std::vector<std::pair<std::string,std::string>>
       instantiate(const fetch::oef::pb::Query_DataModel &model, const std::unordered_map<std::string,VariantType> &values) {
         std::vector<std::pair<std::string,std::string>> res;
@@ -320,13 +324,13 @@ namespace fetch {
     
     class Instance {
     private:
-      fetch::oef::pb::Query_Instance _instance;
-      std::unordered_map<std::string,VariantType> _values;
+      fetch::oef::pb::Query_Instance instance_;
+      std::unordered_map<std::string,VariantType> values_;
     public:
-      explicit Instance(const DataModel &model, const std::unordered_map<std::string,VariantType> &values) : _values{values} {
-        auto *mod = _instance.mutable_model();
+      explicit Instance(const DataModel &model, const std::unordered_map<std::string,VariantType> &values) : values_{values} {
+        auto *mod = instance_.mutable_model();
         mod->CopyFrom(model.handle());
-        auto *vals = _instance.mutable_values();
+        auto *vals = instance_.mutable_values();
         for(auto &v : values) {
           auto *val = vals->Add();
           val->set_key(v.first);
@@ -337,22 +341,22 @@ namespace fetch {
                          [value](bool b) {value->set_b(b);});
         }
       }
-      explicit Instance(const fetch::oef::pb::Query_Instance &instance) : _instance{instance}
+      explicit Instance(const fetch::oef::pb::Query_Instance &instance) : instance_{instance}
       {
-        const auto &values = _instance.values();
+        const auto &values = instance_.values();
         for(auto &v : values) {
           switch(v.value().value_case()) {
           case fetch::oef::pb::Query_Value::kS:
-            _values[v.key()] = VariantType{v.value().s()};
+            values_[v.key()] = VariantType{v.value().s()};
             break;
           case fetch::oef::pb::Query_Value::kF:
-            _values[v.key()] = VariantType{v.value().f()};
+            values_[v.key()] = VariantType{v.value().f()};
             break;
           case fetch::oef::pb::Query_Value::kB:
-            _values[v.key()] = VariantType{v.value().b()};
+            values_[v.key()] = VariantType{v.value().b()};
             break;
           case fetch::oef::pb::Query_Value::kI:
-            _values[v.key()] = VariantType{int(v.value().i())};
+            values_[v.key()] = VariantType{int(v.value().i())};
             break;
           case fetch::oef::pb::Query_Value::VALUE_NOT_SET:
           default:
@@ -360,23 +364,26 @@ namespace fetch {
           }
         }
       }
-      const fetch::oef::pb::Query_Instance &handle() const { return _instance; }
+      const fetch::oef::pb::Query_Instance &handle() const { return instance_; }
       bool operator==(const Instance &other) const
       {
-        if(!(_instance.model().name() == other._instance.model().name()))
+        if(!(instance_.model().name() == other.instance_.model().name())) {
           return false;
-        for(const auto &p : _values) {
-          const auto &iter = other._values.find(p.first);
-          if(iter == other._values.end())
+        }
+        for(const auto &p : values_) {
+          const auto &iter = other.values_.find(p.first);
+          if(iter == other.values_.end()) {
             return false;
-          if(iter->second != p.second)
+          }
+          if(iter->second != p.second) {
             return false;
+          }
         }
         return true;
       }
       std::size_t hash() const {
-        std::size_t h = std::hash<std::string>{}(_instance.model().name());
-        for(const auto &p : _values) {
+        std::size_t h = std::hash<std::string>{}(instance_.model().name());
+        for(const auto &p : values_) {
           std::size_t hs = std::hash<std::string>{}(p.first);
           h = hs ^ (h << 1);
           p.second.match([&hs](int i) { hs = std::hash<int>{}(i);},
@@ -390,15 +397,16 @@ namespace fetch {
       
       std::vector<std::pair<std::string,std::string>>
       instantiate() const {
-        return DataModel::instantiate(_instance.model(), _values);
+        return DataModel::instantiate(instance_.model(), values_);
       }
       const fetch::oef::pb::Query_DataModel &model() const {
-        return _instance.model();
+        return instance_.model();
       }
       stde::optional<std::string> value(const std::string &name) const {
-        auto iter = _values.find(name);
-        if(iter == _values.end())
+        auto iter = values_.find(name);
+        if(iter == values_.end()) {
           return stde::nullopt;
+        }
         return stde::optional<std::string>{to_string(iter->second)};
       }
     };
@@ -410,40 +418,40 @@ namespace fetch {
     public:
       using ValueType = var::variant<var::recursive_wrapper<Or>,var::recursive_wrapper<And>,Range,Relation,Set>;
     private:
-      fetch::oef::pb::Query_Constraint_ConstraintType _constraint;
+      fetch::oef::pb::Query_Constraint_ConstraintType constraint_;
     public:
-      explicit ConstraintType(const Or &or_);
-      explicit ConstraintType(const And &and_);
+      explicit ConstraintType(const Or &orp);
+      explicit ConstraintType(const And &andp);
       explicit ConstraintType(const Range &range) {
-        auto *r = _constraint.mutable_range_();
+        auto *r = constraint_.mutable_range_();
         r->CopyFrom(range.handle());
       }
       explicit ConstraintType(const Relation &rel) {
-        auto *r = _constraint.mutable_relation();
+        auto *r = constraint_.mutable_relation();
         r->CopyFrom(rel.handle());
       }
       explicit ConstraintType(const Set &set) {
-        auto *s = _constraint.mutable_set_();
+        auto *s = constraint_.mutable_set_();
         s->CopyFrom(set.handle());
       }
-      const fetch::oef::pb::Query_Constraint_ConstraintType &handle() const { return _constraint; }
+      const fetch::oef::pb::Query_Constraint_ConstraintType &handle() const { return constraint_; }
       static bool check(const fetch::oef::pb::Query_Constraint_ConstraintType &constraint, const VariantType &v);
       bool check(const VariantType &v) const {
-        return check(_constraint, v);
+        return check(constraint_, v);
       }
     };
     
     class Constraint {
     private:
-      fetch::oef::pb::Query_Constraint _constraint;
+      fetch::oef::pb::Query_Constraint constraint_;
     public:
       explicit Constraint(const Attribute &attribute, const ConstraintType &constraint) {
-        auto *c = _constraint.mutable_attribute();
+        auto *c = constraint_.mutable_attribute();
         c->CopyFrom(attribute.handle());
-        auto *ct = _constraint.mutable_constraint();
+        auto *ct = constraint_.mutable_constraint();
         ct->CopyFrom(constraint.handle());
       }
-      const fetch::oef::pb::Query_Constraint &handle() const { return _constraint; }
+      const fetch::oef::pb::Query_Constraint &handle() const { return constraint_; }
       static bool check(const fetch::oef::pb::Query_Constraint &constraint, const VariantType &v) {
         return ConstraintType::check(constraint.constraint(), v);
       }
@@ -451,38 +459,41 @@ namespace fetch {
         auto &attribute = constraint.attribute();
         auto attr = DataModel::attribute(i.model(), attribute.name());
         if(attr) {
-          if(attr->type() != attribute.type())
+          if(attr->type() != attribute.type()) {
             return false;
+          }
         }
         auto v = i.value(attribute.name());
         if(!v) {
-          if(attribute.required())
+          if(attribute.required()) {
             std::cerr << "Should not happen!\n"; // Exception ?
+          }
           return false;
         }
         VariantType value{string_to_value(attribute.type(), *v)};
         return check(constraint, value);
       }
       bool check(const VariantType &v) const {
-        return check(_constraint, v);
+        return check(constraint_, v);
       }
     };
     
     class Or {
-      fetch::oef::pb::Query_Constraint_ConstraintType_Or _expr;
+      fetch::oef::pb::Query_Constraint_ConstraintType_Or expr_;
     public:
       explicit Or(const std::vector<ConstraintType> &expr) {
-        auto *cts = _expr.mutable_expr();
+        auto *cts = expr_.mutable_expr();
         for(auto &e : expr) {
           auto *ct = cts->Add();
           ct->CopyFrom(e.handle());
         }
       }
-      const fetch::oef::pb::Query_Constraint_ConstraintType_Or &handle() const { return _expr; }
+      const fetch::oef::pb::Query_Constraint_ConstraintType_Or &handle() const { return expr_; }
       static bool check(const fetch::oef::pb::Query_Constraint_ConstraintType_Or &expr, const VariantType &v) {
         for(auto &c : expr.expr()) {
-          if(ConstraintType::check(c, v))
+          if(ConstraintType::check(c, v)) {
             return true;
+          }
         }
         return false;
       }
@@ -490,20 +501,21 @@ namespace fetch {
     
     class And {
     private:
-      fetch::oef::pb::Query_Constraint_ConstraintType_And _expr;
+      fetch::oef::pb::Query_Constraint_ConstraintType_And expr_;
     public:
       explicit And(const std::vector<ConstraintType> &expr) {
-        auto *cts = _expr.mutable_expr();
+        auto *cts = expr_.mutable_expr();
         for(auto &e : expr) {
           auto *ct = cts->Add();
           ct->CopyFrom(e.handle());
         }
       }
-      const fetch::oef::pb::Query_Constraint_ConstraintType_And &handle() const { return _expr; }
+      const fetch::oef::pb::Query_Constraint_ConstraintType_And &handle() const { return expr_; }
       static bool check(const fetch::oef::pb::Query_Constraint_ConstraintType_And &expr, const VariantType &v) {
         for(auto &c : expr.expr()) {
-          if(!ConstraintType::check(c, v))
+          if(!ConstraintType::check(c, v)) {
             return false;
+          }
         }
         return true;
       }
@@ -511,38 +523,41 @@ namespace fetch {
     
     class QueryModel {
     private:
-      fetch::oef::pb::Query_Model _model;
+      fetch::oef::pb::Query_Model model_;
     public:
       explicit QueryModel(const std::vector<Constraint> &constraints) {
-        auto *cts = _model.mutable_constraints();
+        auto *cts = model_.mutable_constraints();
         for(auto &c : constraints) {
           auto *ct = cts->Add();
           ct->CopyFrom(c.handle());
         }
       }
       explicit QueryModel(const std::vector<Constraint> &constraints, const DataModel &model) : QueryModel{constraints} {
-        auto *m = _model.mutable_model();
+        auto *m = model_.mutable_model();
         m->CopyFrom(model.handle());
       }
-      explicit QueryModel(const fetch::oef::pb::Query_Model &model) : _model{model} {}
-      const fetch::oef::pb::Query_Model &handle() const { return _model; }
+      explicit QueryModel(const fetch::oef::pb::Query_Model &model) : model_{model} {}
+      const fetch::oef::pb::Query_Model &handle() const { return model_; }
       template <typename T>
       bool check_value(const T &v) const {
-        for(auto &c : _model.constraints()) {
-          if(!Constraint::check(c, VariantType{v}))
+        for(auto &c : model_.constraints()) {
+          if(!Constraint::check(c, VariantType{v})) {
             return false;
+          }
         }
         return true;
       }
       bool check(const Instance &i) const {
-        if(_model.has_model()) {
-          if(_model.model().name() != i.model().name())
+        if(model_.has_model()) {
+          if(model_.model().name() != i.model().name()) {
             return false;
+          }
           // TODO: more to compare ?
         }
-        for(auto &c : _model.constraints()) {
-          if(!Constraint::check(c, i))
+        for(auto &c : model_.constraints()) {
+          if(!Constraint::check(c, i)) {
             return false;
+          }
         }
         return true;
       }
@@ -550,108 +565,112 @@ namespace fetch {
     
     class SchemaRef {
     private:
-      std::string _name; // unique
-      uint32_t _version;
+      std::string name_; // unique
+      uint32_t version_;
     public:
-      explicit SchemaRef(const std::string &name, uint32_t version) : _name{name}, _version{version} {}
-      std::string name() const { return _name; }
-      uint32_t version() const { return _version; }
+      explicit SchemaRef(std::string name, uint32_t version) : name_{std::move(name)}, version_{version} {}
+      std::string name() const { return name_; }
+      uint32_t version() const { return version_; }
     };
     
     class Schema {
     private:
-      uint32_t _version;
-      DataModel _schema;
+      uint32_t version_;
+      DataModel schema_;
     public:
-      explicit Schema(uint32_t version, const DataModel &schema) : _version{version}, _schema{schema} {}
-      uint32_t version() const { return _version; }
-      DataModel schema() const { return _schema; }
+      explicit Schema(uint32_t version, const DataModel &schema) : version_{version}, schema_{schema} {}
+      uint32_t version() const { return version_; }
+      DataModel schema() const { return schema_; }
     };
     
     class Schemas {
     private:
-      mutable std::mutex _lock;
-      std::vector<Schema> _schemas;
+      mutable std::mutex lock_;
+      std::vector<Schema> schemas_;
     public:
       explicit Schemas() = default;
       uint32_t add(uint32_t version, const DataModel &schema) {
-        std::lock_guard<std::mutex> lock(_lock);
-        if(version == std::numeric_limits<uint32_t>::max())
-          version = _schemas.size() + 1;
-        _schemas.emplace_back(Schema(version, schema));
+        std::lock_guard<std::mutex> lock(lock_);
+        if(version == std::numeric_limits<uint32_t>::max()) {
+          version = schemas_.size() + 1;
+        }
+        schemas_.emplace_back(Schema(version, schema));
         return version;
       }
       stde::optional<Schema> get(uint32_t version) const {
-        std::lock_guard<std::mutex> lock(_lock);
-        if(_schemas.size() == 0)
+        std::lock_guard<std::mutex> lock(lock_);
+        if(schemas_.empty()) {
           return stde::nullopt;
-        if(version == std::numeric_limits<uint32_t>::max())
-          return _schemas.back();
-        for(auto &p : _schemas) { // TODO: binary search
-          if(p.version() >= version)
-            return p;
         }
-        return _schemas.back(); 
+        if(version == std::numeric_limits<uint32_t>::max()) {
+          return schemas_.back();
+        }
+        for(auto &p : schemas_) { // TODO: binary search
+          if(p.version() >= version) {
+            return p;
+          }
+        }
+        return schemas_.back();
       }
     };
     
     class SchemaDirectory {
     private:
-      std::unordered_map<std::string, Schemas> _schemas;
+      std::unordered_map<std::string, Schemas> schemas_;
     public:
       explicit SchemaDirectory() = default;
       stde::optional<Schema> get(const std::string &key, uint32_t version = std::numeric_limits<uint32_t>::max()) const {
-        const auto &iter = _schemas.find(key);
-        if(iter != _schemas.end())
+        const auto &iter = schemas_.find(key);
+        if(iter != schemas_.end()) {
           return iter->second.get(version);
+        }
         return stde::nullopt;
       }
       uint32_t add(const std::string &key, const DataModel &schema, uint32_t version = std::numeric_limits<uint32_t>::max()) {
-        return _schemas[key].add(version, schema);
+        return schemas_[key].add(version, schema);
       }
     };
     
     class Data {
     private:
-      std::string _name;
-      std::string _type;
-      std::vector<std::string> _values;
-      fetch::oef::pb::Data _data;
+      std::string name_;
+      std::string type_;
+      std::vector<std::string> values_;
+      fetch::oef::pb::Data data_;
     public:
       explicit Data(std::string name, std::string type, const std::vector<std::string> &values)
-        : _name{std::move(name)}, _type{std::move(type)}, _values{values} {
-          _data.set_name(name);
-          _data.set_type(type);
+        : name_{std::move(name)}, type_{std::move(type)}, values_{values} {
+          data_.set_name(name);
+          data_.set_type(type);
           for(auto &s : values) {
-            _data.add_values(s);
+            data_.add_values(s);
           }
         }
       explicit Data(const std::string &buffer) {
-        _data.ParseFromString(buffer);
-        _name = _data.name();
-        _type = _data.type();
-        for(auto &s : _data.values())
-          _values.emplace_back(s);
+        data_.ParseFromString(buffer);
+        name_ = data_.name();
+        type_ = data_.type();
+        for(auto &s : data_.values()) {
+          values_.emplace_back(s);
+        }
       }
-      const fetch::oef::pb::Data &handle() { return _data; }
-      std::string name() const { return _name; }
-      std::string type() const { return _type; }
-      std::vector<std::string> values() const { return _values; }
+      const fetch::oef::pb::Data &handle() { return data_; }
+      std::string name() const { return name_; }
+      std::string type() const { return type_; }
+      std::vector<std::string> values() const { return values_; }
       
     };
     using CFPType = var::variant<std::string, QueryModel, stde::nullopt_t>;
     using ProposeType = var::variant<std::string, std::vector<Instance>>;
-  };
-};
+  } // namespace oef
+} // namespace fetch
 
 namespace std
 {  
   template<> struct hash<fetch::oef::Instance>  {
-    typedef fetch::oef::Instance argument_type;
-    typedef std::size_t result_type;
-    result_type operator()(argument_type const& s) const noexcept
+    size_t operator()(fetch::oef::Instance const& s) const noexcept
     {
       return s.hash();
     }
   };
-}
+} // namespace std
