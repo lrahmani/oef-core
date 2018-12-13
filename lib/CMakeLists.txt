@@ -20,11 +20,11 @@ include_directories (${LIBRARY_INCLUDE_PATH} ${THIRD_PARTY_INCLUDE_PATH} ${PROTO
 
 
 #set sources
-file (GLOB LIB_HEADER_FILES "${LIBRARY_INCLUDE_PATH}/*.h")
+file (GLOB LIB_HEADER_FILES "${LIBRARY_INCLUDE_PATH}/*.hpp")
 file (GLOB LIB_SOURCE_FILES "${LIBRARY_SRC_PATH}/*.cpp")
 
 #set library
-add_library (${LIB_NAME} STATIC ${PROTO_HEADER} ${PROTO_SRC} ${LIB_SOURCE_FILES} ${LIB_HEADER_FILES} include/agentdirectory.hpp)
+add_library (${LIB_NAME} STATIC ${PROTO_HEADER} ${PROTO_SRC} ${LIB_SOURCE_FILES} ${LIB_HEADER_FILES})
 
 target_include_directories(${LIB_NAME} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

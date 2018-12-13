@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-set(PROJECT_NAME OEFCore)
+set(PROJECT_NAME oef-core)
 project(${PROJECT_NAME} VERSION 0.5 LANGUAGES CXX)
 add_compile_options(-std=c++1y)
 
@@ -20,12 +20,16 @@ include(GNUInstallDirs)
 
 add_subdirectory(3rd EXCLUDE_FROM_ALL)
 set(THIRD_PARTY_INCLUDE_PATH ${THIRD_PARTY_INCLUDE_PATH} PARENT_SCOPE)
+set(TEST_THIRD_PARTY_INCLUDE_PATH ${TEST_THIRD_PARTY_INCLUDE_PATH} PARENT_SCOPE)
 include_directories(${THIRD_PARTY_INCLUDE_PATH} ${Protobuf_INCLUDE_DIRS})
 
 #add_subdirectory(proto)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/lib/)
 add_subdirectory(lib)
-include_directories(lib/include)
+include_directories(${LIBRARY_INCLUDE_PATH})
+message("oef core: ${LIBRARY_INCLUDE_PATH}")
+set(OEF_CORE_LIBRARY_INCLUDE_PATH "${LIBRARY_INCLUDE_PATH}" PARENT_SCOPE)
+set(OEF_CORE_LIBRARY_NAME "${LIB_NAME}" PARENT_SCOPE)
 
 message("PROTOBUF = ${PROTOBUF_LIBRARIES}")
 
