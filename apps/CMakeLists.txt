@@ -1,6 +1,2 @@
-add_subdirectory(client)
-add_subdirectory(clientsherd)
 add_subdirectory(node)
-#add_subdirectory(meteostation)
-add_subdirectory(meteostationsim)
-add_subdirectory(meteoclient)
+
