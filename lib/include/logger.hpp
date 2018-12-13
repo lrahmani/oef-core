@@ -115,5 +115,5 @@ namespace fetch {
       }
 
     };
-  }
-}
+  } // namespace oef
+} // namespace fetch

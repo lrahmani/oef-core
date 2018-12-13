@@ -7,7 +7,7 @@ namespace fetch {
       v.match([&res](int i) { res = std::to_string(i); },
               [&res](float f) { res = std::to_string(f);},
               [&res](const std::string &s) { res = s;},
-              [&res](bool b) { res = std::to_string(b);});
+              [&res](bool b) { res = std::to_string(int(b));});
       return res;
     }
     
@@ -27,12 +27,12 @@ namespace fetch {
     }
 
     ConstraintType::ConstraintType(const Or &orp) {
-      auto *o = _constraint.mutable_or_();
+      auto *o = constraint_.mutable_or_();
       o->CopyFrom(orp.handle());
     }
 
     ConstraintType::ConstraintType(const And &andp) {
-      auto *a = _constraint.mutable_and_();
+      auto *a = constraint_.mutable_and_();
       a->CopyFrom(andp.handle());
     }
 
@@ -55,6 +55,7 @@ namespace fetch {
       }
       return false;
     }
-  };
-};
+  } // namespace oef
+} // namespace fetch
+
 
