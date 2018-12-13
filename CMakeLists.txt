@@ -26,7 +26,9 @@ include_directories(${THIRD_PARTY_INCLUDE_PATH} ${Protobuf_INCLUDE_DIRS})
 #add_subdirectory(proto)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/lib/)
 add_subdirectory(lib)
-include_directories(lib/include)
+include_directories(${LIBRARY_INCLUDE_PATH})
+message("oef core: ${LIBRARY_INCLUDE_PATH}")
+set(OEF_CORE_LIBRARY_INCLUDE_PATH "${LIBRARY_INCLUDE_PATH}" PARENT_SCOPE)
 
 message("PROTOBUF = ${PROTOBUF_LIBRARIES}")
 
