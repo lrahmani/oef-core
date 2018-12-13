@@ -1,6 +1,7 @@
-# Distributed under the MIT License (See accompanying file /LICENSE )
-
-# CMake build : library tests
+################################################################################
+# F E T C H   O E F   C O R E   B E N C H M A R K S
+################################################################################
+# CMake build : library benchmarks
 
 #configure variables
 set (TEST_APP_NAME "${LIB_NAME}Benchmark")

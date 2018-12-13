@@ -1,4 +1,6 @@
-# Distributed under the MIT License (See accompanying file /LICENSE )
+################################################################################
+# F E T C H   O E F   C O R E   L I B R A R Y
+################################################################################
 find_package(Protobuf REQUIRED)
 
 PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER proto/query.proto proto/fipa.proto proto/agent.proto)

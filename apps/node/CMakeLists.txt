@@ -1,5 +1,6 @@
-# Distributed under the MIT License (See accompanying file /LICENSE )
-
+################################################################################
+# F E T C H   O E F   C O R E   N O D E
+################################################################################
 # CMake build : main application
 
 #configure variables
