@@ -24,4 +24,4 @@ Please look at the [INSTALL.txt](./INSTALL.txt) instructions.
 
 Then:
  
-    ./build/apps/node/Node
+    ./build/apps/node/OEFNode
