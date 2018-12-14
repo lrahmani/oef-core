@@ -30,4 +30,4 @@ RUN rm -Rf build &&\
 RUN cp -r ./build/apps /apps
 
 EXPOSE 3333
-CMD ["/apps/node/Node"]
+CMD ["/apps/node/OEFNode"]
