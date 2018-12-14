@@ -166,10 +166,10 @@ namespace Test {
     REQUIRE(google::protobuf::TextFormat::PrintToString(weather.handle(), &output));
     std::cout << output;
 
-    Attribute wind_data{"wind_speed", Type::Float, false};
-    Attribute temp_data{"temperature", Type::Float, false};
-    Attribute air_data{"air_pressure", Type::Float, false};
-    Attribute humidity_data{"humidity", Type::Float, false};
+    Attribute wind_data{"wind_speed", Type::Double, false};
+    Attribute temp_data{"temperature", Type::Double, false};
+    Attribute air_data{"air_pressure", Type::Double, false};
+    Attribute humidity_data{"humidity", Type::Double, false};
     DataModel weather_data{"weather_data", {wind_data,temp_data,air_data,humidity_data}, "Weather data."};
     REQUIRE(google::protobuf::TextFormat::PrintToString(weather_data.handle(), &output));
     std::cout << output;

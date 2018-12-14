@@ -23,7 +23,7 @@ namespace fetch {
     std::string to_string(const VariantType &v) {
       std::string res;
       v.match([&res](int i) { res = std::to_string(i); },
-              [&res](float f) { res = std::to_string(f);},
+              [&res](double d) { res = std::to_string(d);},
               [&res](const std::string &s) { res = s;},
               [&res](bool b) { res = std::to_string(int(b));});
       return res;
@@ -31,8 +31,8 @@ namespace fetch {
     
     VariantType string_to_value(fetch::oef::pb::Query_Attribute_Type t, const std::string &s) {
       switch(t) {
-      case fetch::oef::pb::Query_Attribute_Type_FLOAT:
-        return VariantType{float(std::stod(s))};
+      case fetch::oef::pb::Query_Attribute_Type_DOUBLE:
+        return VariantType{double(std::stod(s))};
       case fetch::oef::pb::Query_Attribute_Type_INT:
         return VariantType{int(std::stol(s))};
       case fetch::oef::pb::Query_Attribute_Type_STRING:

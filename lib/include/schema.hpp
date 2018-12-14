@@ -34,11 +34,11 @@ namespace var = mapbox::util; // for the variant
 namespace fetch {
   namespace oef {
     enum class Type {
-                     Float = fetch::oef::pb::Query_Attribute_Type_FLOAT,
+                     Double = fetch::oef::pb::Query_Attribute_Type_DOUBLE,
                      Int = fetch::oef::pb::Query_Attribute_Type_INT,
                      Bool = fetch::oef::pb::Query_Attribute_Type_BOOL,
                      String = fetch::oef::pb::Query_Attribute_Type_STRING };
-    using VariantType = var::variant<int,float,std::string,bool>;
+    using VariantType = var::variant<int,double,std::string,bool>;
     VariantType string_to_value(fetch::oef::pb::Query_Attribute_Type t, const std::string &s);
     std::string to_string(const VariantType &v);
     
@@ -49,7 +49,7 @@ namespace fetch {
         auto type = attribute.type();
         bool res;
         value.match([&res,type](int) { res = type == fetch::oef::pb::Query_Attribute_Type_INT;},
-                    [&res,type](float) { res = type == fetch::oef::pb::Query_Attribute_Type_FLOAT;},
+                    [&res,type](double) { res = type == fetch::oef::pb::Query_Attribute_Type_DOUBLE;},
                     [&res,type](const std::string &) { res = type == fetch::oef::pb::Query_Attribute_Type_STRING;},
                     [&res,type](bool) { res = type == fetch::oef::pb::Query_Attribute_Type_BOOL;});
         return res;
@@ -115,9 +115,9 @@ namespace fetch {
         auto *val = relation_.mutable_val();
         val->set_b(b);
       }
-      explicit Relation(Op op, float f) : Relation(op) {
+      explicit Relation(Op op, double d) : Relation(op) {
         auto *val = relation_.mutable_val();
-        val->set_f(f);
+        val->set_d(d);
       }
       const fetch::oef::pb::Query_Relation &handle() const { return relation_; }
       template <typename T>
@@ -127,9 +127,9 @@ namespace fetch {
           int i = val.i();
           return *reinterpret_cast<T*>(&(i));
         }
-        if(typeid(T) == typeid(float)) { // hashcode ?
-          float f = val.f();
-          return *reinterpret_cast<T*>(&(f));
+        if(typeid(T) == typeid(double)) { // hashcode ?
+          double d = val.d();
+          return *reinterpret_cast<T*>(&(d));
         }
         if(typeid(T) == typeid(std::string)) { // hashcode ?
           std::string s = val.s();
@@ -158,7 +158,7 @@ namespace fetch {
         bool res = false;
         v.match(
                 [&rel,&res](int i) {res = check_value(rel, i);},
-                [&rel,&res](float f) {res = check_value(rel, f);},
+                [&rel,&res](double d) {res = check_value(rel, d);},
                 [&rel,&res](const std::string &s) {res = check_value(rel, s);},
                 [&rel,&res](bool b) {res = check_value(rel, b);});        
         return res;
@@ -170,7 +170,7 @@ namespace fetch {
     
     class Set {
     public:
-      using ValueType = var::variant<std::unordered_set<int>,std::unordered_set<float>,
+      using ValueType = var::variant<std::unordered_set<int>,std::unordered_set<double>,
                                      std::unordered_set<std::string>,std::unordered_set<bool>>;
       enum class Op {
                      In = fetch::oef::pb::Query_Set_Operator_IN,
@@ -188,10 +188,10 @@ namespace fetch {
                        for(auto &v : s) {
                          ints->add_vals(v);
                        }},
-                     [vals](const std::unordered_set<float> &s) {
-                       fetch::oef::pb::Query_Set_Values_Floats *floats = vals->mutable_f();
+                     [vals](const std::unordered_set<double> &s) {
+                       fetch::oef::pb::Query_Set_Values_Doubles *doubles = vals->mutable_d();
                        for(auto &v : s) {
-                         floats->add_vals(v);
+                         doubles->add_vals(v);
                        }},
                      [vals](const std::unordered_set<std::string> &s) {
                        fetch::oef::pb::Query_Set_Values_Strings *strings = vals->mutable_s();
@@ -217,9 +217,9 @@ namespace fetch {
                     }
                   }
                 },
-                [&vals,&res](float f) {
-                  for(auto &val : vals.f().vals()) {
-                    if(val == f) {
+                [&vals,&res](double d) {
+                  for(auto &val : vals.d().vals()) {
+                    if(val == d) {
                       res = true; 
                       return;
                     }
@@ -252,7 +252,7 @@ namespace fetch {
     };
     class Range {
     public:
-      using ValueType = var::variant<std::pair<int,int>,std::pair<float,float>,std::pair<std::string,std::string>>;
+      using ValueType = var::variant<std::pair<int,int>,std::pair<double,double>,std::pair<std::string,std::string>>;
     private:
       fetch::oef::pb::Query_Range range_;
     public:
@@ -261,8 +261,8 @@ namespace fetch {
         p->set_first(r.first);
         p->set_second(r.second);
       }
-      explicit Range(const std::pair<float,float> &r) {
-        fetch::oef::pb::Query_FloatPair *p = range_.mutable_f();
+      explicit Range(const std::pair<double,double> &r) {
+        fetch::oef::pb::Query_DoublePair *p = range_.mutable_d();
         p->set_first(r.first);
         p->set_second(r.second);
       }
@@ -279,9 +279,9 @@ namespace fetch {
                   auto &p = range.i();
                   res = i >= p.first() && i <= p.second();
                 },
-                [&res,&range](float f) {
-                  auto &p = range.f();
-                  res = f >= p.first() && f <= p.second();
+                [&res,&range](double d) {
+                  auto &p = range.d();
+                  res = d >= p.first() && d <= p.second();
                 },
                 [&res,&range](const std::string &s) {
                   auto &p = range.s();
@@ -353,7 +353,7 @@ namespace fetch {
           val->set_key(v.first);
           auto *value = val->mutable_value();
           v.second.match([value](int i) { value->set_i(i);},
-                         [value](float f) { value->set_f(f);},
+                         [value](double d) { value->set_d(d);},
                          [value](const std::string &s) { value->set_s(s);},
                          [value](bool b) {value->set_b(b);});
         }
@@ -366,8 +366,8 @@ namespace fetch {
           case fetch::oef::pb::Query_Value::kS:
             values_[v.key()] = VariantType{v.value().s()};
             break;
-          case fetch::oef::pb::Query_Value::kF:
-            values_[v.key()] = VariantType{v.value().f()};
+          case fetch::oef::pb::Query_Value::kD:
+            values_[v.key()] = VariantType{v.value().d()};
             break;
           case fetch::oef::pb::Query_Value::kB:
             values_[v.key()] = VariantType{v.value().b()};
@@ -404,7 +404,7 @@ namespace fetch {
           std::size_t hs = std::hash<std::string>{}(p.first);
           h = hs ^ (h << 1);
           p.second.match([&hs](int i) { hs = std::hash<int>{}(i);},
-                         [&hs](float f) { hs = std::hash<float>{}(f);},
+                         [&hs](double d) { hs = std::hash<double>{}(d);},
                          [&hs](const std::string &s) { hs = std::hash<std::string>{}(s);},
                          [&hs](bool b) { hs = std::hash<bool>{}(b);});
           h = hs ^ (h << 2);
