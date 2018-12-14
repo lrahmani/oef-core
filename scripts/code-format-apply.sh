@@ -2,7 +2,7 @@
 
 if [ $# -ne 1 ]; then
 echo -e "\033[0;31m[!] Usage: ./scripts/code-format-apply.sh SRC_ROOT  \033[0m"
-exit
+exit 1
 fi
 
 export SRC_RT=$1

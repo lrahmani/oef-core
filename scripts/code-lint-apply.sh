@@ -2,7 +2,7 @@
 
 if [ $# -ne 2 ]; then
 echo -e "\033[0;31m[!] Usage: ./scripts/code-static-analyze.sh <SRC_ROOT> <BUILD_DIR> \033[0m"
-exit
+exit 1
 fi
 
 # 
