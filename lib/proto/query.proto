@@ -67,13 +67,8 @@ message Query {
         }
     }
     message Distance {
-        enum Operator {
-             WITHIN = 0; // <= distance
-             BEYOND = 1; // > distance
-        }
-        required Operator op = 1;
-        required Location center = 2;
-        required double distance = 3;
+        required Location center = 1;
+        required double distance = 2;
     }
     message Relation {
         enum Operator {
