@@ -21,11 +21,11 @@ message Query {
         repeated Attribute attributes = 2;
         optional string description = 3;
     }
+    message Location {
+         required double lon = 1;
+         required double lat = 2;
+    }
     message Value {
-        message Location {
-             required double lon = 1;
-             required double lat = 2;
-        }
         oneof value {
             string s = 1;
             double d = 2;

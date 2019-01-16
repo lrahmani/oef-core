@@ -64,10 +64,10 @@ message Server {
         }
         required int32 answer_id = 1;
         oneof payload {
-            Content content = 1; // from agent
-            OEFError oef_error = 2;   // from oef
-            SearchResult agents = 3; // from oef
-            DialogueError dialogue_error = 4;
+            Content content = 2; // from agent
+            OEFError oef_error = 3;   // from oef
+            SearchResult agents = 4; // from oef
+            DialogueError dialogue_error = 5;
         }
     }
 }
@@ -84,13 +84,13 @@ message Envelope {
     message Nothing {}
     required int32 msg_id = 1;
     oneof payload {
-        Agent.Message send_message = 1;
-        AgentDescription register_service = 2;
-        AgentDescription unregister_service = 3;
-        AgentDescription register_description = 4;
-        Nothing unregister_description = 5;
-        AgentSearch search_services = 6;
-        AgentSearch search_agents = 7;
+        Agent.Message send_message = 2;
+        AgentDescription register_service = 3;
+        AgentDescription unregister_service = 4;
+        AgentDescription register_description = 5;
+        Nothing unregister_description = 6;
+        AgentSearch search_services = 7;
+        AgentSearch search_agents = 8;
     }
 }
 
