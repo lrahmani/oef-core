@@ -9,6 +9,7 @@ message Query {
             INT    = 1;
             BOOL   = 2;
             STRING = 3;
+            LOCATION = 4;
         }
         required string name = 1;
         required Type type = 2;
@@ -21,11 +22,16 @@ message Query {
         optional string description = 3;
     }
     message Value {
+        message Location {
+             required double lon = 1;
+             required double lat = 2;
+        }
         oneof value {
             string s = 1;
             double d = 2;
             bool b = 3;
             int64 i = 4;
+            Location l = 5;
         }
     }
     message KeyValue {
@@ -48,12 +54,26 @@ message Query {
         required double first = 1;
         required double second = 2;
     }
+    message LocationPair {
+        required Location first = 1;
+        required Location second = 2;
+    }
     message Range {
         oneof pair {
             StringPair s = 1;
             IntPair i = 2;
             DoublePair d = 3;
+            LocationPair l = 4;
         }
+    }
+    message Distance {
+        enum Operator {
+             WITHIN = 0; // <= distance
+             BEYOND = 1; // > distance
+        }
+        required Operator op = 1;
+        required Location center = 2;
+        required double distance = 3;
     }
     message Relation {
         enum Operator {
@@ -109,6 +129,7 @@ message Query {
                 Set set_ = 3;
                 Range range_ = 4;
                 Relation relation = 5;
+                Distance distance = 6;
             }
         }
         required Attribute attribute = 1;
