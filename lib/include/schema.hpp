@@ -33,13 +33,38 @@ namespace var = mapbox::util; // for the variant
 
 namespace fetch {
   namespace oef {
+    struct Location {
+      double lon;
+      double lat;
+      bool operator==(const Location &other) const {
+        return lon == other.lon && lat == other.lat;
+      }
+      bool operator!=(const Location &other) const {
+        return lon != other.lon || lat != other.lat;
+      }
+      bool operator<(const Location &other) const {
+        return lat < other.lat;
+      }
+      bool operator<=(const Location &other) const {
+        return lat <= other.lat;
+      }
+      bool operator>(const Location &other) const {
+        return lat > other.lat;
+      }
+      bool operator>=(const Location &other) const {
+        return lat >= other.lat;
+      }
+      bool operator==(const fetch::oef::pb::Query_Location &other) const {
+        return lat == other.lat() && lon == other.lon();
+      }
+    };
     enum class Type {
                      Double = fetch::oef::pb::Query_Attribute_Type_DOUBLE,
                      Int = fetch::oef::pb::Query_Attribute_Type_INT,
                      Bool = fetch::oef::pb::Query_Attribute_Type_BOOL,
-                     String = fetch::oef::pb::Query_Attribute_Type_STRING };
-    using VariantType = var::variant<int,double,std::string,bool>;
-    VariantType string_to_value(fetch::oef::pb::Query_Attribute_Type t, const std::string &s);
+                     String = fetch::oef::pb::Query_Attribute_Type_STRING,
+                     Location = fetch::oef::pb::Query_Attribute_Type_LOCATION };
+    using VariantType = var::variant<int,double,std::string,bool,Location>;
     std::string to_string(const VariantType &v);
     
     class Attribute {
@@ -51,7 +76,8 @@ namespace fetch {
         value.match([&res,type](int) { res = type == fetch::oef::pb::Query_Attribute_Type_INT;},
                     [&res,type](double) { res = type == fetch::oef::pb::Query_Attribute_Type_DOUBLE;},
                     [&res,type](const std::string &) { res = type == fetch::oef::pb::Query_Attribute_Type_STRING;},
-                    [&res,type](bool) { res = type == fetch::oef::pb::Query_Attribute_Type_BOOL;});
+                    [&res,type](bool) { res = type == fetch::oef::pb::Query_Attribute_Type_BOOL;},
+                    [&res,type](const Location &) {res = type == fetch::oef::pb::Query_Attribute_Type_LOCATION;});
         return res;
       }
     public:
@@ -160,7 +186,8 @@ namespace fetch {
                 [&rel,&res](int i) {res = check_value(rel, i);},
                 [&rel,&res](double d) {res = check_value(rel, d);},
                 [&rel,&res](const std::string &s) {res = check_value(rel, s);},
-                [&rel,&res](bool b) {res = check_value(rel, b);});        
+                [&rel,&res](bool b) {res = check_value(rel, b);},
+                [&rel,&res](const Location &l) {res = check_value(rel, l);});
         return res;
       }
       bool check(const VariantType &v) const {
@@ -240,6 +267,14 @@ namespace fetch {
                       return;
                     }
                   }
+                },
+                [&vals,&res](const Location &l) {
+                  for(auto &val : vals.l().vals()) {
+                    if(l == val) {
+                      res = true; 
+                      return;
+                    }
+                  }
                 });
         if(set.op() == fetch::oef::pb::Query_Set_Operator_NOTIN) {
           return !res;
@@ -272,6 +307,15 @@ namespace fetch {
         p->set_second(r.second);
       }
       const fetch::oef::pb::Query_Range &handle() const { return range_; }
+      static void min_max(double a, double b, double &min, double &max) {
+        if(a < b) {
+          min = a;
+          max = b;
+        } else {
+          min = b;
+          max = a;
+        }
+      }
       static bool check(const fetch::oef::pb::Query_Range &range, const VariantType &v) {
         bool res = false;
         v.match(
@@ -286,6 +330,13 @@ namespace fetch {
                 [&res,&range](const std::string &s) {
                   auto &p = range.s();
                   res = s >= p.first() && s <= p.second();
+                },
+                [&res,&range](const Location &s) {
+                  auto &p = range.l();
+                  double min_lat, max_lat, min_lon, max_lon;
+                  min_max(p.first().lat(), p.second().lat(), min_lat, max_lat);
+                  min_max(p.first().lon(), p.second().lon(), min_lon, max_lon);
+                  res = s.lat >= min_lat && s.lat <= max_lat && s.lon >= min_lon && s.lon <= max_lon;
                 },
                 [&res](bool b) {
                   res = false; // doesn't make sense
@@ -355,6 +406,11 @@ namespace fetch {
           v.second.match([value](int i) { value->set_i(i);},
                          [value](double d) { value->set_d(d);},
                          [value](const std::string &s) { value->set_s(s);},
+                         [value](const Location &l) {
+                           auto *loc = value->mutable_l();
+                           loc->set_lon(l.lon);
+                           loc->set_lat(l.lat);
+                         },
                          [value](bool b) {value->set_b(b);});
         }
       }
@@ -406,6 +462,9 @@ namespace fetch {
           p.second.match([&hs](int i) { hs = std::hash<int>{}(i);},
                          [&hs](double d) { hs = std::hash<double>{}(d);},
                          [&hs](const std::string &s) { hs = std::hash<std::string>{}(s);},
+                         [&hs](const Location &l) {
+                           std::size_t h1 = std::hash<double>{}(l.lon);
+                           hs = h1 ^ (std::hash<double>{}(l.lat) << 1);},
                          [&hs](bool b) { hs = std::hash<bool>{}(b);});
           h = hs ^ (h << 2);
         }
@@ -419,12 +478,12 @@ namespace fetch {
       const fetch::oef::pb::Query_DataModel &model() const {
         return instance_.model();
       }
-      stde::optional<std::string> value(const std::string &name) const {
+      stde::optional<VariantType> value(const std::string &name) const {
         auto iter = values_.find(name);
         if(iter == values_.end()) {
           return stde::nullopt;
         }
-        return stde::optional<std::string>{to_string(iter->second)};
+        return stde::optional<VariantType>{iter->second};
       }
     };
         
@@ -487,8 +546,7 @@ namespace fetch {
           }
           return false;
         }
-        VariantType value{string_to_value(attribute.type(), *v)};
-        return check(constraint, value);
+        return check(constraint, *v);
       }
       bool check(const VariantType &v) const {
         return check(constraint_, v);

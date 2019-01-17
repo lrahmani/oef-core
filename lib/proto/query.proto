@@ -96,11 +96,15 @@ message Query {
             message Bools {
                 repeated bool vals = 1;
             }
+            message Locations {
+                repeated Location vals = 1;
+            }
             oneof values {
                 Strings s = 1;
                 Doubles d = 2;
                 Bools b = 3;
                 Ints i = 4;
+                Locations l = 5;
             }
         }
         enum Operator {
