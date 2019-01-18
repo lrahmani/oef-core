@@ -18,6 +18,7 @@
 //------------------------------------------------------------------------------
 
 #include "agent.pb.h"
+#include <cmath>
 #include <experimental/optional>
 #include <iostream>
 #include <limits>
@@ -33,6 +34,11 @@ namespace var = mapbox::util; // for the variant
 
 namespace fetch {
   namespace oef {
+    constexpr double degree_to_radian(double angle) {
+      return M_PI * angle / 180.0;
+    }
+    static constexpr double EarthRadiusKm = 6372.8;
+
     struct Location {
       double lon;
       double lat;
@@ -56,6 +62,18 @@ namespace fetch {
       }
       bool operator==(const fetch::oef::pb::Query_Location &other) const {
         return lat == other.lat() && lon == other.lon();
+      }
+      double distance(const Location &rhs) const {
+        double latRad1 = degree_to_radian(lat);
+        double latRad2 = degree_to_radian(rhs.lat);
+        double lonRad1 = degree_to_radian(lon);
+        double lonRad2 = degree_to_radian(rhs.lon);
+        
+        double diffLa = latRad2 - latRad1;
+        double doffLo = lonRad2 - lonRad1;
+        
+        double computation = asin(sqrt(sin(diffLa / 2) * sin(diffLa / 2) + cos(latRad1) * cos(latRad2) * sin(doffLo / 2) * sin(doffLo / 2)));
+        return 2 * EarthRadiusKm * computation;
       }
     };
     enum class Type {
@@ -280,16 +298,56 @@ namespace fetch {
           return !res;
         }
         return res;
-      }  
+      }
       bool check(const VariantType &v) const {
         return check(set_, v);
       }
     };
+
+    class Distance {
+    private:
+      fetch::oef::pb::Query_Distance distance_;
+    public:
+      explicit Distance(const Location &center, double distance) {
+        auto *location = distance_.mutable_center();
+        location->set_lon(center.lon);
+        location->set_lat(center.lat);
+        distance_.set_distance(distance);
+      }
+      const fetch::oef::pb::Query_Distance &handle() const { return distance_; }
+      static bool check(const fetch::oef::pb::Query_Distance &distance, const VariantType &v) {
+        bool res = false;
+        v.match(
+                [](int i) {},
+                [](double d) {},
+                [](const std::string &s) {},
+                [](bool b) {},
+                [&res,&distance](const Location &l) {
+                  Location loc{distance.center().lon(), distance.center().lat()};
+                  res = loc.distance(l) <= distance.distance();
+                });
+        return res;
+      }
+      bool check(const VariantType &v) const {
+        return check(distance_, v);
+      }
+    };
+
     class Range {
     public:
       using ValueType = var::variant<std::pair<int,int>,std::pair<double,double>,std::pair<std::string,std::string>>;
     private:
       fetch::oef::pb::Query_Range range_;
+
+      static void min_max(double a, double b, double &min, double &max) {
+        if(a < b) {
+          min = a;
+          max = b;
+        } else {
+          min = b;
+          max = a;
+        }
+      }
     public:
       explicit Range(const std::pair<int,int> &r) {
         fetch::oef::pb::Query_IntPair *p = range_.mutable_i();
@@ -307,15 +365,6 @@ namespace fetch {
         p->set_second(r.second);
       }
       const fetch::oef::pb::Query_Range &handle() const { return range_; }
-      static void min_max(double a, double b, double &min, double &max) {
-        if(a < b) {
-          min = a;
-          max = b;
-        } else {
-          min = b;
-          max = a;
-        }
-      }
       static bool check(const fetch::oef::pb::Query_Range &range, const VariantType &v) {
         bool res = false;
         v.match(
@@ -338,9 +387,7 @@ namespace fetch {
                   min_max(p.first().lon(), p.second().lon(), min_lon, max_lon);
                   res = s.lat >= min_lat && s.lat <= max_lat && s.lon >= min_lon && s.lon <= max_lon;
                 },
-                [&res](bool b) {
-                  res = false; // doesn't make sense
-                });        
+                [](bool b) {});
         return res;
       }
       bool check(const VariantType &v) const {

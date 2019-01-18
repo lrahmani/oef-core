@@ -43,6 +43,8 @@ namespace fetch {
         return Range::check(constraint.range_(), v);
       case fetch::oef::pb::Query_Constraint_ConstraintType::kRelation:
         return Relation::check(constraint.relation(), v);
+      case fetch::oef::pb::Query_Constraint_ConstraintType::kDistance:
+        return Distance::check(constraint.distance(), v);
       case fetch::oef::pb::Query_Constraint_ConstraintType::CONSTRAINT_NOT_SET:
         // should not reach this line
         return false;
