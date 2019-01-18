@@ -114,28 +114,34 @@ message Query {
         required Operator op = 1;
         required Values vals = 2;
     }
-    message Constraint {
-        message ConstraintType {
-            message Or {
-                repeated ConstraintType expr = 1;
-            }
-            message And {
-                repeated ConstraintType expr = 1;
-            }
+    message ConstraintExpr {
+        message Or {
+            repeated ConstraintExpr expr = 1;
+        }
+        message And {
+            repeated ConstraintExpr expr = 1;
+        }
+        message Not {
+            required ConstraintExpr expr = 1;
+        }
+        message Constraint {
+            required string attribute_name = 1;
             oneof constraint {
-                Or or_ = 1;
-                And and_ = 2;
-                Set set_ = 3;
-                Range range_ = 4;
-                Relation relation = 5;
-                Distance distance = 6;
+                Set set_ = 2;
+                Range range_ = 3;
+                Relation relation = 4;
+                Distance distance = 5;
             }
         }
-        required Attribute attribute = 1;
-        required ConstraintType constraint = 2;
+        oneof expression {
+            Or or_ = 1;
+            And and_ = 2;
+            Not not_ = 3;
+            Constraint constraint = 4;
+        }
     }
     message Model {
-        repeated Constraint constraints = 1;
+        repeated ConstraintExpr constraints = 1;
         optional DataModel model = 2;
     }
 }

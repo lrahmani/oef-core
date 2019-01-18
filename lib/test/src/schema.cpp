@@ -110,39 +110,39 @@ namespace Test {
     REQUIRE(google::protobuf::TextFormat::PrintToString(rel1b, &output));
     std::cout << output;
 
-    Constraint c1{a1, ConstraintType{r1}};
+    Constraint c1{a1.name(), r1};
     REQUIRE(google::protobuf::TextFormat::PrintToString(c1.handle(), &output));
     std::cout << output;
     REQUIRE(c1.check(VariantType{7}));
     REQUIRE(!c1.check(VariantType{3}));
     buffer = serialize(c1.handle());
-    auto c1b = deserialize<fetch::oef::pb::Query_Constraint>(*buffer);
+    auto c1b = deserialize<fetch::oef::pb::Query_ConstraintExpr_Constraint>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(c1b, &output));
     std::cout << output;
     
-    std::vector<ConstraintType> v{ConstraintType{r1},ConstraintType{s1}};
-    Constraint c2{a1, ConstraintType{Or{v}}};
+    std::vector<ConstraintExpr> v{ConstraintExpr{c1},ConstraintExpr{Constraint{a1.name(), s1}}};
+    ConstraintExpr c2{Or{v}};
     REQUIRE(google::protobuf::TextFormat::PrintToString(c2.handle(), &output));
     std::cout << output;
     REQUIRE(c2.check(VariantType{3}));
     REQUIRE(!c2.check(VariantType{2}));
     buffer = serialize(c2.handle());
-    auto c2b = deserialize<fetch::oef::pb::Query_Constraint>(*buffer);
+    auto c2b = deserialize<fetch::oef::pb::Query_ConstraintExpr>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(c2b, &output));
     std::cout << output;
     
-    Constraint c3{a1, ConstraintType{And{v}}};
+    ConstraintExpr c3{And{v}};
     REQUIRE(google::protobuf::TextFormat::PrintToString(c3.handle(), &output));
     std::cout << output;
     REQUIRE(c3.check(VariantType{5}));
     REQUIRE(!c3.check(VariantType{3}));
     buffer = serialize(c3.handle());
-    auto c3b = deserialize<fetch::oef::pb::Query_Constraint>(*buffer);
+    auto c3b = deserialize<fetch::oef::pb::Query_ConstraintExpr>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(c3b, &output));
     std::cout << output;
 
     Set s2{Set::Op::In, std::unordered_set<std::string>{"Alan", "Chris"}};
-    Constraint c4{a2, ConstraintType{s2}};
+    ConstraintExpr c4{Constraint{a2.name(), s2}};
     QueryModel q1{{c4}, d1};
     REQUIRE(google::protobuf::TextFormat::PrintToString(q1.handle(), &output));
     std::cout << output;
@@ -201,21 +201,21 @@ namespace Test {
       REQUIRE(sd.size() == (i + 1));
     }
 
-    ConstraintType eqTrue{Relation{Relation::Op::Eq, true}};
-    Constraint temp_c{temp, eqTrue};
-    Constraint wind_c{wind, eqTrue};
-    Constraint air_c{air, eqTrue};
-    Constraint humidity_c{humidity, eqTrue};
-    QueryModel q1{{temp_c}, weather};
+    Relation eqTrue{Relation::Op::Eq, true};
+    Constraint temp_c{temp.name(), eqTrue};
+    Constraint wind_c{wind.name(), eqTrue};
+    Constraint air_c{air.name(), eqTrue};
+    Constraint humidity_c{humidity.name(), eqTrue};
+    QueryModel q1{{ConstraintExpr{temp_c}}, weather};
     auto agents1 = sd.query(q1);
     REQUIRE(agents1.size() == 3);
-    QueryModel q2{{temp_c,wind_c}, weather};
+    QueryModel q2{{ConstraintExpr{temp_c},ConstraintExpr{wind_c}}, weather};
     auto agents2 = sd.query(q2);
     REQUIRE(agents2.size() == 2);
-    QueryModel q3{{temp_c,wind_c,air_c}, weather};
+    QueryModel q3{{ConstraintExpr{temp_c},ConstraintExpr{wind_c},ConstraintExpr{air_c}}, weather};
     auto agents3 = sd.query(q3);
     REQUIRE(agents3.size() == 1);
-    QueryModel q4{{temp_c,wind_c,air_c, humidity_c}, weather};
+    QueryModel q4{{ConstraintExpr{temp_c},ConstraintExpr{wind_c},ConstraintExpr{air_c}, ConstraintExpr{humidity_c}}, weather};
     auto agents4 = sd.query(q4);
     REQUIRE(agents4.empty());
 

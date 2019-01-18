@@ -163,6 +163,12 @@ namespace fetch {
         auto *val = relation_.mutable_val();
         val->set_d(d);
       }
+      explicit Relation(Op op, const Location &l) : Relation(op) {
+        auto *val = relation_.mutable_val();
+        auto *loc = val->mutable_l();
+        loc->set_lon(l.lon);
+        loc->set_lat(l.lat);
+      }
       const fetch::oef::pb::Query_Relation &handle() const { return relation_; }
       template <typename T>
       static T get(const fetch::oef::pb::Query_Relation &rel) {
@@ -182,6 +188,11 @@ namespace fetch {
         if(typeid(T) == typeid(bool)) { // hashcode ?
           bool b = val.b();
           return *reinterpret_cast<T*>(&(b));
+        }
+        if(typeid(T) == typeid(Location)) { // hashcode ?
+          const fetch::oef::pb::Query_Location &loc = val.l();
+          Location l{loc.lon(), loc.lat()};
+          return *reinterpret_cast<T*>(&(l));
         }
         throw std::invalid_argument("Not is not a valid type.");
       }
@@ -478,6 +489,9 @@ namespace fetch {
           case fetch::oef::pb::Query_Value::kI:
             values_[v.key()] = VariantType{int(v.value().i())};
             break;
+          case fetch::oef::pb::Query_Value::kL:
+            values_[v.key()] = VariantType{Location{v.value().l().lon(), v.value().l().lat()}};
+            break;
           case fetch::oef::pb::Query_Value::VALUE_NOT_SET:
           default:
             break;
@@ -534,63 +548,60 @@ namespace fetch {
       }
     };
         
-    class Or;
-    class And;
-    
-    class ConstraintType {
+    class Constraint {
     public:
-      using ValueType = var::variant<var::recursive_wrapper<Or>,var::recursive_wrapper<And>,Range,Relation,Set>;
+      using ValueType = var::variant<Set,Range,Relation,Distance>;
     private:
-      fetch::oef::pb::Query_Constraint_ConstraintType constraint_;
+      std::string attribute_name_;
+      fetch::oef::pb::Query_ConstraintExpr_Constraint constraint_;
     public:
-      explicit ConstraintType(const Or &orp);
-      explicit ConstraintType(const And &andp);
-      explicit ConstraintType(const Range &range) {
+      explicit Constraint(std::string attribute_name, const Range &range) : attribute_name_{std::move(attribute_name)} {
         auto *r = constraint_.mutable_range_();
         r->CopyFrom(range.handle());
       }
-      explicit ConstraintType(const Relation &rel) {
+      explicit Constraint(std::string attribute_name, const Relation &rel) : attribute_name_{std::move(attribute_name)} {
         auto *r = constraint_.mutable_relation();
         r->CopyFrom(rel.handle());
       }
-      explicit ConstraintType(const Set &set) {
+      explicit Constraint(std::string attribute_name, const Set &set) : attribute_name_{std::move(attribute_name)} {
         auto *s = constraint_.mutable_set_();
         s->CopyFrom(set.handle());
       }
-      const fetch::oef::pb::Query_Constraint_ConstraintType &handle() const { return constraint_; }
-      static bool check(const fetch::oef::pb::Query_Constraint_ConstraintType &constraint, const VariantType &v);
-      bool check(const VariantType &v) const {
-        return check(constraint_, v);
+      explicit Constraint(std::string attribute_name, const Distance &distance) : attribute_name_{std::move(attribute_name)} {
+        auto *s = constraint_.mutable_set_();
+        s->CopyFrom(distance.handle());
       }
-    };
-    
-    class Constraint {
-    private:
-      fetch::oef::pb::Query_Constraint constraint_;
-    public:
-      explicit Constraint(const Attribute &attribute, const ConstraintType &constraint) {
-        auto *c = constraint_.mutable_attribute();
-        c->CopyFrom(attribute.handle());
-        auto *ct = constraint_.mutable_constraint();
-        ct->CopyFrom(constraint.handle());
-      }
-      const fetch::oef::pb::Query_Constraint &handle() const { return constraint_; }
-      static bool check(const fetch::oef::pb::Query_Constraint &constraint, const VariantType &v) {
-        return ConstraintType::check(constraint.constraint(), v);
-      }
-      static bool check(const fetch::oef::pb::Query_Constraint &constraint, const Instance &i) {
-        auto &attribute = constraint.attribute();
-        auto attr = DataModel::attribute(i.model(), attribute.name());
-        if(attr) {
-          if(attr->type() != attribute.type()) {
-            return false;
-          }
+      const fetch::oef::pb::Query_ConstraintExpr_Constraint &handle() const { return constraint_; }
+      static bool check(const fetch::oef::pb::Query_ConstraintExpr_Constraint &constraint, const VariantType &v) {
+        auto constraint_case = constraint.constraint_case();
+        switch(constraint_case) {
+        case fetch::oef::pb::Query_ConstraintExpr_Constraint::kSet:
+          return Set::check(constraint.set_(), v);
+        case fetch::oef::pb::Query_ConstraintExpr_Constraint::kRange:
+          return Range::check(constraint.range_(), v);
+        case fetch::oef::pb::Query_ConstraintExpr_Constraint::kRelation:
+          return Relation::check(constraint.relation(), v);
+        case fetch::oef::pb::Query_ConstraintExpr_Constraint::kDistance:
+          return Distance::check(constraint.distance(), v);
+        case fetch::oef::pb::Query_ConstraintExpr_Constraint::CONSTRAINT_NOT_SET:
+          return false;
         }
-        auto v = i.value(attribute.name());
+        return false;
+      }
+      static bool check(const fetch::oef::pb::Query_ConstraintExpr_Constraint &constraint, const Instance &i) {
+        auto &attribute_name = constraint.attribute_name();
+        auto attr = DataModel::attribute(i.model(), attribute_name);
+        if(attr) {
+          // Need to check attr->type with the constraint admissible types -> tricky
+          // if(attr->type() != attribute.type()) {
+          //   return false;
+          // }
+        }
+        auto v = i.value(attribute_name);
         if(!v) {
-          if(attribute.required()) {
-            std::cerr << "Should not happen!\n"; // Exception ?
-          }
+          // if(attribute.required()) {
+          //   std::cerr << "Should not happen!\n"; // Exception ?
+          // }
           return false;
         }
         return check(constraint, *v);
@@ -600,20 +611,50 @@ namespace fetch {
       }
     };
     
-    class Or {
-      fetch::oef::pb::Query_Constraint_ConstraintType_Or expr_;
+    class Or;
+    class And;
+    class Not;
+
+    class ConstraintExpr {
     public:
-      explicit Or(const std::vector<ConstraintType> &expr) {
+      using ValueType = var::variant<var::recursive_wrapper<Or>,var::recursive_wrapper<And>,var::recursive_wrapper<Not>,Constraint>;
+    private:
+      fetch::oef::pb::Query_ConstraintExpr constraint_;
+    public:
+      explicit ConstraintExpr(const Or &orp);
+      explicit ConstraintExpr(const And &andp);
+      explicit ConstraintExpr(const Not &notp);
+      explicit ConstraintExpr(const Constraint &constraint);
+      const fetch::oef::pb::Query_ConstraintExpr &handle() const { return constraint_; }
+      static bool check(const fetch::oef::pb::Query_ConstraintExpr &constraint, const VariantType &v);
+      static bool check(const fetch::oef::pb::Query_ConstraintExpr &constraint, const Instance &i);
+      bool check(const VariantType &v) const {
+        return check(constraint_, v);
+      }
+    };
+    
+    class Or {
+      fetch::oef::pb::Query_ConstraintExpr_Or expr_;
+    public:
+      explicit Or(const std::vector<ConstraintExpr> &expr) {
         auto *cts = expr_.mutable_expr();
         for(auto &e : expr) {
           auto *ct = cts->Add();
           ct->CopyFrom(e.handle());
         }
       }
-      const fetch::oef::pb::Query_Constraint_ConstraintType_Or &handle() const { return expr_; }
-      static bool check(const fetch::oef::pb::Query_Constraint_ConstraintType_Or &expr, const VariantType &v) {
+      const fetch::oef::pb::Query_ConstraintExpr_Or &handle() const { return expr_; }
+      static bool check(const fetch::oef::pb::Query_ConstraintExpr_Or &expr, const VariantType &v) {
         for(auto &c : expr.expr()) {
-          if(ConstraintType::check(c, v)) {
+          if(ConstraintExpr::check(c, v)) {
+            return true;
+          }
+        }
+        return false;
+      }
+      static bool check(const fetch::oef::pb::Query_ConstraintExpr_Or &expr, const Instance &i) {
+        for(auto &c : expr.expr()) {
+          if(ConstraintExpr::check(c, i)) {
             return true;
           }
         }
@@ -623,23 +664,48 @@ namespace fetch {
     
     class And {
     private:
-      fetch::oef::pb::Query_Constraint_ConstraintType_And expr_;
+      fetch::oef::pb::Query_ConstraintExpr_And expr_;
     public:
-      explicit And(const std::vector<ConstraintType> &expr) {
+      explicit And(const std::vector<ConstraintExpr> &expr) {
         auto *cts = expr_.mutable_expr();
         for(auto &e : expr) {
           auto *ct = cts->Add();
           ct->CopyFrom(e.handle());
         }
       }
-      const fetch::oef::pb::Query_Constraint_ConstraintType_And &handle() const { return expr_; }
-      static bool check(const fetch::oef::pb::Query_Constraint_ConstraintType_And &expr, const VariantType &v) {
+      const fetch::oef::pb::Query_ConstraintExpr_And &handle() const { return expr_; }
+      static bool check(const fetch::oef::pb::Query_ConstraintExpr_And &expr, const VariantType &v) {
         for(auto &c : expr.expr()) {
-          if(!ConstraintType::check(c, v)) {
+          if(!ConstraintExpr::check(c, v)) {
             return false;
           }
         }
         return true;
+      }
+      static bool check(const fetch::oef::pb::Query_ConstraintExpr_And &expr, const Instance &i) {
+        for(auto &c : expr.expr()) {
+          if(!ConstraintExpr::check(c, i)) {
+            return false;
+          }
+        }
+        return true;
+      }
+    };
+
+    class Not {
+    private:
+      fetch::oef::pb::Query_ConstraintExpr_Not expr_;
+    public:
+      explicit Not(const ConstraintExpr &expr) {
+        auto *cts = expr_.mutable_expr();
+        cts->CopyFrom(expr.handle());
+      }
+      const fetch::oef::pb::Query_ConstraintExpr_Not &handle() const { return expr_; }
+      static bool check(const fetch::oef::pb::Query_ConstraintExpr_Not &expr, const VariantType &v) {
+        return !ConstraintExpr::check(expr.expr(), v);
+      }
+      static bool check(const fetch::oef::pb::Query_ConstraintExpr_Not &expr, const Instance &i) {
+        return !ConstraintExpr::check(expr.expr(), i);
       }
     };
     
@@ -647,14 +713,14 @@ namespace fetch {
     private:
       fetch::oef::pb::Query_Model model_;
     public:
-      explicit QueryModel(const std::vector<Constraint> &constraints) {
+      explicit QueryModel(const std::vector<ConstraintExpr> &constraints) {
         auto *cts = model_.mutable_constraints();
         for(auto &c : constraints) {
           auto *ct = cts->Add();
           ct->CopyFrom(c.handle());
         }
       }
-      explicit QueryModel(const std::vector<Constraint> &constraints, const DataModel &model) : QueryModel{constraints} {
+      explicit QueryModel(const std::vector<ConstraintExpr> &constraints, const DataModel &model) : QueryModel{constraints} {
         auto *m = model_.mutable_model();
         m->CopyFrom(model.handle());
       }
@@ -663,7 +729,7 @@ namespace fetch {
       template <typename T>
       bool check_value(const T &v) const {
         for(auto &c : model_.constraints()) {
-          if(!Constraint::check(c, VariantType{v})) {
+          if(!ConstraintExpr::check(c, VariantType{v})) {
             return false;
           }
         }
@@ -677,7 +743,7 @@ namespace fetch {
           // TODO: more to compare ?
         }
         for(auto &c : model_.constraints()) {
-          if(!Constraint::check(c, i)) {
+          if(!ConstraintExpr::check(c, i)) {
             return false;
           }
         }
