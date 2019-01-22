@@ -556,18 +556,22 @@ namespace fetch {
       fetch::oef::pb::Query_ConstraintExpr_Constraint constraint_;
     public:
       explicit Constraint(std::string attribute_name, const Range &range) : attribute_name_{std::move(attribute_name)} {
+        constraint_.set_attribute_name(attribute_name_);
         auto *r = constraint_.mutable_range_();
         r->CopyFrom(range.handle());
       }
       explicit Constraint(std::string attribute_name, const Relation &rel) : attribute_name_{std::move(attribute_name)} {
+        constraint_.set_attribute_name(attribute_name_);
         auto *r = constraint_.mutable_relation();
         r->CopyFrom(rel.handle());
       }
       explicit Constraint(std::string attribute_name, const Set &set) : attribute_name_{std::move(attribute_name)} {
+        constraint_.set_attribute_name(attribute_name_);
         auto *s = constraint_.mutable_set_();
         s->CopyFrom(set.handle());
       }
       explicit Constraint(std::string attribute_name, const Distance &distance) : attribute_name_{std::move(attribute_name)} {
+        constraint_.set_attribute_name(attribute_name_);
         auto *s = constraint_.mutable_set_();
         s->CopyFrom(distance.handle());
       }
