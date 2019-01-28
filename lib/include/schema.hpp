@@ -25,6 +25,7 @@
 #include <limits>
 #include "mapbox/variant.hpp"
 #include <mutex>
+#include <stdexcept>
 #include <typeinfo>
 #include <unordered_map>
 #include <unordered_set>
@@ -470,6 +471,13 @@ namespace fetch {
       fetch::oef::pb::Query_DataModel model_;
     public:
       explicit DataModel(const std::string &name, const std::vector<Attribute> &attributes) {
+        std::unordered_set<std::string> att_set;
+        for(auto &a : attributes) {
+          auto pair = att_set.insert(a.name());
+          if(!pair.second) { // attribute name already existed
+            throw std::invalid_argument("Duplicate attribute name");
+          }
+        }
         model_.set_name(name);
         auto *atts = model_.mutable_attributes();
         for(auto &a : attributes) {
