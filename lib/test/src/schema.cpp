@@ -53,74 +53,77 @@ namespace Test {
     //    std::cerr << toJsonString<SchemaDirectory>(sd);
   }
   TEST_CASE("schema serialization", "[serialization]") {
-    Attribute a1{"ID", Type::Int, true};
+    Attribute att1{"ID", Type::Int, true};
 
     std::string output;
-    REQUIRE(google::protobuf::TextFormat::PrintToString(a1.handle(), &output));
+    REQUIRE(google::protobuf::TextFormat::PrintToString(att1.handle(), &output));
     std::cout << output;
-    auto buffer = serialize(a1.handle());
+    auto buffer = serialize(att1.handle());
     auto a1b = deserialize<fetch::oef::pb::Query_Attribute>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(a1b, &output));
     std::cout << output;
     
-    Attribute a2{"firstName", Type::String, true, "The first name."};
-    REQUIRE(google::protobuf::TextFormat::PrintToString(a2.handle(), &output));
+    Attribute att2{"firstName", Type::String, true, "The first name."};
+    REQUIRE(google::protobuf::TextFormat::PrintToString(att2.handle(), &output));
     std::cout << output;
-    buffer = serialize(a2.handle());
+    buffer = serialize(att2.handle());
     auto a2b = deserialize<fetch::oef::pb::Query_Attribute>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(a2b, &output));
     std::cout << output;
 
-    DataModel d1{"Person", {a2, Attribute{"lastName", Type::String, true},
-          Attribute{"age", Type::Int, false, "The age of the person."}}};
-    REQUIRE(google::protobuf::TextFormat::PrintToString(d1.handle(), &output));
+    DataModel datamodel1{"Person", {att2, Attribute{"lastName", Type::String, true},
+                                    Attribute{"age", Type::Int, false, "The age of the person."},
+                                    Attribute{"weight", Type::Double, false},
+                                    Attribute{"married", Type::Bool, false},
+                                    Attribute{"birth_place", Type::Location, false}}};
+    REQUIRE(google::protobuf::TextFormat::PrintToString(datamodel1.handle(), &output));
     std::cout << output;
-    buffer = serialize(d1.handle());
+    buffer = serialize(datamodel1.handle());
     auto d1b = deserialize<fetch::oef::pb::Query_DataModel>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(d1b, &output));
     std::cout << output;
 
-    Range r1{std::make_pair(5,10)};
-    REQUIRE(google::protobuf::TextFormat::PrintToString(r1.handle(), &output));
+    Range range5to10{std::make_pair(5,10)};
+    REQUIRE(google::protobuf::TextFormat::PrintToString(range5to10.handle(), &output));
     std::cout << output;
-    REQUIRE(r1.check(VariantType{6}));
-    REQUIRE(!r1.check(VariantType{12}));
-    buffer = serialize(r1.handle());
+    REQUIRE(range5to10.check(VariantType{6}));
+    REQUIRE(!range5to10.check(VariantType{12}));
+    buffer = serialize(range5to10.handle());
     auto r1b = deserialize<fetch::oef::pb::Query_Range>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(r1b, &output));
     std::cout << output;
 
-    Set s1{Set::Op::In, std::unordered_set<int>{1,3,5}};
-    REQUIRE(google::protobuf::TextFormat::PrintToString(s1.handle(), &output));
+    Set set1_3_5{Set::Op::In, std::unordered_set<int>{1,3,5}};
+    REQUIRE(google::protobuf::TextFormat::PrintToString(set1_3_5.handle(), &output));
     std::cout << output;
-    REQUIRE(s1.check(VariantType{3}));
-    REQUIRE(!s1.check(VariantType{2}));
-    buffer = serialize(s1.handle());
+    REQUIRE(set1_3_5.check(VariantType{3}));
+    REQUIRE(!set1_3_5.check(VariantType{2}));
+    buffer = serialize(set1_3_5.handle());
     auto s1b = deserialize<fetch::oef::pb::Query_Set>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(s1b, &output));
     std::cout << output;
 
-    Relation rel1{Relation::Op::Lt, 5};
-    REQUIRE(google::protobuf::TextFormat::PrintToString(rel1.handle(), &output));
+    Relation relLt5{Relation::Op::Lt, 5};
+    REQUIRE(google::protobuf::TextFormat::PrintToString(relLt5.handle(), &output));
     std::cout << output;
-    REQUIRE(rel1.check(VariantType{3}));
-    REQUIRE(!rel1.check(VariantType{7}));
-    buffer = serialize(rel1.handle());
+    REQUIRE(relLt5.check(VariantType{3}));
+    REQUIRE(!relLt5.check(VariantType{7}));
+    buffer = serialize(relLt5.handle());
     auto rel1b = deserialize<fetch::oef::pb::Query_Relation>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(rel1b, &output));
     std::cout << output;
 
-    Constraint c1{a1.name(), r1};
-    REQUIRE(google::protobuf::TextFormat::PrintToString(c1.handle(), &output));
+    Constraint range5to10_cons{att1.name(), range5to10};
+    REQUIRE(google::protobuf::TextFormat::PrintToString(range5to10_cons.handle(), &output));
     std::cout << output;
-    REQUIRE(c1.check(VariantType{7}));
-    REQUIRE(!c1.check(VariantType{3}));
-    buffer = serialize(c1.handle());
+    REQUIRE(range5to10_cons.check(VariantType{7}));
+    REQUIRE(!range5to10_cons.check(VariantType{3}));
+    buffer = serialize(range5to10_cons.handle());
     auto c1b = deserialize<fetch::oef::pb::Query_ConstraintExpr_Constraint>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(c1b, &output));
     std::cout << output;
     
-    std::vector<ConstraintExpr> v{ConstraintExpr{c1},ConstraintExpr{Constraint{a1.name(), s1}}};
+    std::vector<ConstraintExpr> v{ConstraintExpr{range5to10_cons},ConstraintExpr{Constraint{att1.name(), set1_3_5}}};
     ConstraintExpr c2{Or{v}};
     REQUIRE(google::protobuf::TextFormat::PrintToString(c2.handle(), &output));
     std::cout << output;
@@ -141,9 +144,9 @@ namespace Test {
     REQUIRE(google::protobuf::TextFormat::PrintToString(c3b, &output));
     std::cout << output;
 
-    Set s2{Set::Op::In, std::unordered_set<std::string>{"Alan", "Chris"}};
-    ConstraintExpr c4{Constraint{a2.name(), s2}};
-    QueryModel q1{{c4}, d1};
+    Set setAlan_Chris{Set::Op::In, std::unordered_set<std::string>{"Alan", "Chris"}};
+    ConstraintExpr c4{Constraint{att2.name(), setAlan_Chris}};
+    QueryModel q1{{c4}, datamodel1};
     REQUIRE(google::protobuf::TextFormat::PrintToString(q1.handle(), &output));
     std::cout << output;
     buffer = serialize(c3.handle());

@@ -18,6 +18,7 @@
 //------------------------------------------------------------------------------
 
 #include "agent.pb.h"
+#include <algorithm>
 #include <cmath>
 #include <experimental/optional>
 #include <iostream>
@@ -209,6 +210,26 @@ namespace fetch {
         }
         return false;
       }
+      static bool valid(const fetch::oef::pb::Query_Relation &rel, const fetch::oef::pb::Query_DataModel &dm,
+                        const fetch::oef::pb::Query_Attribute_Type &t) {
+        auto op = rel.op();
+        bool equal = op == fetch::oef::pb::Query_Relation_Operator_EQ || op == fetch::oef::pb::Query_Relation_Operator_NOTEQ;
+        switch(rel.val().value_case()) {
+        case fetch::oef::pb::Query_Value::kS:
+          return t == fetch::oef::pb::Query_Attribute_Type_STRING;
+        case fetch::oef::pb::Query_Value::kI:
+          return t == fetch::oef::pb::Query_Attribute_Type_INT;
+        case fetch::oef::pb::Query_Value::kD:
+          return t == fetch::oef::pb::Query_Attribute_Type_DOUBLE;
+        case fetch::oef::pb::Query_Value::kL:
+          return t == fetch::oef::pb::Query_Attribute_Type_LOCATION && equal;
+        case fetch::oef::pb::Query_Value::kB:
+          return t == fetch::oef::pb::Query_Attribute_Type_BOOL && equal;
+        case fetch::oef::pb::Query_Value::VALUE_NOT_SET:
+          return false;
+        }
+        return false;
+      }
       static bool check(const fetch::oef::pb::Query_Relation &rel, const VariantType &v) {
         bool res = false;
         v.match(
@@ -261,6 +282,24 @@ namespace fetch {
                        }});
       }
       const fetch::oef::pb::Query_Set &handle() const { return set_; }
+      static bool valid(const fetch::oef::pb::Query_Set &set, const fetch::oef::pb::Query_DataModel &dm,
+                        const fetch::oef::pb::Query_Attribute_Type &t) {
+        switch(set.vals().values_case()) {
+        case fetch::oef::pb::Query_Set_Values::kS:
+          return t == fetch::oef::pb::Query_Attribute_Type_STRING;
+        case fetch::oef::pb::Query_Set_Values::kI:
+          return t == fetch::oef::pb::Query_Attribute_Type_INT;
+        case fetch::oef::pb::Query_Set_Values::kD:
+          return t == fetch::oef::pb::Query_Attribute_Type_DOUBLE;
+        case fetch::oef::pb::Query_Set_Values::kL:
+          return t == fetch::oef::pb::Query_Attribute_Type_LOCATION;
+        case fetch::oef::pb::Query_Set_Values::kB:
+          return t == fetch::oef::pb::Query_Attribute_Type_BOOL;
+        case fetch::oef::pb::Query_Set_Values::VALUES_NOT_SET:
+          return false;
+        }
+        return false;
+      }
       static bool check(const fetch::oef::pb::Query_Set &set, const VariantType &v) {
         const auto &vals = set.vals();
         bool res = false;
@@ -326,6 +365,10 @@ namespace fetch {
         distance_.set_distance(distance);
       }
       const fetch::oef::pb::Query_Distance &handle() const { return distance_; }
+      static bool valid(const fetch::oef::pb::Query_Distance &dist, const fetch::oef::pb::Query_DataModel &dm,
+                        const fetch::oef::pb::Query_Attribute_Type &t) {
+        return t == fetch::oef::pb::Query_Attribute_Type_LOCATION;
+      }
       static bool check(const fetch::oef::pb::Query_Distance &distance, const VariantType &v) {
         bool res = false;
         v.match(
@@ -376,6 +419,22 @@ namespace fetch {
         p->set_second(r.second);
       }
       const fetch::oef::pb::Query_Range &handle() const { return range_; }
+      static bool valid(const fetch::oef::pb::Query_Range &range, const fetch::oef::pb::Query_DataModel &dm,
+                        const fetch::oef::pb::Query_Attribute_Type &t) {
+        switch(range.pair_case()) {
+        case fetch::oef::pb::Query_Range::kS:
+          return t == fetch::oef::pb::Query_Attribute_Type_STRING;
+        case fetch::oef::pb::Query_Range::kI:
+          return t == fetch::oef::pb::Query_Attribute_Type_INT;
+        case fetch::oef::pb::Query_Range::kD:
+          return t == fetch::oef::pb::Query_Attribute_Type_DOUBLE;
+        case fetch::oef::pb::Query_Range::kL:
+          return t == fetch::oef::pb::Query_Attribute_Type_LOCATION;
+        case fetch::oef::pb::Query_Range::PAIR_NOT_SET:
+          return false;
+        }
+        return false;
+      }
       static bool check(const fetch::oef::pb::Query_Range &range, const VariantType &v) {
         bool res = false;
         v.match(
@@ -592,6 +651,31 @@ namespace fetch {
         }
         return false;
       }
+      static bool valid(const fetch::oef::pb::Query_ConstraintExpr_Constraint &constraint, const fetch::oef::pb::Query_DataModel &dm) {
+        auto constraint_case = constraint.constraint_case();
+        const auto &att_name = constraint.attribute_name();
+        const auto iter = std::find_if(dm.attributes().begin(), dm.attributes().end(),
+                                    [&att_name](const fetch::oef::pb::Query_Attribute &a) {
+                                      return att_name == a.name();
+                                    });
+        if(iter == dm.attributes().end()) {
+          // attribute does not exist in datamodel
+          return false;
+        }
+        switch(constraint_case) {
+        case fetch::oef::pb::Query_ConstraintExpr_Constraint::kSet:
+          return Set::valid(constraint.set_(), dm, iter->type());
+        case fetch::oef::pb::Query_ConstraintExpr_Constraint::kRange:
+          return Range::valid(constraint.range_(), dm, iter->type());
+        case fetch::oef::pb::Query_ConstraintExpr_Constraint::kRelation:
+          return Relation::valid(constraint.relation(), dm, iter->type());
+        case fetch::oef::pb::Query_ConstraintExpr_Constraint::kDistance:
+          return Distance::valid(constraint.distance(), dm, iter->type());
+        case fetch::oef::pb::Query_ConstraintExpr_Constraint::CONSTRAINT_NOT_SET:
+          return false;
+        }
+        return false;
+      }
       static bool check(const fetch::oef::pb::Query_ConstraintExpr_Constraint &constraint, const Instance &i) {
         auto &attribute_name = constraint.attribute_name();
         auto attr = DataModel::attribute(i.model(), attribute_name);
@@ -632,6 +716,7 @@ namespace fetch {
       const fetch::oef::pb::Query_ConstraintExpr &handle() const { return constraint_; }
       static bool check(const fetch::oef::pb::Query_ConstraintExpr &constraint, const VariantType &v);
       static bool check(const fetch::oef::pb::Query_ConstraintExpr &constraint, const Instance &i);
+      static bool valid(const fetch::oef::pb::Query_ConstraintExpr &constraint, const fetch::oef::pb::Query_DataModel &dm);
       bool check(const VariantType &v) const {
         return check(constraint_, v);
       }
@@ -664,6 +749,14 @@ namespace fetch {
         }
         return false;
       }
+      static bool valid(const fetch::oef::pb::Query_ConstraintExpr_Or &expr, const fetch::oef::pb::Query_DataModel &dm) {
+        for(auto &c : expr.expr()) {
+          if(!ConstraintExpr::valid(c, dm)) {
+            return false;
+          }
+        }
+        return expr.expr_size() > 0;
+      }
     };
     
     class And {
@@ -694,6 +787,14 @@ namespace fetch {
         }
         return true;
       }
+      static bool valid(const fetch::oef::pb::Query_ConstraintExpr_And &expr, const fetch::oef::pb::Query_DataModel &dm) {
+        for(auto &c : expr.expr()) {
+          if(!ConstraintExpr::valid(c, dm)) {
+            return false;
+          }
+        }
+        return expr.expr_size() > 0;
+      }
     };
 
     class Not {
@@ -710,6 +811,9 @@ namespace fetch {
       }
       static bool check(const fetch::oef::pb::Query_ConstraintExpr_Not &expr, const Instance &i) {
         return !ConstraintExpr::check(expr.expr(), i);
+      }
+      static bool valid(const fetch::oef::pb::Query_ConstraintExpr_Not &expr, const fetch::oef::pb::Query_DataModel &dm) {
+        return ConstraintExpr::valid(expr.expr(), dm);
       }
     };
     
@@ -734,6 +838,21 @@ namespace fetch {
       bool check_value(const T &v) const {
         for(auto &c : model_.constraints()) {
           if(!ConstraintExpr::check(c, VariantType{v})) {
+            return false;
+          }
+        }
+        return true;
+      }
+      bool valid() const {
+        // Empty expression is not valid
+        if(model_.constraints_size() < 1) {
+          return false;
+        }
+        if(model_.has_model()) { // no model, so we cannot check.
+          return true;
+        }
+        for(auto &c : model_.constraints()) {
+          if(!ConstraintExpr::valid(c, model_.model())) {
             return false;
           }
         }

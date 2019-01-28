@@ -39,6 +39,24 @@ namespace fetch {
       auto *a = constraint_.mutable_constraint();
       a->CopyFrom(constraint.handle());
     }
+    
+    bool ConstraintExpr::valid(const fetch::oef::pb::Query_ConstraintExpr &constraint, const fetch::oef::pb::Query_DataModel &dm) {
+      auto expr_case = constraint.expression_case();
+      switch(expr_case) {
+      case fetch::oef::pb::Query_ConstraintExpr::kOr:
+        return Or::valid(constraint.or_(), dm);
+      case fetch::oef::pb::Query_ConstraintExpr::kAnd:
+        return And::valid(constraint.and_(), dm);
+      case fetch::oef::pb::Query_ConstraintExpr::kNot:
+        return Not::valid(constraint.not_(), dm);
+      case fetch::oef::pb::Query_ConstraintExpr::kConstraint:
+        return Constraint::valid(constraint.constraint(), dm);
+      case fetch::oef::pb::Query_ConstraintExpr::EXPRESSION_NOT_SET:
+        // should not reach this line
+        return false;
+      }
+      return false;
+    }
 
     bool ConstraintExpr::check(const fetch::oef::pb::Query_ConstraintExpr &constraint, const VariantType &v) {
       auto expr_case = constraint.expression_case();
