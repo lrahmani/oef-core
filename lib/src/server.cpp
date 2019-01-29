@@ -136,15 +136,24 @@ namespace fetch {
         logger.trace("AgentSession::processQuery sending {} agents to {}", agents_vec.size(), publicKey_);
         send(answer);
       }
+      void sendDialogError(uint32_t msg_id, uint32_t dialogue_id, const std::string &origin) {
+        fetch::oef::pb::Server_AgentMessage answer;
+        answer.set_answer_id(msg_id);
+        auto *error = answer.mutable_dialogue_error();
+        error->set_dialogue_id(dialogue_id);
+        error->set_origin(origin);
+        logger.trace("AgentSession::processMessage sending dialogue error {} to {}", dialogue_id, publicKey_);
+        send(answer);
+      }
       void processMessage(uint32_t msg_id, fetch::oef::pb::Agent_Message *msg) {
         auto session = agentDirectory_.session(msg->destination());
         DEBUG(logger, "AgentSession::processMessage from agent {} : {}", publicKey_, to_string(*msg));
         logger.trace("AgentSession::processMessage to {} from {}", msg->destination(), publicKey_);
+        uint32_t did = msg->dialogue_id();
         if(session) {
           fetch::oef::pb::Server_AgentMessage message;
           message.set_answer_id(msg_id);
           auto content = message.mutable_content();
-          uint32_t did = msg->dialogue_id();
           content->set_dialogue_id(did);
           content->set_origin(publicKey_);
           if(msg->has_content()) {
@@ -157,15 +166,11 @@ namespace fetch {
           auto buffer = serialize(message);
           asyncWriteBuffer(session->socket_, buffer, 5, [this,did,msg_id,msg](std::error_code ec, std::size_t length) {
               if(ec) {
-                fetch::oef::pb::Server_AgentMessage answer;
-                answer.set_answer_id(msg_id);
-                auto *error = answer.mutable_dialogue_error();
-                error->set_dialogue_id(did);
-                error->set_origin(msg->destination());
-                logger.trace("AgentSession::processMessage sending dialogue error {} to {}", did, publicKey_);
-                send(answer);
+                sendDialogError(msg_id, did, msg->destination());
               }
             });
+        } else {
+          sendDialogError(msg_id, did, msg->destination());
         }
       }
       void process(const std::shared_ptr<Buffer> &buffer) {
