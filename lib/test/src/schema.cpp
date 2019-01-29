@@ -52,6 +52,50 @@ namespace Test {
     REQUIRE(s3->schema() == d1);
     //    std::cerr << toJsonString<SchemaDirectory>(sd);
   }
+  TEST_CASE("servicedirectory api", "[sd]") {
+    ServiceDirectory sd;
+    REQUIRE(sd.size() == 0);
+    Attribute s_attr{"a_string", Type::String, true};
+    Attribute d_attr{"a_double", Type::Double, true};
+    Attribute b_attr{"a_bool", Type::Bool, true};
+    Attribute i_attr{"an_integer", Type::Int, true};
+    Attribute l_attr{"a_location", Type::Location, true};
+    DataModel dm{"a_data_model", {s_attr, d_attr, b_attr, i_attr, l_attr}};
+    Instance instance1{dm, {{"a_string", VariantType{std::string{"Anything"}}},
+                            {"a_double", VariantType{3.14}},
+                            {"a_bool", VariantType{true}},
+                            {"an_integer", VariantType{42}},
+                            {"a_location", VariantType{Location{2.3522219, 48.856614}}}}};
+    Instance instance2{dm, {{"a_string", VariantType{std::string{"Anything"}}},
+                            {"a_double", VariantType{3.14}},
+                            {"a_bool", VariantType{false}}, // unique difference
+                            {"an_integer", VariantType{42}},
+                            {"a_location", VariantType{Location{2.3522219, 48.856614}}}}};
+    REQUIRE_THROWS_AS((Instance{dm, {{"a_string", VariantType{std::string{"Anything"}}}}}), std::invalid_argument);
+    REQUIRE_THROWS_WITH((Instance{dm, {{"a_string", VariantType{std::string{"Anything"}}}}}), "Not enough attributes");
+    REQUIRE_THROWS_WITH((Instance{dm, {{"a_string", VariantType{true}},
+                                       {"a_double", VariantType{3.14}},
+                                       {"a_bool", VariantType{true}},
+                                       {"an_integer", VariantType{42}},
+                                       {"a_location", VariantType{Location{2.3522219, 48.856614}}}}}), "Attribute is not a bool in data model.");
+    REQUIRE_THROWS_WITH((Instance{dm, {{"a_string", VariantType{std::string{"Anything"}}},
+                                       {"a_double", VariantType{3.14}},
+                                       {"a_bool", VariantType{true}},
+                                       {"an_integer", VariantType{42}},
+                                       {"typo", VariantType{Location{2.3522219, 48.856614}}}}}), "Attribute does not exist in data model.");
+    REQUIRE(sd.registerAgent(instance1, "Agent1"));
+    REQUIRE(sd.registerAgent(instance2, "Agent1"));
+    REQUIRE(sd.registerAgent(instance1, "Agent2"));
+    REQUIRE(!sd.registerAgent(instance1, "Agent2"));
+    REQUIRE(sd.size() == 2);
+    REQUIRE(!sd.unregisterAgent(instance2, "Agent2"));
+    REQUIRE(sd.size() == 2);
+    sd.unregisterAll("Agent1");
+    REQUIRE(sd.size() == 1);
+    REQUIRE(sd.unregisterAgent(instance1, "Agent2"));
+    REQUIRE(sd.size() == 0);
+    REQUIRE(!sd.unregisterAgent(instance1, "Agent2"));
+  }
   TEST_CASE("schema serialization", "[serialization]") {
     Attribute att1{"ID", Type::Int, true};
 

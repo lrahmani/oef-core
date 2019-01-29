@@ -211,8 +211,7 @@ namespace fetch {
         }
         return false;
       }
-      static bool valid(const fetch::oef::pb::Query_Relation &rel, const fetch::oef::pb::Query_DataModel &dm,
-                        const fetch::oef::pb::Query_Attribute_Type &t) {
+      static bool valid(const fetch::oef::pb::Query_Relation &rel, const fetch::oef::pb::Query_Attribute_Type &t) {
         auto op = rel.op();
         bool equal = op == fetch::oef::pb::Query_Relation_Operator_EQ || op == fetch::oef::pb::Query_Relation_Operator_NOTEQ;
         switch(rel.val().value_case()) {
@@ -283,8 +282,7 @@ namespace fetch {
                        }});
       }
       const fetch::oef::pb::Query_Set &handle() const { return set_; }
-      static bool valid(const fetch::oef::pb::Query_Set &set, const fetch::oef::pb::Query_DataModel &dm,
-                        const fetch::oef::pb::Query_Attribute_Type &t) {
+      static bool valid(const fetch::oef::pb::Query_Set &set, const fetch::oef::pb::Query_Attribute_Type &t) {
         switch(set.vals().values_case()) {
         case fetch::oef::pb::Query_Set_Values::kS:
           return t == fetch::oef::pb::Query_Attribute_Type_STRING;
@@ -366,8 +364,7 @@ namespace fetch {
         distance_.set_distance(distance);
       }
       const fetch::oef::pb::Query_Distance &handle() const { return distance_; }
-      static bool valid(const fetch::oef::pb::Query_Distance &dist, const fetch::oef::pb::Query_DataModel &dm,
-                        const fetch::oef::pb::Query_Attribute_Type &t) {
+      static bool valid(const fetch::oef::pb::Query_Distance &dist, const fetch::oef::pb::Query_Attribute_Type &t) {
         return t == fetch::oef::pb::Query_Attribute_Type_LOCATION;
       }
       static bool check(const fetch::oef::pb::Query_Distance &distance, const VariantType &v) {
@@ -420,8 +417,7 @@ namespace fetch {
         p->set_second(r.second);
       }
       const fetch::oef::pb::Query_Range &handle() const { return range_; }
-      static bool valid(const fetch::oef::pb::Query_Range &range, const fetch::oef::pb::Query_DataModel &dm,
-                        const fetch::oef::pb::Query_Attribute_Type &t) {
+      static bool valid(const fetch::oef::pb::Query_Range &range, const fetch::oef::pb::Query_Attribute_Type &t) {
         switch(range.pair_case()) {
         case fetch::oef::pb::Query_Range::kS:
           return t == fetch::oef::pb::Query_Attribute_Type_STRING;
@@ -521,22 +517,71 @@ namespace fetch {
       std::unordered_map<std::string,VariantType> values_;
     public:
       explicit Instance(const DataModel &model, const std::unordered_map<std::string,VariantType> &values) : values_{values} {
+        if(values.size() > size_t(model.handle().attributes_size())) {
+          throw std::invalid_argument("Too many attributes");
+        }
+        size_t nb_required = 0;
+        for(auto &att : model.handle().attributes()) {
+          if(att.required())
+            ++nb_required;
+        }
+        if(values.size() < nb_required) {
+          throw std::invalid_argument("Not enough attributes");
+        }
         auto *mod = instance_.mutable_model();
         mod->CopyFrom(model.handle());
         auto *vals = instance_.mutable_values();
         for(auto &v : values) {
+          const auto iter = std::find_if(model.handle().attributes().begin(), model.handle().attributes().end(),
+                                         [&v](const fetch::oef::pb::Query_Attribute &a) {
+                                           return v.first == a.name();
+                                         });
+          if(iter == model.handle().attributes().end()) {
+            // attribute does not exist in datamodel
+            throw std::invalid_argument("Attribute does not exist in data model.");
+          }
+          auto att_type = iter->type();
+          if(iter->required())
+            --nb_required;
           auto *val = vals->Add();
           val->set_key(v.first);
           auto *value = val->mutable_value();
-          v.second.match([value](int i) { value->set_i(i);},
-                         [value](double d) { value->set_d(d);},
-                         [value](const std::string &s) { value->set_s(s);},
-                         [value](const Location &l) {
+          v.second.match(
+                         [att_type, value](int i) {
+                           if(att_type != fetch::oef::pb::Query_Attribute_Type_INT) {
+                             throw std::invalid_argument("Attribute is not an int in data model.");
+                           }
+                           value->set_i(i);
+                         },
+                         [att_type, value](double d) {
+                           if(att_type != fetch::oef::pb::Query_Attribute_Type_DOUBLE) {
+                             throw std::invalid_argument("Attribute is not a double in data model.");
+                           }
+                           value->set_d(d);
+                         },
+                         [att_type, value](const std::string &s) {
+                           if(att_type != fetch::oef::pb::Query_Attribute_Type_STRING) {
+                             throw std::invalid_argument("Attribute is not a string in data model.");
+                           }
+                           value->set_s(s);
+                         },
+                         [att_type, value](const Location &l) {
+                           if(att_type != fetch::oef::pb::Query_Attribute_Type_LOCATION) {
+                             throw std::invalid_argument("Attribute is not a location in data model.");
+                           }
                            auto *loc = value->mutable_l();
                            loc->set_lon(l.lon);
                            loc->set_lat(l.lat);
                          },
-                         [value](bool b) {value->set_b(b);});
+                         [att_type, value](bool b) {
+                           if(att_type != fetch::oef::pb::Query_Attribute_Type_BOOL) {
+                             throw std::invalid_argument("Attribute is not a bool in data model.");
+                           }
+                           value->set_b(b);
+                         });
+        }
+        if(nb_required > 0) {
+          throw std::invalid_argument("Not enough attributes.");
         }
       }
       explicit Instance(const fetch::oef::pb::Query_Instance &instance) : instance_{instance}
@@ -672,13 +717,13 @@ namespace fetch {
         }
         switch(constraint_case) {
         case fetch::oef::pb::Query_ConstraintExpr_Constraint::kSet:
-          return Set::valid(constraint.set_(), dm, iter->type());
+          return Set::valid(constraint.set_(), iter->type());
         case fetch::oef::pb::Query_ConstraintExpr_Constraint::kRange:
-          return Range::valid(constraint.range_(), dm, iter->type());
+          return Range::valid(constraint.range_(), iter->type());
         case fetch::oef::pb::Query_ConstraintExpr_Constraint::kRelation:
-          return Relation::valid(constraint.relation(), dm, iter->type());
+          return Relation::valid(constraint.relation(), iter->type());
         case fetch::oef::pb::Query_ConstraintExpr_Constraint::kDistance:
-          return Distance::valid(constraint.distance(), dm, iter->type());
+          return Distance::valid(constraint.distance(), iter->type());
         case fetch::oef::pb::Query_ConstraintExpr_Constraint::CONSTRAINT_NOT_SET:
           return false;
         }
