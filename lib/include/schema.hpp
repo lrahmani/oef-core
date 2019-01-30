@@ -881,6 +881,9 @@ namespace fetch {
       fetch::oef::pb::Query_Model model_;
     public:
       explicit QueryModel(const std::vector<ConstraintExpr> &constraints) {
+        if(constraints.size() < 1) {
+          throw std::invalid_argument("Not enough parameters.");
+        }
         auto *cts = model_.mutable_constraints();
         for(auto &c : constraints) {
           auto *ct = cts->Add();
@@ -890,6 +893,11 @@ namespace fetch {
       explicit QueryModel(const std::vector<ConstraintExpr> &constraints, const DataModel &model) : QueryModel{constraints} {
         auto *m = model_.mutable_model();
         m->CopyFrom(model.handle());
+        for(auto &c : model_.constraints()) {
+          if(!ConstraintExpr::valid(c, model_.model())) {
+            throw std::invalid_argument("Mismatch between constraints in data model.");
+          }
+        }
       }
       explicit QueryModel(const fetch::oef::pb::Query_Model &model) : model_{model} {}
       const fetch::oef::pb::Query_Model &handle() const { return model_; }

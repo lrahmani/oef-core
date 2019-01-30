@@ -211,8 +211,8 @@ namespace Test {
     ConstraintExpr c4{Constraint{att2.name(), setAlan_Chris}};
     QueryModel q1{{c4}, datamodel1};
     REQUIRE(q1.valid());
-    QueryModel q2{{ConstraintExpr{Constraint{"fake", setAlan_Chris}}}, datamodel1};
-    REQUIRE(!q2.valid());
+    REQUIRE_THROWS_AS((QueryModel{{ConstraintExpr{Constraint{"fake", setAlan_Chris}}}, datamodel1}), std::invalid_argument);
+    REQUIRE_THROWS_WITH((QueryModel{{ConstraintExpr{Constraint{"fake", setAlan_Chris}}}, datamodel1}), "Mismatch between constraints in data model.");
     REQUIRE(google::protobuf::TextFormat::PrintToString(q1.handle(), &output));
     std::cout << output;
     buffer = serialize(c3.handle());
