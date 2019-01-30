@@ -184,6 +184,9 @@ namespace Test {
     std::cout << output;
     REQUIRE(c2.check(VariantType{3}));
     REQUIRE(!c2.check(VariantType{2}));
+    ConstraintExpr c2_not{Not{c2}};
+    REQUIRE(!c2_not.check(VariantType{3}));
+    REQUIRE(c2_not.check(VariantType{2}));
     buffer = serialize(c2.handle());
     auto c2b = deserialize<fetch::oef::pb::Query_ConstraintExpr>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(c2b, &output));
@@ -196,6 +199,9 @@ namespace Test {
     std::cout << output;
     REQUIRE(c3.check(VariantType{5}));
     REQUIRE(!c3.check(VariantType{3}));
+    ConstraintExpr c3_not{Not{c3}};
+    REQUIRE(!c3_not.check(VariantType{5}));
+    REQUIRE(c3_not.check(VariantType{3}));
     buffer = serialize(c3.handle());
     auto c3b = deserialize<fetch::oef::pb::Query_ConstraintExpr>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(c3b, &output));
@@ -204,6 +210,9 @@ namespace Test {
     Set setAlan_Chris{Set::Op::In, std::unordered_set<std::string>{"Alan", "Chris"}};
     ConstraintExpr c4{Constraint{att2.name(), setAlan_Chris}};
     QueryModel q1{{c4}, datamodel1};
+    REQUIRE(q1.valid());
+    QueryModel q2{{ConstraintExpr{Constraint{"fake", setAlan_Chris}}}, datamodel1};
+    REQUIRE(!q2.valid());
     REQUIRE(google::protobuf::TextFormat::PrintToString(q1.handle(), &output));
     std::cout << output;
     buffer = serialize(c3.handle());

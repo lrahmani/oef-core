@@ -907,7 +907,7 @@ namespace fetch {
         if(model_.constraints_size() < 1) {
           return false;
         }
-        if(model_.has_model()) { // no model, so we cannot check.
+        if(!model_.has_model()) { // no model, so we cannot check.
           return true;
         }
         for(auto &c : model_.constraints()) {
