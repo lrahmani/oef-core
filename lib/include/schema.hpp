@@ -779,6 +779,9 @@ namespace fetch {
       fetch::oef::pb::Query_ConstraintExpr_Or expr_;
     public:
       explicit Or(const std::vector<ConstraintExpr> &expr) {
+        if(expr.size() < 2) {
+          throw std::invalid_argument("Not enough parameters.");
+        }
         auto *cts = expr_.mutable_expr();
         for(auto &e : expr) {
           auto *ct = cts->Add();
@@ -808,7 +811,7 @@ namespace fetch {
             return false;
           }
         }
-        return expr.expr_size() > 0;
+        return expr.expr_size() > 1;
       }
     };
     
@@ -817,6 +820,9 @@ namespace fetch {
       fetch::oef::pb::Query_ConstraintExpr_And expr_;
     public:
       explicit And(const std::vector<ConstraintExpr> &expr) {
+        if(expr.size() < 2) {
+          throw std::invalid_argument("Not enough parameters.");
+        }
         auto *cts = expr_.mutable_expr();
         for(auto &e : expr) {
           auto *ct = cts->Add();
@@ -846,7 +852,7 @@ namespace fetch {
             return false;
           }
         }
-        return expr.expr_size() > 0;
+        return expr.expr_size() > 1;
       }
     };
 

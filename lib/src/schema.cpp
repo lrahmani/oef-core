@@ -31,7 +31,7 @@ namespace fetch {
     }
 
     ConstraintExpr::ConstraintExpr(const Not &notp) {
-      auto *a = constraint_.mutable_and_();
+      auto *a = constraint_.mutable_not_();
       a->CopyFrom(notp.handle());
     }
 

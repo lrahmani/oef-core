@@ -166,9 +166,20 @@ namespace Test {
     auto c1b = deserialize<fetch::oef::pb::Query_ConstraintExpr_Constraint>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(c1b, &output));
     std::cout << output;
+
+    Not c_not{ConstraintExpr{range5to10_cons}};
+    REQUIRE(!fetch::oef::Not::check(c_not.handle(), VariantType{6}));
+    REQUIRE(fetch::oef::Not::check(c_not.handle(), VariantType{12}));
+
+    ConstraintExpr expr_not{c_not};
+    REQUIRE(!expr_not.check(VariantType{6}));
+    REQUIRE(expr_not.check(VariantType{12}));
     
     std::vector<ConstraintExpr> v{ConstraintExpr{range5to10_cons},ConstraintExpr{Constraint{att1.name(), set1_3_5}}};
     ConstraintExpr c2{Or{v}};
+    REQUIRE_THROWS_AS(Or{std::vector<ConstraintExpr>({ConstraintExpr{range5to10_cons}})}, std::invalid_argument);
+    REQUIRE_THROWS_WITH(Or{std::vector<ConstraintExpr>({ConstraintExpr{range5to10_cons}})}, "Not enough parameters.");
+    
     REQUIRE(google::protobuf::TextFormat::PrintToString(c2.handle(), &output));
     std::cout << output;
     REQUIRE(c2.check(VariantType{3}));
@@ -179,6 +190,8 @@ namespace Test {
     std::cout << output;
     
     ConstraintExpr c3{And{v}};
+    REQUIRE_THROWS_AS(And{std::vector<ConstraintExpr>({ConstraintExpr{range5to10_cons}})}, std::invalid_argument);
+    REQUIRE_THROWS_WITH(And{std::vector<ConstraintExpr>({ConstraintExpr{range5to10_cons}})}, "Not enough parameters.");
     REQUIRE(google::protobuf::TextFormat::PrintToString(c3.handle(), &output));
     std::cout << output;
     REQUIRE(c3.check(VariantType{5}));
