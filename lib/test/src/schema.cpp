@@ -207,6 +207,12 @@ namespace Test {
     REQUIRE(google::protobuf::TextFormat::PrintToString(c3b, &output));
     std::cout << output;
 
+    Location cambridge{0.1225, 52.20806};
+    Location downing{0.122, 52.2};
+    REQUIRE(cambridge.distance(downing) < 1.); // less than 1km
+    Location london{-0.12574, 51.50853};
+    REQUIRE(cambridge.distance(london) == Approx(79.6).margin(0.1)); // about 79.6km
+    
     Set setAlan_Chris{Set::Op::In, std::unordered_set<std::string>{"Alan", "Chris"}};
     ConstraintExpr c4{Constraint{att2.name(), setAlan_Chris}};
     QueryModel q1{{c4}, datamodel1};
