@@ -96,6 +96,43 @@ namespace Test {
     REQUIRE(sd.size() == 0);
     REQUIRE(!sd.unregisterAgent(instance1, "Agent2"));
   }
+  TEST_CASE("person", "[query]") {
+    DataModel datamodel1{"Person", {Attribute{"firstName", Type::String, true, "The first name."},
+                                    Attribute{"lastName", Type::String, true},
+                                    Attribute{"age", Type::Int, false, "The age of the person."},
+                                    Attribute{"weight", Type::Double, false},
+                                    Attribute{"married", Type::Bool, false},
+                                    Attribute{"birth_place", Type::Location, false}}};
+    Instance person1{datamodel1, {{"firstName", VariantType{std::string{"Alan"}}},
+                                  {"lastName", VariantType{std::string{"Turing"}}},
+                                  {"age", VariantType{42}},
+                                  {"weight", VariantType{50.0}},
+                                  {"married", VariantType{false}},
+                                  {"birth_place", VariantType{Location{0.1225, 52.20806}}}}};
+    // Range
+    Range range_a_c{std::make_pair("A", "C")};
+    QueryModel qm1{{ConstraintExpr{Constraint{"firstName", range_a_c}}}};
+    REQUIRE(qm1.check(person1));
+    QueryModel qm2{{ConstraintExpr{Constraint{"lastName", range_a_c}}}};
+    REQUIRE(!qm2.check(person1));
+    QueryModel qm3{{ConstraintExpr{Constraint{"middleName", range_a_c}}}};
+    REQUIRE(!qm3.check(person1));
+    // not valid if the constraint is not in the data model.
+    REQUIRE_THROWS_AS((QueryModel{{ConstraintExpr{Constraint{"middleName", range_a_c}}}, datamodel1}), std::invalid_argument);
+    Relation rel_Gt_M{Relation::Op::Gt, std::string{"M"}};
+    And and1{{ConstraintExpr{Constraint{"firstName", range_a_c}},
+              ConstraintExpr{Constraint{"lastName", rel_Gt_M}}}};
+    QueryModel qm4{{ConstraintExpr{and1}}, datamodel1};
+    REQUIRE(QueryModel{{ConstraintExpr{and1}}, datamodel1}.check(person1));
+    And and2{{ConstraintExpr{Constraint{"firstName", range_a_c}},
+              ConstraintExpr{Not{ConstraintExpr{Constraint{"lastName", rel_Gt_M}}}}}};
+    REQUIRE(!QueryModel{{ConstraintExpr{and2}}, datamodel1}.check(person1));
+    
+    // Set
+    // Relation
+    // Distance
+    
+  }
   TEST_CASE("schema serialization", "[serialization]") {
     Attribute att1{"ID", Type::Int, true};
 
@@ -120,6 +157,7 @@ namespace Test {
                                     Attribute{"weight", Type::Double, false},
                                     Attribute{"married", Type::Bool, false},
                                     Attribute{"birth_place", Type::Location, false}}};
+    
     REQUIRE(google::protobuf::TextFormat::PrintToString(datamodel1.handle(), &output));
     std::cout << output;
     buffer = serialize(datamodel1.handle());
