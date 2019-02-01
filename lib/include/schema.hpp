@@ -659,7 +659,8 @@ namespace fetch {
         return stde::optional<VariantType>{iter->second};
       }
     };
-        
+
+    class ConstraintExpr;
     class Constraint {
     public:
       using ValueType = var::variant<Set,Range,Relation,Distance>;
@@ -687,6 +688,7 @@ namespace fetch {
         auto *s = constraint_.mutable_set_();
         s->CopyFrom(distance.handle());
       }
+      operator ConstraintExpr() const;
       const fetch::oef::pb::Query_ConstraintExpr_Constraint &handle() const { return constraint_; }
       static bool check(const fetch::oef::pb::Query_ConstraintExpr_Constraint &constraint, const VariantType &v) {
         auto constraint_case = constraint.constraint_case();
@@ -788,6 +790,7 @@ namespace fetch {
           ct->CopyFrom(e.handle());
         }
       }
+      operator ConstraintExpr() const { return ConstraintExpr{*this}; }
       const fetch::oef::pb::Query_ConstraintExpr_Or &handle() const { return expr_; }
       static bool check(const fetch::oef::pb::Query_ConstraintExpr_Or &expr, const VariantType &v) {
         for(auto &c : expr.expr()) {
@@ -829,6 +832,7 @@ namespace fetch {
           ct->CopyFrom(e.handle());
         }
       }
+      operator ConstraintExpr() const { return ConstraintExpr{*this}; }
       const fetch::oef::pb::Query_ConstraintExpr_And &handle() const { return expr_; }
       static bool check(const fetch::oef::pb::Query_ConstraintExpr_And &expr, const VariantType &v) {
         for(auto &c : expr.expr()) {
@@ -864,6 +868,7 @@ namespace fetch {
         auto *cts = expr_.mutable_expr();
         cts->CopyFrom(expr.handle());
       }
+      operator ConstraintExpr() const { return ConstraintExpr{*this}; }
       const fetch::oef::pb::Query_ConstraintExpr_Not &handle() const { return expr_; }
       static bool check(const fetch::oef::pb::Query_ConstraintExpr_Not &expr, const VariantType &v) {
         return !ConstraintExpr::check(expr.expr(), v);

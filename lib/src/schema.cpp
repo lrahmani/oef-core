@@ -40,6 +40,8 @@ namespace fetch {
       a->CopyFrom(constraint.handle());
     }
     
+    Constraint::operator ConstraintExpr() const { return ConstraintExpr{*this}; }
+
     bool ConstraintExpr::valid(const fetch::oef::pb::Query_ConstraintExpr &constraint, const fetch::oef::pb::Query_DataModel &dm) {
       auto expr_case = constraint.expression_case();
       switch(expr_case) {

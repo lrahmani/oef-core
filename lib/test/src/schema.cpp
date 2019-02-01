@@ -111,22 +111,22 @@ namespace Test {
                                   {"birth_place", VariantType{Location{0.1225, 52.20806}}}}};
     // Range
     Range range_a_c{std::make_pair("A", "C")};
-    QueryModel qm1{{ConstraintExpr{Constraint{"firstName", range_a_c}}}};
+    QueryModel qm1{{Constraint{"firstName", range_a_c}}};
     REQUIRE(qm1.check(person1));
-    QueryModel qm2{{ConstraintExpr{Constraint{"lastName", range_a_c}}}};
+    QueryModel qm2{{Constraint{"lastName", range_a_c}}};
     REQUIRE(!qm2.check(person1));
-    QueryModel qm3{{ConstraintExpr{Constraint{"middleName", range_a_c}}}};
+    QueryModel qm3{{Constraint{"middleName", range_a_c}}};
     REQUIRE(!qm3.check(person1));
     // not valid if the constraint is not in the data model.
-    REQUIRE_THROWS_AS((QueryModel{{ConstraintExpr{Constraint{"middleName", range_a_c}}}, datamodel1}), std::invalid_argument);
+    REQUIRE_THROWS_AS((QueryModel{{Constraint{"middleName", range_a_c}}, datamodel1}), std::invalid_argument);
     Relation rel_Gt_M{Relation::Op::Gt, std::string{"M"}};
-    And and1{{ConstraintExpr{Constraint{"firstName", range_a_c}},
-              ConstraintExpr{Constraint{"lastName", rel_Gt_M}}}};
-    QueryModel qm4{{ConstraintExpr{and1}}, datamodel1};
-    REQUIRE(QueryModel{{ConstraintExpr{and1}}, datamodel1}.check(person1));
-    And and2{{ConstraintExpr{Constraint{"firstName", range_a_c}},
-              ConstraintExpr{Not{ConstraintExpr{Constraint{"lastName", rel_Gt_M}}}}}};
-    REQUIRE(!QueryModel{{ConstraintExpr{and2}}, datamodel1}.check(person1));
+    And and1{{Constraint{"firstName", range_a_c},
+              Constraint{"lastName", rel_Gt_M}}};
+    QueryModel qm4{{and1}, datamodel1};
+    REQUIRE(QueryModel{{and1}, datamodel1}.check(person1));
+    And and2{{Constraint{"firstName", range_a_c},
+              Not{Constraint{"lastName", rel_Gt_M}}}};
+    REQUIRE(!QueryModel{{and2}, datamodel1}.check(person1));
     
     // Set
     // Relation
@@ -205,18 +205,17 @@ namespace Test {
     REQUIRE(google::protobuf::TextFormat::PrintToString(c1b, &output));
     std::cout << output;
 
-    Not c_not{ConstraintExpr{range5to10_cons}};
-    REQUIRE(!fetch::oef::Not::check(c_not.handle(), VariantType{6}));
-    REQUIRE(fetch::oef::Not::check(c_not.handle(), VariantType{12}));
+    Not c_not{range5to10_cons};
+    REQUIRE(!Not::check(c_not.handle(), VariantType{6}));
+    REQUIRE(Not::check(c_not.handle(), VariantType{12}));
 
     ConstraintExpr expr_not{c_not};
     REQUIRE(!expr_not.check(VariantType{6}));
     REQUIRE(expr_not.check(VariantType{12}));
     
-    std::vector<ConstraintExpr> v{ConstraintExpr{range5to10_cons},ConstraintExpr{Constraint{att1.name(), set1_3_5}}};
-    ConstraintExpr c2{Or{v}};
-    REQUIRE_THROWS_AS(Or{std::vector<ConstraintExpr>({ConstraintExpr{range5to10_cons}})}, std::invalid_argument);
-    REQUIRE_THROWS_WITH(Or{std::vector<ConstraintExpr>({ConstraintExpr{range5to10_cons}})}, "Not enough parameters.");
+    ConstraintExpr c2{Or{{range5to10_cons,Constraint{att1.name(), set1_3_5}}}};
+    REQUIRE_THROWS_AS(Or{{range5to10_cons}}, std::invalid_argument);
+    REQUIRE_THROWS_WITH(Or{{range5to10_cons}}, "Not enough parameters.");
     
     REQUIRE(google::protobuf::TextFormat::PrintToString(c2.handle(), &output));
     std::cout << output;
@@ -230,8 +229,8 @@ namespace Test {
     REQUIRE(google::protobuf::TextFormat::PrintToString(c2b, &output));
     std::cout << output;
     
-    ConstraintExpr c3{And{v}};
-    REQUIRE_THROWS_AS(And{std::vector<ConstraintExpr>({ConstraintExpr{range5to10_cons}})}, std::invalid_argument);
+    ConstraintExpr c3{And{{range5to10_cons,Constraint{att1.name(), set1_3_5}}}};
+    REQUIRE_THROWS_AS(And{{range5to10_cons}}, std::invalid_argument);
     REQUIRE_THROWS_WITH(And{std::vector<ConstraintExpr>({ConstraintExpr{range5to10_cons}})}, "Not enough parameters.");
     REQUIRE(google::protobuf::TextFormat::PrintToString(c3.handle(), &output));
     std::cout << output;
@@ -252,11 +251,10 @@ namespace Test {
     REQUIRE(cambridge.distance(london) == Approx(79.6).margin(0.1)); // about 79.6km
     
     Set setAlan_Chris{Set::Op::In, std::unordered_set<std::string>{"Alan", "Chris"}};
-    ConstraintExpr c4{Constraint{att2.name(), setAlan_Chris}};
-    QueryModel q1{{c4}, datamodel1};
+    QueryModel q1{{Constraint{att2.name(), setAlan_Chris}}, datamodel1};
     REQUIRE(q1.valid());
-    REQUIRE_THROWS_AS((QueryModel{{ConstraintExpr{Constraint{"fake", setAlan_Chris}}}, datamodel1}), std::invalid_argument);
-    REQUIRE_THROWS_WITH((QueryModel{{ConstraintExpr{Constraint{"fake", setAlan_Chris}}}, datamodel1}), "Mismatch between constraints in data model.");
+    REQUIRE_THROWS_AS((QueryModel{{Constraint{"fake", setAlan_Chris}}, datamodel1}), std::invalid_argument);
+    REQUIRE_THROWS_WITH((QueryModel{{Constraint{"fake", setAlan_Chris}}, datamodel1}), "Mismatch between constraints in data model.");
     REQUIRE(google::protobuf::TextFormat::PrintToString(q1.handle(), &output));
     std::cout << output;
     buffer = serialize(c3.handle());
@@ -319,16 +317,16 @@ namespace Test {
     Constraint wind_c{wind.name(), eqTrue};
     Constraint air_c{air.name(), eqTrue};
     Constraint humidity_c{humidity.name(), eqTrue};
-    QueryModel q1{{ConstraintExpr{temp_c}}, weather};
+    QueryModel q1{{temp_c}, weather};
     auto agents1 = sd.query(q1);
     REQUIRE(agents1.size() == 3);
-    QueryModel q2{{ConstraintExpr{temp_c},ConstraintExpr{wind_c}}, weather};
+    QueryModel q2{{temp_c,wind_c}, weather};
     auto agents2 = sd.query(q2);
     REQUIRE(agents2.size() == 2);
-    QueryModel q3{{ConstraintExpr{temp_c},ConstraintExpr{wind_c},ConstraintExpr{air_c}}, weather};
+    QueryModel q3{{temp_c,wind_c,air_c}, weather};
     auto agents3 = sd.query(q3);
     REQUIRE(agents3.size() == 1);
-    QueryModel q4{{ConstraintExpr{temp_c},ConstraintExpr{wind_c},ConstraintExpr{air_c}, ConstraintExpr{humidity_c}}, weather};
+    QueryModel q4{{temp_c,wind_c,air_c, humidity_c}, weather};
     auto agents4 = sd.query(q4);
     REQUIRE(agents4.empty());
 
