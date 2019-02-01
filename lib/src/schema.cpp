@@ -42,6 +42,18 @@ namespace fetch {
     
     Constraint::operator ConstraintExpr() const { return ConstraintExpr{*this}; }
 
+    ConstraintExpr operator!(const ConstraintExpr &expr) {
+      return Not{expr};
+    }
+
+    ConstraintExpr operator&&(const ConstraintExpr &lhs, const ConstraintExpr &rhs) {
+      return And{{lhs, rhs}};
+    }
+
+    ConstraintExpr operator||(const ConstraintExpr &lhs, const ConstraintExpr &rhs) {
+      return Or{{lhs, rhs}};
+    }
+    
     bool ConstraintExpr::valid(const fetch::oef::pb::Query_ConstraintExpr &constraint, const fetch::oef::pb::Query_DataModel &dm) {
       auto expr_case = constraint.expression_case();
       switch(expr_case) {

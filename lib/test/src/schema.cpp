@@ -119,14 +119,12 @@ namespace Test {
     REQUIRE(!qm3.check(person1));
     // not valid if the constraint is not in the data model.
     REQUIRE_THROWS_AS((QueryModel{{Constraint{"middleName", range_a_c}}, datamodel1}), std::invalid_argument);
-    Relation rel_Gt_M{Relation::Op::Gt, std::string{"M"}};
+    Relation rel_Gt_M{Relation::Op::Gt, "M" };
     And and1{{Constraint{"firstName", range_a_c},
               Constraint{"lastName", rel_Gt_M}}};
     QueryModel qm4{{and1}, datamodel1};
     REQUIRE(QueryModel{{and1}, datamodel1}.check(person1));
-    And and2{{Constraint{"firstName", range_a_c},
-              Not{Constraint{"lastName", rel_Gt_M}}}};
-    REQUIRE(!QueryModel{{and2}, datamodel1}.check(person1));
+    REQUIRE(!QueryModel{{Constraint{"firstName", range_a_c} && !Constraint{"lastName", rel_Gt_M}}, datamodel1}.check(person1));
     
     // Set
     // Relation
@@ -213,7 +211,7 @@ namespace Test {
     REQUIRE(!expr_not.check(VariantType{6}));
     REQUIRE(expr_not.check(VariantType{12}));
     
-    ConstraintExpr c2{Or{{range5to10_cons,Constraint{att1.name(), set1_3_5}}}};
+    ConstraintExpr c2{range5to10_cons || Constraint{att1.name(), set1_3_5}};
     REQUIRE_THROWS_AS(Or{{range5to10_cons}}, std::invalid_argument);
     REQUIRE_THROWS_WITH(Or{{range5to10_cons}}, "Not enough parameters.");
     
@@ -231,7 +229,7 @@ namespace Test {
     
     ConstraintExpr c3{And{{range5to10_cons,Constraint{att1.name(), set1_3_5}}}};
     REQUIRE_THROWS_AS(And{{range5to10_cons}}, std::invalid_argument);
-    REQUIRE_THROWS_WITH(And{std::vector<ConstraintExpr>({ConstraintExpr{range5to10_cons}})}, "Not enough parameters.");
+    REQUIRE_THROWS_WITH(And{{range5to10_cons}}, "Not enough parameters.");
     REQUIRE(google::protobuf::TextFormat::PrintToString(c3.handle(), &output));
     std::cout << output;
     REQUIRE(c3.check(VariantType{5}));

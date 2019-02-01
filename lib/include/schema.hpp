@@ -153,6 +153,7 @@ namespace fetch {
         auto *val = relation_.mutable_val();
         val->set_s(s);
       }
+      explicit Relation(Op op, const char *s) : Relation(op, std::string{s}) {}
       explicit Relation(Op op, int i) : Relation(op) {
         auto *val = relation_.mutable_val();
         val->set_i(i);
@@ -881,6 +882,10 @@ namespace fetch {
       }
     };
     
+    ConstraintExpr operator!(const ConstraintExpr &expr);
+    ConstraintExpr operator&&(const ConstraintExpr &lhs, const ConstraintExpr &rhs);
+    ConstraintExpr operator||(const ConstraintExpr &lhs, const ConstraintExpr &rhs);
+
     class QueryModel {
     private:
       fetch::oef::pb::Query_Model model_;
