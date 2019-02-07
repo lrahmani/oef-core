@@ -21,11 +21,11 @@ message Query {
         repeated Attribute attributes = 2;
         optional string description = 3;
     }
+    message Location {
+         required double lon = 1;
+         required double lat = 2;
+    }
     message Value {
-        message Location {
-             required double lon = 1;
-             required double lat = 2;
-        }
         oneof value {
             string s = 1;
             double d = 2;
@@ -67,13 +67,8 @@ message Query {
         }
     }
     message Distance {
-        enum Operator {
-             WITHIN = 0; // <= distance
-             BEYOND = 1; // > distance
-        }
-        required Operator op = 1;
-        required Location center = 2;
-        required double distance = 3;
+        required Location center = 1;
+        required double distance = 2;
     }
     message Relation {
         enum Operator {
@@ -101,11 +96,15 @@ message Query {
             message Bools {
                 repeated bool vals = 1;
             }
+            message Locations {
+                repeated Location vals = 1;
+            }
             oneof values {
                 Strings s = 1;
                 Doubles d = 2;
                 Bools b = 3;
                 Ints i = 4;
+                Locations l = 5;
             }
         }
         enum Operator {
@@ -115,28 +114,34 @@ message Query {
         required Operator op = 1;
         required Values vals = 2;
     }
-    message Constraint {
-        message ConstraintType {
-            message Or {
-                repeated ConstraintType expr = 1;
-            }
-            message And {
-                repeated ConstraintType expr = 1;
-            }
+    message ConstraintExpr {
+        message Or {
+            repeated ConstraintExpr expr = 1;
+        }
+        message And {
+            repeated ConstraintExpr expr = 1;
+        }
+        message Not {
+            required ConstraintExpr expr = 1;
+        }
+        message Constraint {
+            required string attribute_name = 1;
             oneof constraint {
-                Or or_ = 1;
-                And and_ = 2;
-                Set set_ = 3;
-                Range range_ = 4;
-                Relation relation = 5;
-                Distance distance = 6;
+                Set set_ = 2;
+                Range range_ = 3;
+                Relation relation = 4;
+                Distance distance = 5;
             }
         }
-        required Attribute attribute = 1;
-        required ConstraintType constraint = 2;
+        oneof expression {
+            Or or_ = 1;
+            And and_ = 2;
+            Not not_ = 3;
+            Constraint constraint = 4;
+        }
     }
     message Model {
-        repeated Constraint constraints = 1;
+        repeated ConstraintExpr constraints = 1;
         optional DataModel model = 2;
     }
 }
