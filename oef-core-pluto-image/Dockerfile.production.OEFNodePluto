@@ -23,7 +23,7 @@ RUN mkdir -p /app \
     && apk update \
 	&& apk add protobuf
 
-COPY --from=builder /source/build/apps/node/OEFNodePluto /app
+COPY --from=builder /source/build/apps/node-pluto/OEFNodePluto /app
 
 EXPOSE 3333
 CMD ["/app/OEFNodePluto"]

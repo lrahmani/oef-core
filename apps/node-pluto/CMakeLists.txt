@@ -1,13 +1,13 @@
 ################################################################################
-# F E T C H   O E F   C O R E   N O D E
+# F E T C H   O E F   C O R E   P L U T O  N O D E
 ################################################################################
 # CMake build : main application
 
 #configure variables
-set (APP_NAME "OEFNode")
+set (APP_NAME "OEFNodePluto")
 
 #configure directories
-set (APP_MODULE_PATH "${PROJECT_SOURCE_DIR}/apps/node")
+set (APP_MODULE_PATH "${PROJECT_SOURCE_DIR}/apps/node-pluto")
 set (APP_SRC_PATH  "${APP_MODULE_PATH}/src" )
 
 #set includes
