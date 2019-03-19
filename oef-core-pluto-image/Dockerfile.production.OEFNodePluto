@@ -15,7 +15,7 @@ COPY . /source
 RUN mkdir build \
     && cd build \
     && cmake .. \
-    && make -j 4 OEFNode
+    && make -j 4 OEFNodePluto
 
 FROM alpine:3.8
 
@@ -23,7 +23,7 @@ RUN mkdir -p /app \
     && apk update \
 	&& apk add protobuf
 
-COPY --from=builder /source/build/apps/node/OEFNode /app
+COPY --from=builder /source/build/apps/node/OEFNodePluto /app
 
 EXPOSE 3333
-CMD ["/app/OEFNode"]
+CMD ["/app/OEFNodePluto"]

@@ -6,8 +6,8 @@ import subprocess
 
 
 PROJECT_ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-DOCKERFILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'Dockerfile.production.OEFNode'))
-REMOTE_REPOSITORY = 'gcr.io/organic-storm-201412/oef-node'
+DOCKERFILE = os.path.abspath(os.path.join(os.path.dirname(__file__), 'Dockerfile.production.OEFNodePluto'))
+REMOTE_REPOSITORY = 'gcr.io/organic-storm-201412/oef-node-pluto'
 
 
 def parse_commandline():
@@ -29,8 +29,8 @@ def main():
     rebuildable = False if version.endswith('-wip') else True
 
     # define all the docker tags
-    latest_tag = 'oef-node:latest'
-    local_tag = 'oef-node:{}'.format(version)
+    latest_tag = 'oef-node-pluto:latest'
+    local_tag = 'oef-node-pluto:{}'.format(version)
     remote_tag = '{}:{}'.format(REMOTE_REPOSITORY, version)
 
     print('Version.....: {}'.format(version))
@@ -63,7 +63,7 @@ def main():
 
         # ensure that we have a rebuildable image
         if not rebuildable:
-            print('The OEF node is not currently rebuildable, please commit first and retry')
+            print('The OEF node Pluto is not currently rebuildable, please commit first and retry')
             sys.exit(1)
 
         # make the remote tag
