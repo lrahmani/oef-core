@@ -68,12 +68,22 @@ namespace fetch {
       }
       void query_oef_search(std::shared_ptr<Buffer> query_buffer, 
           std::function<void(std::error_code, std::shared_ptr<Buffer>)> process_answer) {
-        asyncWriteBuffer(oef_search_.socket_, std::move(query_buffer), 5, 
-            [this,process_answer](std::error_code ec, std::size_t length) {
-              if(ec){
+        fetch::oef::pb::Agent_Server_ID id_msg;
+        id_msg.set_public_key(publicKey_);
+        auto aid_buffer = serialize(id_msg);
+        asyncWriteBuffer(oef_search_.socket_, std::move(aid_buffer), 5,
+            [this,query_buffer,process_answer](std::error_code ec, std::size_t length){
+              if(ec) {
                 process_answer(ec, nullptr);
               } else {
-                asyncReadBuffer(oef_search_.socket_, 10, process_answer);
+                asyncWriteBuffer(oef_search_.socket_, std::move(query_buffer), 5, 
+                    [this,process_answer](std::error_code ec, std::size_t length) {
+                      if(ec){
+                        process_answer(ec, nullptr);
+                      } else {
+                        asyncReadBuffer(oef_search_.socket_, 10, process_answer);
+                      }
+                });
               }
             });
       }

@@ -30,7 +30,7 @@ namespace fetch {
       tcp::socket socket_;
       explicit OefSearch(asio::io_context &io_context, const std::string ip_addr, uint32_t port = 3334) : socket_(io_context){
         tcp::resolver resolver(io_context);
-        //asio::connect(socket_, resolver.resolve(ip_addr,std::to_string(port)));
+        asio::connect(socket_, resolver.resolve(ip_addr,std::to_string(port)));
       }
       // TORM Only for Server's bw compatibility
       explicit OefSearch(asio::io_context &io_context) : socket_(io_context) {}
