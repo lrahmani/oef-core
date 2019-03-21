@@ -1,17 +1,17 @@
-# OEFCore
+# OEFCorePluto
 
-## Setup a OEF node
+## Setup a OEF Pluto node
 
 ### Using docker
-The quickest way to set up a OEF node is to run the Docker image `oef-core-image`:
+The quickest way to set up a OEF node Pluto is to run the Docker image `oef-core-pluto-image`:
 
 - Build:
  
-      ./oef-core-image/scripts/docker-build-img.sh
+      ./oef-core-pluto-image/scripts/docker-build-img.sh
     
 - Run:
 
-      ./oef-core-image/scripts/docker-run.sh -p <host-port>:3333 --
+      ./oef-core-pluto-image/scripts/docker-run.sh -p <host-port>:3333 --
 
 E.g. `<hosr-port>=3333`.
 
