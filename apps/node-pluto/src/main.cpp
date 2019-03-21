@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    fetch::oef::Server s;
+    fetch::oef::Server s("127.0.0.1", 3334);
     s.run_in_thread();
 
   } catch (std::exception& e)

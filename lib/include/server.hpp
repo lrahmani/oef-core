@@ -25,20 +25,31 @@
 #include "agentdirectory.hpp"
 
 namespace fetch {
-  namespace oef {
+  namespace oef {      
+    struct OefSearch {
+      tcp::socket socket_;
+      explicit OefSearch(asio::io_context &io_context, const std::string ip_addr, uint32_t port = 3334) : socket_(io_context){
+        tcp::resolver resolver(io_context);
+        //asio::connect(socket_, resolver.resolve(ip_addr,std::to_string(port)));
+      }
+      // TORM Only for Server's bw compatibility
+      explicit OefSearch(asio::io_context &io_context) : socket_(io_context) {}
+    };
+
     class Server {
     private:
       struct Context {
         tcp::socket socket_;
       explicit Context(tcp::socket socket) : socket_{std::move(socket)} {}
       };
-      
+
       // Careful: order matters.
       asio::io_context io_context_;
       std::vector<std::unique_ptr<std::thread>> threads_;
       tcp::acceptor acceptor_;
       AgentDirectory agentDirectory_;
       ServiceDirectory serviceDirectory_;
+      OefSearch oef_search_;
 
       static fetch::oef::Logger logger;
 
@@ -47,11 +58,14 @@ namespace fetch {
       void do_accept();
     public:
       explicit Server(uint32_t nbThreads = 4, uint32_t backlog = 256) :
-      acceptor_(io_context_, tcp::endpoint(tcp::v4(), static_cast<int>(Ports::Agents))) {
+      acceptor_(io_context_, tcp::endpoint(tcp::v4(), static_cast<int>(Ports::Agents))), oef_search_(io_context_) {
         acceptor_.listen(backlog); // pending connections
         threads_.resize(nbThreads);
       }
-
+      explicit Server(const std::string oefsearch_addr, uint32_t port = 3334) : Server() {
+          logger.debug("Server::Server connection to oef search {}:{}", oefsearch_addr, port);
+          oef_search_ = OefSearch(io_context_, oefsearch_addr, port);
+      }
       Server(const Server &) = delete;
       Server operator=(const Server &) = delete;
       virtual ~Server();

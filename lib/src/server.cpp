@@ -41,12 +41,13 @@ namespace fetch {
       AgentDirectory &agentDirectory_;
       ServiceDirectory &serviceDirectory_;
       tcp::socket socket_;
+      OefSearch &oef_search_;
 
       static fetch::oef::Logger logger;
       
     public:
-      explicit AgentSession(std::string publicKey, AgentDirectory &agentDirectory, ServiceDirectory &serviceDirectory, tcp::socket socket)
-        : publicKey_{std::move(publicKey)}, agentDirectory_{agentDirectory}, serviceDirectory_{serviceDirectory}, socket_(std::move(socket)) {}
+      explicit AgentSession(std::string publicKey, AgentDirectory &agentDirectory, ServiceDirectory &serviceDirectory, tcp::socket socket, OefSearch& oef_search)
+        : publicKey_{std::move(publicKey)}, agentDirectory_{agentDirectory}, serviceDirectory_{serviceDirectory}, socket_(std::move(socket)), oef_search_(oef_search) {}
       virtual ~AgentSession() {
         logger.trace("~AgentSession");
         //socket_.shutdown(asio::socket_base::shutdown_both);
@@ -56,11 +57,25 @@ namespace fetch {
       void start() {
         read();
       }
+      void start_pluto() {
+        read_pluto();
+      }
       void write(std::shared_ptr<Buffer> buffer) {
         asyncWriteBuffer(socket_, std::move(buffer), 5);
       }
       void send(const fetch::oef::pb::Server_AgentMessage &msg) {
         asyncWriteBuffer(socket_, serialize(msg), 10 /* sec ? */);
+      }
+      void query_oef_search(std::shared_ptr<Buffer> query_buffer, 
+          std::function<void(std::error_code, std::shared_ptr<Buffer>)> process_answer) {
+        asyncWriteBuffer(oef_search_.socket_, std::move(query_buffer), 5, 
+            [this,process_answer](std::error_code ec, std::size_t length) {
+              if(ec){
+                process_answer(ec, nullptr);
+              } else {
+                asyncReadBuffer(oef_search_.socket_, 10, process_answer);
+              }
+            });
       }
       std::string id() const { return publicKey_; }
       bool match(const QueryModel &query) const {
@@ -203,6 +218,52 @@ namespace fetch {
           logger.error("AgentSession::process cannot process payload {} from {}", payload_case, publicKey_);
         }
       }
+      void process_pluto(const std::shared_ptr<Buffer> &buffer) {
+        auto envelope = deserialize<fetch::oef::pb::Envelope>(*buffer);
+        auto payload_case = envelope.payload_case();
+        uint32_t msg_id = envelope.msg_id();
+        switch(payload_case) {
+        case fetch::oef::pb::Envelope::kSendMessage:
+          processMessage(msg_id, envelope.release_send_message());
+          break;
+        case fetch::oef::pb::Envelope::kRegisterService:
+        case fetch::oef::pb::Envelope::kUnregisterService:
+        case fetch::oef::pb::Envelope::kRegisterDescription:
+        case fetch::oef::pb::Envelope::kUnregisterDescription:
+        case fetch::oef::pb::Envelope::kSearchAgents:
+        case fetch::oef::pb::Envelope::kSearchServices:
+          query_oef_search(buffer, [this,msg_id](std::error_code ec, std::shared_ptr<Buffer> answer_buffer) {
+            if(ec) {
+              logger.error("AgentSession::process_pluto oef search error on agent msg {}", msg_id);
+              fetch::oef::pb::Server_AgentMessage answer;
+              answer.set_answer_id(msg_id);
+              auto *error = answer.mutable_oef_error();
+              //TOFIX get exact type of message 
+              error->set_operation(fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE); 
+              send(answer);
+            } else {
+              // TOFIX core expects Server.AgentMessage from oef search
+              auto answer = deserialize<fetch::oef::pb::Server_AgentMessage>(*answer_buffer);
+              send(answer);
+            }
+            });
+          break;
+        case fetch::oef::pb::Envelope::PAYLOAD_NOT_SET:
+          logger.error("AgentSession::process cannot process payload {} from {}", payload_case, publicKey_);
+        }
+      }
+      void read_pluto() {
+        auto self(shared_from_this());
+        asyncReadBuffer(socket_, 5, [this, self](std::error_code ec, std::shared_ptr<Buffer> buffer) {
+                                if(ec) {
+                                  agentDirectory_.remove(publicKey_);
+                                  serviceDirectory_.unregisterAll(publicKey_); // TORM
+                                  logger.info("AgentSession::read error on id {} ec {}", publicKey_, ec);
+                                } else {
+                                  process_pluto(buffer);
+                                  read_pluto();
+                                }});
+      }
       void read() {
         auto self(shared_from_this());
         asyncReadBuffer(socket_, 5, [this, self](std::error_code ec, std::shared_ptr<Buffer> buffer) {
@@ -245,9 +306,9 @@ namespace fetch {
                           try {
                             auto ans = deserialize<fetch::oef::pb::Agent_Server_Answer>(*buffer);
                             logger.trace("Server::secretHandshake secret [{}]", ans.answer());
-                            auto session = std::make_shared<AgentSession>(publicKey, agentDirectory_, serviceDirectory_, std::move(context->socket_));
+                            auto session = std::make_shared<AgentSession>(publicKey, agentDirectory_, serviceDirectory_, std::move(context->socket_), oef_search_);
                             if(agentDirectory_.add(publicKey, session)) {
-                              session->start();
+                              session->start_pluto();
                               fetch::oef::pb::Server_Connected status;
                               status.set_status(true);
                               session->write(serialize(status));
