@@ -75,27 +75,7 @@ namespace oef {
       });
     }
 
-    void addNetworkAddress(fetch::oef::pb::Update &update)
-    {
-      if (!updated_address_) return;
-      updated_address_ = false;
-
-      fetch::oef::pb::Update_Address address;
-      address.set_ip(core_ip_addr_);
-      address.set_port(core_port_);
-      address.set_key(server_key_);
-      address.set_signature("Sign");
-
-      fetch::oef::pb::Update_Attribute attr;
-      attr.set_name(fetch::oef::pb::Update_Attribute_Name::Update_Attribute_Name_NETWORK_ADDRESS);
-      auto *val = attr.mutable_value();
-      val->set_type(10);
-      val->mutable_a()->CopyFrom(address);
-
-      update.add_attributes()->CopyFrom(attr);
-    }
-
-    void updateServiceDescription(const std::string &agent, const Instance &instance)
+    void RegisterServiceDescription(const std::string &agent, const Instance &instance)
     {
       std::vector<asio::const_buffer> buffers;
       std::string cmd = "update";
@@ -129,6 +109,26 @@ namespace oef {
 
 
   private:
+
+    void addNetworkAddress(fetch::oef::pb::Update &update)
+    {
+      if (!updated_address_) return;
+      updated_address_ = false;
+
+      fetch::oef::pb::Update_Address address;
+      address.set_ip(core_ip_addr_);
+      address.set_port(core_port_);
+      address.set_key(server_key_);
+      address.set_signature("Sign");
+
+      fetch::oef::pb::Update_Attribute attr;
+      attr.set_name(fetch::oef::pb::Update_Attribute_Name::Update_Attribute_Name_NETWORK_ADDRESS);
+      auto *val = attr.mutable_value();
+      val->set_type(10);
+      val->mutable_a()->CopyFrom(address);
+
+      update.add_attributes()->CopyFrom(attr);
+    }
 
     //tcp::endpoint endpoint_;
     std::shared_ptr<tcp::socket> socket_;

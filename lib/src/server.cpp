@@ -42,12 +42,13 @@ namespace fetch {
       ServiceDirectory &serviceDirectory_;
       tcp::socket socket_;
       OefSearch &oef_search_;
+      SearchEngineCom &oef_search_new_;
 
       static fetch::oef::Logger logger;
       
     public:
-      explicit AgentSession(std::string publicKey, AgentDirectory &agentDirectory, ServiceDirectory &serviceDirectory, tcp::socket socket, OefSearch& oef_search)
-        : publicKey_{std::move(publicKey)}, agentDirectory_{agentDirectory}, serviceDirectory_{serviceDirectory}, socket_(std::move(socket)), oef_search_(oef_search) {}
+      explicit AgentSession(std::string publicKey, AgentDirectory &agentDirectory, ServiceDirectory &serviceDirectory, tcp::socket socket, OefSearch& oef_search, SearchEngineCom& oef_search_new)
+        : publicKey_{std::move(publicKey)}, agentDirectory_{agentDirectory}, serviceDirectory_{serviceDirectory}, socket_(std::move(socket)), oef_search_(oef_search), oef_search_new_(oef_search_new) {}
       virtual ~AgentSession() {
         logger.trace("~AgentSession");
         //socket_.shutdown(asio::socket_base::shutdown_both);
@@ -302,6 +303,27 @@ namespace fetch {
           logger.error("AgentSession::process cannot process payload {} from {}", payload_case, publicKey_);
         }
       }
+      void process_pluto_new(const std::shared_ptr<Buffer> &buffer) {
+        auto envelope = deserialize<fetch::oef::pb::Envelope>(*buffer);
+        auto payload_case = envelope.payload_case();
+        uint32_t msg_id = envelope.msg_id();
+        switch(payload_case) {
+        case fetch::oef::pb::Envelope::kSendMessage:
+          processMessage(msg_id, envelope.release_send_message());
+          break;
+        case fetch::oef::pb::Envelope::kRegisterService:
+          oef_search_new_.RegisterServiceDescription(publicKey_, Instance(envelope.register_service().description()));
+          // TOFIX API: change Instance to Query.Instance? to AgentDescription?
+        case fetch::oef::pb::Envelope::kUnregisterService:
+        case fetch::oef::pb::Envelope::kRegisterDescription:
+        case fetch::oef::pb::Envelope::kUnregisterDescription:
+        case fetch::oef::pb::Envelope::kSearchAgents:
+        case fetch::oef::pb::Envelope::kSearchServices:
+          break;
+        case fetch::oef::pb::Envelope::PAYLOAD_NOT_SET:
+          logger.error("AgentSession::process cannot process payload {} from {}", payload_case, publicKey_);
+        }
+      }
       void read_pluto() {
         auto self(shared_from_this());
         asyncReadBuffer(socket_, 5, [this, self](std::error_code ec, std::shared_ptr<Buffer> buffer) {
@@ -310,7 +332,7 @@ namespace fetch {
                                   serviceDirectory_.unregisterAll(publicKey_); // TORM
                                   logger.info("AgentSession::read error on id {} ec {}", publicKey_, ec);
                                 } else {
-                                  process_pluto(buffer);
+                                  process_pluto_new(buffer);
                                   read_pluto();
                                 }});
       }
@@ -356,7 +378,7 @@ namespace fetch {
                           try {
                             auto ans = deserialize<fetch::oef::pb::Agent_Server_Answer>(*buffer);
                             logger.trace("Server::secretHandshake secret [{}]", ans.answer());
-                            auto session = std::make_shared<AgentSession>(publicKey, agentDirectory_, serviceDirectory_, std::move(context->socket_), oef_search_);
+                            auto session = std::make_shared<AgentSession>(publicKey, agentDirectory_, serviceDirectory_, std::move(context->socket_), oef_search_, oef_search_new_);
                             if(agentDirectory_.add(publicKey, session)) {
                               session->start_pluto();
                               fetch::oef::pb::Server_Connected status;
