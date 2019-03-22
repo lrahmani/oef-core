@@ -17,12 +17,3 @@ The quickest way to set up a OEF node Pluto is to run the Docker image `oef-core
 
 
 You can access the node at `127.0.0.1:3333`.
-
-
-### Compile from source
-
-Please look at the [INSTALL.txt](./INSTALL.txt) instructions.
-
-Then:
- 
-    ./build/apps/node/OEFNode
