@@ -23,6 +23,7 @@
 #include "servicedirectory.hpp"
 #include "logger.hpp"
 #include "agentdirectory.hpp"
+#include "search_com.hpp"
 
 namespace fetch {
   namespace oef {      

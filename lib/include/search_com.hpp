@@ -19,7 +19,7 @@
 
 #include "schema.hpp"
 #include "common.hpp"
-#include "update.pb.h"
+#include "search.pb.h"
 
 
 namespace fetch {
