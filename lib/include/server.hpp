@@ -31,7 +31,7 @@ namespace fetch {
       tcp::socket socket_;
       explicit OefSearch(asio::io_context &io_context, const std::string ip_addr, uint32_t port = 3334) : socket_(io_context){
         tcp::resolver resolver(io_context);
-        asio::connect(socket_, resolver.resolve(ip_addr,std::to_string(port)));
+        //asio::connect(socket_, resolver.resolve(ip_addr,std::to_string(port)));
       }
       // TORM Only for Server's bw compatibility
       explicit OefSearch(asio::io_context &io_context) : socket_(io_context) {}
@@ -51,6 +51,7 @@ namespace fetch {
       AgentDirectory agentDirectory_;
       ServiceDirectory serviceDirectory_;
       OefSearch oef_search_;
+      SearchEngineCom oef_search_new_;
 
       static fetch::oef::Logger logger;
 
@@ -59,13 +60,17 @@ namespace fetch {
       void do_accept();
     public:
       explicit Server(uint32_t nbThreads = 4, uint32_t backlog = 256) :
-      acceptor_(io_context_, tcp::endpoint(tcp::v4(), static_cast<int>(Ports::Agents))), oef_search_(io_context_) {
+      acceptor_(io_context_, tcp::endpoint(tcp::v4(), static_cast<int>(Ports::Agents))), 
+      oef_search_(io_context_), oef_search_new_(io_context_) {
         acceptor_.listen(backlog); // pending connections
         threads_.resize(nbThreads);
       }
-      explicit Server(const std::string oefsearch_addr, uint32_t port = 3334) : Server() {
+      explicit Server(const std::string oefsearch_addr, 
+                      uint32_t port = static_cast<uint32_t>(Ports::OEFSearch)) : Server() {
           logger.debug("Server::Server connection to oef search {}:{}", oefsearch_addr, port);
           oef_search_ = OefSearch(io_context_, oefsearch_addr, port);
+          oef_search_new_ = SearchEngineCom(io_context_, "127.0.0.1", acceptor_.local_endpoint().port(),
+                                              oefsearch_addr, port);
       }
       Server(const Server &) = delete;
       Server operator=(const Server &) = delete;

@@ -24,7 +24,7 @@
 #include <thread>
 
 enum class Ports {
-  ServiceDiscovery = 2222, Agents = 3333
+  ServiceDiscovery = 2222, Agents = 3333, OEFSearch = 7501
 };
 
 using asio::ip::tcp;

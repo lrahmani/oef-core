@@ -29,10 +29,32 @@ namespace oef {
     explicit SearchEngineCom(asio::io_context& io_context, char *server_key, tcp::endpoint node_address, std::string node_ip)
         : socket_(std::make_shared<tcp::socket>(io_context))
         , server_key_{server_key}
-        , node_ip_{node_ip}
-        , node_port_{node_address.port()}
+        , core_ip_addr_{node_ip}
+        , core_port_{node_address.port()}
         , updated_address_{true}
     {
+    }
+    explicit SearchEngineCom(asio::io_context& io_context, std::string core_ip_addr, uint32_t core_port,
+        std::string ip_addr, uint32_t port = static_cast<uint32_t>(Ports::OEFSearch))
+        : socket_(std::make_shared<tcp::socket>(io_context))
+        , server_key_{(char*)"core_key"}
+        , core_ip_addr_{core_ip_addr}
+        , core_port_{core_port}
+        , updated_address_{true}
+    {
+        tcp::resolver resolver(io_context);
+        try {
+          asio::connect(*socket_, resolver.resolve(ip_addr,std::to_string(port)));
+        } catch (std::exception& e) {
+          std::cerr << "Error connecting to OEF Search " << ip_addr << ":" << std::to_string(port) 
+                    << " : " << e.what() << std::endl;
+          throw;
+        }
+    }
+    // TORM Only for Server's bw compatibility
+    explicit SearchEngineCom(asio::io_context& io_context) : socket_(std::make_shared<tcp::socket>(io_context))
+    {
+      std::cerr << "Delete Me " << std::endl;
     }
     virtual ~SearchEngineCom()
     {
@@ -59,8 +81,8 @@ namespace oef {
       updated_address_ = false;
 
       fetch::oef::pb::Update_Address address;
-      address.set_ip(node_ip_);
-      address.set_port(node_port_);
+      address.set_ip(core_ip_addr_);
+      address.set_port(core_port_);
       address.set_key(server_key_);
       address.set_signature("Sign");
 
@@ -111,8 +133,8 @@ namespace oef {
     //tcp::endpoint endpoint_;
     std::shared_ptr<tcp::socket> socket_;
     char *server_key_;
-    std::string node_ip_ = {};
-    uint32_t node_port_ = 0;
+    std::string core_ip_addr_ = {};
+    uint32_t core_port_ = 0;
     bool updated_address_;
   };
 
