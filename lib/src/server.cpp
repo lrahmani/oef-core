@@ -71,17 +71,45 @@ namespace fetch {
         fetch::oef::pb::Agent_Server_ID id_msg;
         id_msg.set_public_key(publicKey_);
         auto aid_buffer = serialize(id_msg);
+        logger.trace("AgentSession::query_oef_search sending agent id ...");
         asyncWriteBuffer(oef_search_.socket_, std::move(aid_buffer), 5,
             [this,query_buffer,process_answer](std::error_code ec, std::size_t length){
               if(ec) {
+                logger.error("AgentSession::query_oef_search error sending serialized public key {}", publicKey_);
                 process_answer(ec, nullptr);
               } else {
+                logger.trace("AgentSession::query_oef_search fwding agent operation ...");
                 asyncWriteBuffer(oef_search_.socket_, std::move(query_buffer), 5, 
                     [this,process_answer](std::error_code ec, std::size_t length) {
                       if(ec){
+                        logger.error("AgentSession::query_oef_search error fwding agent operation");
                         process_answer(ec, nullptr);
                       } else {
+                        logger.trace("AgentSession::query_oef_search getting oef search answer ...");
                         asyncReadBuffer(oef_search_.socket_, 10, process_answer);
+                      }
+                });
+              }
+            });
+      }
+      void update_oef_search(std::shared_ptr<Buffer> update_buffer, 
+          std::function<void(std::error_code, std::size_t length)> err_handler) {
+        fetch::oef::pb::Agent_Server_ID id_msg;
+        id_msg.set_public_key(publicKey_);
+        auto aid_buffer = serialize(id_msg);
+        logger.trace("AgentSession::update_oef_search sending agent id ...");
+        asyncWriteBuffer(oef_search_.socket_, std::move(aid_buffer), 5,
+            [this,update_buffer,err_handler](std::error_code ec, std::size_t length){
+              if(ec) {
+                logger.error("AgentSession::update_oef_search error sending serialized public key {}", publicKey_);
+                err_handler(ec, 0);
+              } else {
+                logger.trace("AgentSession::update_oef_search fwding agent operation ...");
+                asyncWriteBuffer(oef_search_.socket_, std::move(update_buffer), 5, 
+                    [this,err_handler](std::error_code ec, std::size_t length) {
+                      if(ec){
+                        logger.error("AgentSession::update_oef_search error fwding agent operation");
+                        err_handler(ec, 0);
                       }
                 });
               }
@@ -240,6 +268,18 @@ namespace fetch {
         case fetch::oef::pb::Envelope::kUnregisterService:
         case fetch::oef::pb::Envelope::kRegisterDescription:
         case fetch::oef::pb::Envelope::kUnregisterDescription:
+          update_oef_search(buffer, [this,msg_id](std::error_code ec, std::size_t length) {
+            if(ec) {
+              logger.error("AgentSession::process_pluto oef search error on agent msg {}", msg_id);
+              fetch::oef::pb::Server_AgentMessage answer;
+              answer.set_answer_id(msg_id);
+              auto *error = answer.mutable_oef_error();
+              //TOFIX get exact type of message 
+              error->set_operation(fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE); 
+              send(answer);
+            }
+            });
+          break;
         case fetch::oef::pb::Envelope::kSearchAgents:
         case fetch::oef::pb::Envelope::kSearchServices:
           query_oef_search(buffer, [this,msg_id](std::error_code ec, std::shared_ptr<Buffer> answer_buffer) {
