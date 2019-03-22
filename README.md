@@ -11,11 +11,12 @@ The quickest way to set up a OEF node Pluto is to run the Docker image `oef-core
     
 - Run:
 
-      ./oef-core-pluto-image/scripts/docker-run.sh -p <host-port>:3333 --
+  First you **must** [run an `oef-core-search` node (`OEFNodeSearch`)   ](https://github.com/uvue-git/oef-core-search/blob/master/README.md)
 
-E.g. `<hosr-port>=3333`.
+      ./oef-core-pluto-image/scripts/docker-run.sh --network host --
 
-You can access the node at `127.0.0.1:<host-port>`.
+
+You can access the node at `127.0.0.1:3333`.
 
 
 ### Compile from source
