@@ -1,4 +1,3 @@
-#pragma once
 //------------------------------------------------------------------------------
 //
 //   Copyright 2018-2019 Fetch.AI Limited
@@ -17,11 +16,23 @@
 //
 //------------------------------------------------------------------------------
 
-#include <vector>
-#include <cstdint>
+#include "agent_directory.hpp"
 
 namespace fetch {
-  namespace oef {
-    using Buffer = std::vector<uint8_t>;
-  } // oef
-} // fetch
+namespace oef {
+
+fetch::oef::Logger AgentDirectory_::logger = fetch::oef::Logger("agent-directory");
+
+const std::vector<std::string> AgentDirectory_::search(const QueryModel &query) const {
+  std::lock_guard<std::mutex> lock(lock_);
+  std::vector<std::string> res;
+  for(const auto &s : sessions_) {
+    if(s.second->match(query)) {
+      res.emplace_back(s.first);
+    }
+  }
+  return res;
+}
+
+} // oef
+} // fethc

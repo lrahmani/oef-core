@@ -67,6 +67,10 @@ namespace fetch {
       void send(const fetch::oef::pb::Server_AgentMessage &msg) {
         asyncWriteBuffer(socket_, serialize(msg), 10 /* sec ? */);
       }
+      void send(const fetch::oef::pb::Server_AgentMessage& msg, 
+                std::function<void(std::error_code,std::size_t)> continuation) {
+        asyncWriteBuffer(socket_, serialize(msg), 10 /* sec ? */, continuation);
+      }
       void query_oef_search(std::shared_ptr<Buffer> query_buffer, 
           std::function<void(std::error_code, std::shared_ptr<Buffer>)> process_answer) {
         fetch::oef::pb::Agent_Server_ID id_msg;
@@ -218,7 +222,7 @@ namespace fetch {
           }
           DEBUG(logger, "AgentSession::processMessage to agent {} : {}", msg->destination(), to_string(message));
           auto buffer = serialize(message);
-          asyncWriteBuffer(session->socket_, buffer, 5, [this,did,msg_id,msg](std::error_code ec, std::size_t length) {
+          session->send(message, [this,did,msg_id,msg](std::error_code ec, std::size_t length) {
               if(ec) {
                 sendDialogError(msg_id, did, msg->destination());
               }

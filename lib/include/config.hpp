@@ -17,11 +17,18 @@
 //
 //------------------------------------------------------------------------------
 
-#include <vector>
-#include <cstdint>
+#include "interface/buffer_t.hpp"
 
 namespace fetch {
-  namespace oef {
-    using Buffer = std::vector<uint8_t>;
-  } // oef
-} // fetch
+namespace oef {
+namespace config {
+
+enum class Ports {
+  ServiceDiscovery = 2222, Agents = 3333, OEFSearch = 7501
+};
+
+} // config
+} //oef
+} //fetch
+
+

@@ -19,7 +19,7 @@
 
 #include <memory>
 #include <vector>
-#include "types/agent_session_t.hpp"
+#include "interface/agent_session_t.hpp"
 #include "schema.hpp" // TOFIX
 
 namespace fetch {

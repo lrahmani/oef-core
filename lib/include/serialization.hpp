@@ -17,11 +17,40 @@
 //
 //------------------------------------------------------------------------------
 
-#include <vector>
-#include <cstdint>
+#include "interface/buffer_t.hpp"
 
 namespace fetch {
-  namespace oef {
-    using Buffer = std::vector<uint8_t>;
-  } // oef
-} // fetch
+namespace oef {
+namespace serializer {
+
+template <typename T>
+T from_string(const std::string &s) {
+  T t;
+  t.ParseFromString(s);
+  return t;
+}
+
+template <typename T>
+std::shared_ptr<Buffer> serialize(const T &t) {
+  size_t size = t.ByteSize();
+  Buffer data;
+  data.resize(size);
+  (void)t.SerializeWithCachedSizesToArray(data.data());
+  return std::make_shared<Buffer>(data);
+}
+
+template <typename T>
+T deserialize(const Buffer &buffer) {
+  T t;
+  t.ParseFromArray(buffer.data(), buffer.size());
+  return t;
+}
+
+} // serializer
+} //oef
+} //fetch
+
+enum class Ports {
+  ServiceDiscovery = 2222, Agents = 3333, OEFSearch = 7501
+};
+
