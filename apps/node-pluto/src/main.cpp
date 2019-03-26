@@ -17,7 +17,7 @@
 //------------------------------------------------------------------------------
 
 #include <iostream>
-#include "server.hpp"
+#include "core_server.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
       return 1;
     }
 
-    fetch::oef::Server s("127.0.0.1");
+    fetch::oef::CoreServer s;
     s.run_in_thread();
 
   } catch (std::exception& e)

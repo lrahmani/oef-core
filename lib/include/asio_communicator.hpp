@@ -29,8 +29,9 @@ namespace fetch {
         //
         explicit AsioComm(asio::io_context& io_context);
         explicit AsioComm(asio::io_context& io_context, std::string to_ip_addr, uint32_t to_port);
+        explicit AsioComm(tcp::socket socket) : socket_(std::move(socket)) {}
         //
-        AsioComm(AsioComm&& asio_comm) : socket_(std::move(asio_comm.socket_)) {}
+        explicit AsioComm(AsioComm&& asio_comm) : socket_(std::move(asio_comm.socket_)) {}
         //
         void connect() {};
         void disconnect() override;

@@ -34,10 +34,10 @@ namespace fetch {
       uint32_t lstn_port_;
       
       //
-      agent_directory_t agent_directory_;
-      oefsearch_session_t oefsearch_session_;
+      //agent_directory_t agent_directory_;
+      oefsearch_session_t* oefsearch_session_;
 
-      void process_agent_connection(const std::shared_ptr<communicator_t>& communicator); 
+      virtual void process_agent_connection(const std::shared_ptr<communicator_t>& communicator) = 0; 
     public:
       //
       virtual void run() = 0;

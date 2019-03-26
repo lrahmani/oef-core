@@ -36,7 +36,7 @@ namespace fetch {
         std::string ip_addr_;
         uint32_t port_;
         //
-        communicator_t comm_;
+        communicator_t* comm_;
         //
         virtual void register_service_description(const std::string& agent, const Instance& instance) = 0;
         virtual std::vector<agent_t> query_search_service_sync(const QueryModel& query) = 0; 

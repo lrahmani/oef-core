@@ -16,9 +16,15 @@
 //
 //------------------------------------------------------------------------------
 
+#define DEBUG_ON 1
 #include "agent_session.hpp"
 #include "agent.pb.h"
-//#include <google/protobuf/text_format.h>
+
+namespace fetch {
+namespace oef {
+
+extern std::string to_string(const google::protobuf::Message &msg); // TOFIX
+
 
 fetch::oef::Logger AgentSession_::logger = fetch::oef::Logger("oef-node::agent-session");
     
@@ -160,5 +166,5 @@ void AgentSession_::read() {
                              });
 }
 
-}
-}
+} // oef
+} // fetch

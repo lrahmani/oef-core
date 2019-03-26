@@ -18,14 +18,16 @@
 //------------------------------------------------------------------------------
 
 #include "interface/core_server_t.hpp"
-#include <memory>
-#include "agent.pb.h"
-#include "common.hpp"
-//#include "servicedirectory.hpp"
-#include "logger.hpp"
+#include "interface/communicator_t.hpp"
+
 #include "agent_directory.hpp"
+#include "asio_communicator.hpp"
+#include "serialization.hpp"
 #include "config.hpp"
-//#include "search_com.hpp"
+#include "logger.hpp"
+#include "agent.pb.h"
+
+#include <memory>
 
 namespace fetch {
   namespace oef {      
@@ -41,18 +43,19 @@ namespace fetch {
 
       static fetch::oef::Logger logger;
 
-      void secretHandshake(const std::string &publicKey, const std::shared_ptr<Context> &context);  
+      void process_agent_connection(const std::shared_ptr<communicator_t>& communicator) override {}
+      void secretHandshake(const std::string &publicKey, const std::shared_ptr<AsioComm> comm);
       void newSession(tcp::socket socket);
       void do_accept();
     public:
-      explicit Server(uint32_t nbThreads = 4, uint32_t backlog = 256) :
+      explicit CoreServer(uint32_t nbThreads = 4, uint32_t backlog = 256) :
       acceptor_(io_context_, tcp::endpoint(tcp::v4(), static_cast<int>(config::Ports::Agents))) {
         acceptor_.listen(backlog); // pending connections
         threads_.resize(nbThreads);
       }
-      Server(const Server &) = delete;
-      Server operator=(const Server &) = delete;
-      virtual ~Server();
+      CoreServer(const CoreServer &) = delete;
+      CoreServer operator=(const CoreServer &) = delete;
+      virtual ~CoreServer();
       void run() override;
       void run_in_thread() override;
       size_t nb_agents() const override { return agentDirectory_.size(); }

@@ -59,7 +59,10 @@ namespace fetch {
       void write(std::shared_ptr<Buffer> buffer) {
         comm_->send_async(std::move(buffer));
       }
-      void send(const fetch::oef::pb::Server_AgentMessage &msg) {
+      void send(std::shared_ptr<Buffer> buffer) override { // TOFIX
+        write(buffer);
+      }
+      void send(const fetch::oef::pb::Server_AgentMessage &msg) override {
         comm_->send_async(serializer::serialize(msg));
       }
       void send(const fetch::oef::pb::Server_AgentMessage& msg, 
@@ -93,4 +96,7 @@ namespace fetch {
       void process_pluto_new(const std::shared_ptr<Buffer> &buffer);
       void read_pluto();
       void read();
-}; 
+};
+
+} //oef
+} //fetch

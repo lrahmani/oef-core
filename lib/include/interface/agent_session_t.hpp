@@ -47,6 +47,8 @@ namespace fetch {
         //
         virtual void send(const fetch::oef::pb::Server_AgentMessage& msg, 
                           std::function<void(std::error_code,std::size_t)> continuation) = 0;
+        virtual void send(const fetch::oef::pb::Server_AgentMessage& msg) = 0;
+        virtual void send(std::shared_ptr<Buffer> buffer) = 0; // TOFIX
         //
         virtual bool match(const QueryModel &query) const = 0;
         //
