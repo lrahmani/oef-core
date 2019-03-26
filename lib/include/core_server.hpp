@@ -22,10 +22,13 @@
 
 #include "agent_directory.hpp"
 #include "asio_communicator.hpp"
+#include "asio_acceptor.hpp"
 #include "serialization.hpp"
 #include "config.hpp"
 #include "logger.hpp"
 #include "agent.pb.h"
+
+#include "asio.hpp"
 
 #include <memory>
 
@@ -35,22 +38,22 @@ namespace fetch {
     class CoreServer : public core_server_t {
     private:
 
-      // Careful: order matters.
       asio::io_context io_context_;
       std::vector<std::unique_ptr<std::thread>> threads_;
-      tcp::acceptor acceptor_;
+      AsioAcceptor acceptor_;
       AgentDirectory_ agentDirectory_;
 
       static fetch::oef::Logger logger;
-
-      void process_agent_connection(const std::shared_ptr<communicator_t>& communicator) override {}
-      void secretHandshake(const std::string &publicKey, const std::shared_ptr<AsioComm> comm);
-      void newSession(tcp::socket socket);
+      
       void do_accept();
+      void do_accept(std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) override;
+      void process_agent_connection(const std::shared_ptr<communicator_t> communicator) override {}
+      
+      void newSession(std::shared_ptr<communicator_t> comm);
+      void secretHandshake(const std::string &publicKey, std::shared_ptr<communicator_t> comm);
     public:
       explicit CoreServer(uint32_t nbThreads = 4, uint32_t backlog = 256) :
-      acceptor_(io_context_, tcp::endpoint(tcp::v4(), static_cast<int>(config::Ports::Agents))) {
-        acceptor_.listen(backlog); // pending connections
+      acceptor_(io_context_, static_cast<uint32_t>(config::Ports::Agents)) {
         threads_.resize(nbThreads);
       }
       CoreServer(const CoreServer &) = delete;

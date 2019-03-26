@@ -17,37 +17,32 @@
 //
 //------------------------------------------------------------------------------
 
-#include <memory>
-#include <string>
-#include "interface/agent_directory_t.hpp"
-#include "interface/agent_session_t.hpp"
-#include "interface/oefsearch_session_t.hpp"
+#include "interface/comm_acceptor_t.hpp"
 #include "interface/communicator_t.hpp"
+
+#include "config.hpp"
+#include "asio.hpp"
+
+#include <memory>
+
+using asio::ip::tcp;
+
 
 namespace fetch {
   namespace oef {      
-    class core_server_t {
-    private:
-      //
-      std::string core_id_;
-      std::string lstn_ip_addr_;
-      uint32_t lstn_port_;
-      
-      //
-      //agent_directory_t agent_directory_;
-      oefsearch_session_t* oefsearch_session_;
-      
-      virtual void do_accept(std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) = 0;
-      virtual void process_agent_connection(const std::shared_ptr<communicator_t> communicator) = 0; 
+
+    class AsioAcceptor : public comm_acceptor_t {
     public:
-      //
-      virtual void run() = 0;
-      virtual void run_in_thread() = 0;
-      virtual void stop() = 0;
-      virtual size_t nb_agents() const = 0;
-      //
-      virtual ~core_server_t() {};
+      explicit AsioAcceptor(asio::io_context& io_context, uint32_t port, uint32_t backlog = 256) : 
+        acceptor_(io_context, tcp::endpoint(tcp::v4(), port)) {
+          acceptor_.listen(backlog); // pending connections
+        }
+      void do_accept_async(
+          std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) override;
+      ~AsioAcceptor() {}
+    private:
+      //asio::io_context io_context_;
+      tcp::acceptor acceptor_;
     };
   }
 }
-

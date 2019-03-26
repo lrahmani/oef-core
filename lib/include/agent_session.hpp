@@ -33,12 +33,12 @@ namespace fetch {
       const std::string publicKey_;
       stde::optional<Instance> description_;
       AgentDirectory_ &agentDirectory_;
-      std::shared_ptr<AsioComm> comm_;
+      std::shared_ptr<communicator_t> comm_;
 
       static fetch::oef::Logger logger;
       
     public:
-      explicit AgentSession_(std::string agent_id, std::shared_ptr<AsioComm> comm, AgentDirectory_& agentDirectory)
+      explicit AgentSession_(std::string agent_id, std::shared_ptr<communicator_t> comm, AgentDirectory_& agentDirectory)
         : publicKey_{std::move(agent_id)}, agentDirectory_{agentDirectory}, comm_(std::move(comm)) {}
       virtual ~AgentSession_() {
         logger.trace("~AgentSession_");

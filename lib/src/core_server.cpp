@@ -51,18 +51,23 @@ namespace fetch {
     void CoreServer::do_accept() {
       logger.trace("CoreServer::do_accept");
       
-      acceptor_.async_accept([this](std::error_code ec, tcp::socket socket) {
+      do_accept([this](std::error_code ec, std::shared_ptr<communicator_t> comm) {
                                if (!ec) {
                                  logger.trace("CoreServer::do_accept starting new session");
-                                 newSession(std::move(socket));
+                                 newSession(std::move(comm));
                                  do_accept();
                                } else {
                                  logger.error("CoreServer::do_accept error {}", ec.value());
                                }
                              });
     }
-    void CoreServer::newSession(tcp::socket socket) {
-      auto comm_agent = std::make_shared<AsioComm>(std::move(socket));
+
+    void CoreServer::do_accept(std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) {
+      acceptor_.do_accept_async(continuation);
+    }
+
+    void CoreServer::newSession(std::shared_ptr<communicator_t> comm_agent) {
+      //auto comm_agent = std::make_shared<AsioComm>(std::move(socket));
       comm_agent->receive_async(
           [this,comm_agent](std::error_code ec, std::shared_ptr<Buffer> buffer) {
             if(ec) {
@@ -91,7 +96,7 @@ namespace fetch {
           });
     }
 
-    void CoreServer::secretHandshake(const std::string &publicKey, std::shared_ptr<AsioComm> comm) {
+    void CoreServer::secretHandshake(const std::string &publicKey, std::shared_ptr<communicator_t> comm) {
       fetch::oef::pb::Server_Phrase phrase;
       phrase.set_phrase("RandomlyGeneratedString");
       auto phrase_buffer = serializer::serialize(phrase);
