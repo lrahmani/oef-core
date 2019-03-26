@@ -21,7 +21,7 @@
 #include <string>
 #include "interface/agent_directory_t.hpp"
 #include "interface/agent_session_t.hpp"
-#include "interface/oefsearch_session_t.hpp"
+#include "interface/oef_search_client_t.hpp"
 #include "interface/communicator_t.hpp"
 
 namespace fetch {
@@ -33,9 +33,6 @@ namespace fetch {
       std::string lstn_ip_addr_;
       uint32_t lstn_port_;
       
-      //
-      //agent_directory_t agent_directory_;
-      oefsearch_session_t* oefsearch_session_;
       
       virtual void do_accept(std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) = 0;
       virtual void process_agent_connection(const std::shared_ptr<communicator_t> communicator) = 0; 

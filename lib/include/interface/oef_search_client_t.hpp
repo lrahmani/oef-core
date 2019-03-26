@@ -30,21 +30,20 @@ namespace fetch {
       std::string core_ip_addr;
     };
     //
-    class oefsearch_session_t {
-      private:
-        //
-        std::string ip_addr_;
-        uint32_t port_;
-        //
-        communicator_t* comm_;
-        //
-        virtual void register_service_description(const std::string& agent, const Instance& instance) = 0;
-        virtual std::vector<agent_t> query_search_service_sync(const QueryModel& query) = 0; 
+    class oef_search_client_t {
       public:
         //
         virtual void connect() = 0;
         //
-        virtual ~oefsearch_session_t() {}
+        virtual void register_description_sync(const std::string& agent, const Instance& desc) = 0;
+        virtual void unregister_description_sync(const std::string& agent) = 0;
+        virtual void register_service_sync(const std::string& agent, const Instance& service) = 0;
+        virtual void unregister_service_sync(const std::string& agent, const Instance& service) = 0;
+        // TOFIX QueryModel don't save constraintExpr s
+        virtual std::vector<agent_t> search_agents_sync(const std::string& agent, const QueryModel& query) = 0; 
+        virtual std::vector<agent_t> search_service_sync(const std::string& agent, const QueryModel& query) = 0;
+        //
+        virtual ~oef_search_client_t() {}
     };
   } // oef
 } // fetch

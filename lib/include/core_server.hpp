@@ -24,6 +24,7 @@
 #include "asio_communicator.hpp"
 #include "asio_acceptor.hpp"
 #include "serialization.hpp"
+#include "oef_search_client.hpp"
 #include "config.hpp"
 #include "logger.hpp"
 #include "agent.pb.h"
@@ -42,6 +43,7 @@ namespace fetch {
       std::vector<std::unique_ptr<std::thread>> threads_;
       AsioAcceptor acceptor_;
       AgentDirectory_ agentDirectory_;
+      std::shared_ptr<OefSearchClient> oef_search_;
 
       static fetch::oef::Logger logger;
       
@@ -52,9 +54,23 @@ namespace fetch {
       void newSession(std::shared_ptr<communicator_t> comm);
       void secretHandshake(const std::string &publicKey, std::shared_ptr<communicator_t> comm);
     public:
-      explicit CoreServer(uint32_t nbThreads = 4, uint32_t backlog = 256) :
-      acceptor_(io_context_, static_cast<uint32_t>(config::Ports::Agents)) {
+      explicit CoreServer(
+          std::string s_ip_addr = "127.0.0.1", 
+          uint32_t s_port = static_cast<uint32_t>(config::Ports::Search),
+          uint32_t nbThreads = 4, 
+          uint32_t backlog = 256) :
+      acceptor_(io_context_, static_cast<uint32_t>(config::Ports::Agents)){
         threads_.resize(nbThreads);
+        try {
+          auto s_comm = std::make_shared<AsioComm>(io_context_, s_ip_addr, s_port);
+          oef_search_ = std::make_shared<OefSearchClient>(s_comm, 
+              "core-server", acceptor_.local_address(), acceptor_.local_port());
+          std::cout << "CoreServer::CoreServer info connected to OEF Search " << s_ip_addr 
+            << ":" << s_port << std::endl;
+        } catch (std::exception e) {
+          std::cerr << "CoreServer::CoreServer error while initializing OefSearchClient " << e.what() << std::endl;
+          stop();
+        }
       }
       CoreServer(const CoreServer &) = delete;
       CoreServer operator=(const CoreServer &) = delete;

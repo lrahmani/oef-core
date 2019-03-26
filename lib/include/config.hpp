@@ -24,7 +24,7 @@ namespace oef {
 namespace config {
 
 enum class Ports {
-  ServiceDiscovery = 2222, Agents = 3333, OEFSearch = 7501
+  ServiceDiscovery = 2222, Agents = 3333, Search = 7501
 };
 
 } // config
