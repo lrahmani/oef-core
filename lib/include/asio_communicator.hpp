@@ -36,8 +36,10 @@ namespace fetch {
         void connect() {};
         void disconnect() override;
         //
-        std::error_code  send_sync(std::shared_ptr<Buffer>) override { return std::error_code();};
-        std::error_code  receive_sync(std::shared_ptr<Buffer>) override { return std::error_code();};
+        std::error_code send_sync(std::shared_ptr<Buffer> buffer) override;
+        std::error_code send_sync(std::vector<std::shared_ptr<Buffer>> buffers) override;
+        std::error_code receive_sync(std::shared_ptr<Buffer>& buffer) override;
+        //
         void send_async(std::shared_ptr<Buffer> buffer) override;
         void send_async(std::shared_ptr<Buffer> buffer,
                                 std::function<void(std::error_code,std::size_t)> continuation) override;

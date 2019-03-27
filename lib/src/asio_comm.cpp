@@ -86,5 +86,63 @@ void AsioComm::receive_async(std::function<void(std::error_code,std::shared_ptr<
       });
 }
 
+std::error_code AsioComm::send_sync(std::shared_ptr<Buffer> buffer) {
+  std::vector<asio::const_buffer> buffers;
+  uint32_t len = uint32_t(buffer->size());
+  buffers.emplace_back(asio::buffer(&len, sizeof(len)));
+  buffers.emplace_back(asio::buffer(buffer->data(), len));
+  uint32_t total = len+sizeof(len);
+  std::error_code ec;
+  std::size_t length = asio::write(socket_, buffers, ec);
+  if (length != total) {
+    std::cerr << "AsioComm::send_sync error sent " << length << " expected " << total 
+      << " : " << ec.value() << std::endl;
+    // TOFIX should connection be closed?
+  }
+  return ec;
+}
+
+std::error_code AsioComm::send_sync(std::vector<std::shared_ptr<Buffer>> buffers) {
+  std::vector<asio::const_buffer> buffers_all;
+  std::vector<uint32_t> len_all;
+  uint32_t total = 0;
+  for(auto& buffer : buffers) {
+    len_all.emplace_back(uint32_t(buffer->size()));
+    auto* len = &len_all.back();
+    buffers_all.emplace_back(asio::buffer(len, sizeof(*len)));
+    buffers_all.emplace_back(asio::buffer(buffer->data(), *len));
+    total += *len+sizeof(*len);
+  }
+  std::error_code ec;
+  std::size_t length = asio::write(socket_, buffers_all, ec);
+  if (length != total) {
+    std::cerr << "AsioComm::send_sync error sent " << length << " expected " << total 
+      << " : " << ec.value() << std::endl;
+    // TOFIX should connection be closed?
+  }
+  return ec;
+}
+
+std::error_code AsioComm::receive_sync(std::shared_ptr<Buffer>& buffer) {
+  auto len = std::make_shared<uint32_t>();
+  std::error_code ec;
+  auto length = asio::read(socket_, asio::buffer(len.get(), sizeof(uint32_t)), ec);
+  if (ec || length!=sizeof(uint32_t)) { // TOFIX testing length is not needed
+    // http://charette.no-ip.com:81/programming/doxygen/boost/group__read.html#gab89bd5df06ea19ed5542ebfd514aef30
+    std::cerr << "AsioComm::receive_sync error while receivin lenght of data " << ec.value() << std::endl;
+    return ec;
+    // TOFIX should connection be closed?
+  }
+  buffer = std::make_shared<Buffer>(*len);
+  length = asio::read(socket_, asio::buffer(buffer->data(), *len), ec);
+  if (ec || length!=*len) { // TOFIX testing length is not needed
+    std::cerr << "AsioComm::receive_sync error while receiving data " << ec.value() 
+      << " - got " << length << "expected " << len << std::endl;
+    // TOFIX should connection be closed?
+    return ec;
+  }
+  return ec;
+}
+
 } // oef
 } // fetch

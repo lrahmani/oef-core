@@ -30,8 +30,10 @@ namespace fetch {
         virtual void connect() = 0;
         virtual void disconnect() = 0;
         //
-        virtual std::error_code  send_sync(std::shared_ptr<Buffer>) = 0;
-        virtual std::error_code  receive_sync(std::shared_ptr<Buffer>) = 0;
+        virtual std::error_code send_sync(std::shared_ptr<Buffer> buffer) = 0;
+        virtual std::error_code send_sync(std::vector<std::shared_ptr<Buffer>> buffers) = 0;
+        virtual std::error_code receive_sync(std::shared_ptr<Buffer>& buffer) = 0;
+        //
         virtual void send_async(std::shared_ptr<Buffer> buffer) = 0;
         virtual void send_async(std::shared_ptr<Buffer> buffer,
                                 std::function<void(std::error_code,std::size_t)> continuation) = 0;

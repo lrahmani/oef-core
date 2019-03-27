@@ -111,7 +111,7 @@ namespace fetch {
               try {
                 auto ans = serializer::deserialize<fetch::oef::pb::Agent_Server_Answer>(*buffer);
                 logger.trace("CoreServer::secretHandshake secret [{}]", ans.answer());
-                auto session = std::make_shared<AgentSession_>(publicKey, std::move(comm), agentDirectory_);
+                auto session = std::make_shared<AgentSession_>(publicKey, std::move(comm), agentDirectory_, *oef_search_);
                 if(agentDirectory_.add(publicKey, std::static_pointer_cast<agent_session_t>(session))) {
                 // everything is fine -> send connection OK.
                   session->start();

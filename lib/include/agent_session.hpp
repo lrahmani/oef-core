@@ -24,22 +24,31 @@
 
 #include "agent.pb.h"
 #include "agent_directory.hpp"
+#include "oef_search_client.hpp"
 
 namespace fetch {
-  namespace oef {
-    class AgentSession_ : public agent_session_t, public std::enable_shared_from_this<AgentSession_>
-    {
+namespace oef {
+    class AgentSession_ : public agent_session_t, public std::enable_shared_from_this<AgentSession_> {
     private:
       const std::string publicKey_;
       stde::optional<Instance> description_;
       AgentDirectory_ &agentDirectory_;
+      OefSearchClient& oef_search_; // TOFIX change to oef_search_client_t&
       std::shared_ptr<communicator_t> comm_;
 
       static fetch::oef::Logger logger;
       
     public:
-      explicit AgentSession_(std::string agent_id, std::shared_ptr<communicator_t> comm, AgentDirectory_& agentDirectory)
-        : publicKey_{std::move(agent_id)}, agentDirectory_{agentDirectory}, comm_(std::move(comm)) {}
+      explicit AgentSession_(
+          std::string agent_id, std::shared_ptr<communicator_t> comm, 
+          AgentDirectory_& agentDirectory, 
+          OefSearchClient& oef_search) 
+        : publicKey_{std::move(agent_id)} 
+        , agentDirectory_{agentDirectory}
+        , oef_search_{oef_search} 
+        , comm_{std::move(comm)}
+      {}
+
       virtual ~AgentSession_() {
         logger.trace("~AgentSession_");
       }
@@ -69,11 +78,6 @@ namespace fetch {
                 std::function<void(std::error_code,std::size_t)> continuation) override {
         comm_->send_async(serializer::serialize(msg), continuation);
       }
-      void query_oef_search(std::shared_ptr<Buffer> query_buffer, 
-          std::function<void(std::error_code, std::shared_ptr<Buffer>)> process_answer);
-      void update_oef_search(std::shared_ptr<Buffer> update_buffer, 
-          std::function<void(std::error_code, std::size_t length)> err_handler);
-      /* */
       bool match(const QueryModel &query) const override {
         if(!description_) {
           return false;

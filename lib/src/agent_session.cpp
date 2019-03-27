@@ -28,16 +28,6 @@ extern std::string to_string(const google::protobuf::Message &msg); // TOFIX
 
 fetch::oef::Logger AgentSession_::logger = fetch::oef::Logger("oef-node::agent-session");
     
-void AgentSession_::query_oef_search(std::shared_ptr<Buffer> query_buffer, 
-  std::function<void(std::error_code, std::shared_ptr<Buffer>)> process_answer){
-  /* TODO forward to new OEFSearch */
-}
-
-void AgentSession_::update_oef_search(std::shared_ptr<Buffer> update_buffer, 
-  std::function<void(std::error_code, std::size_t length)> err_handler) {
-  /* TODO forward to new OEFSearch */
-}
-
 void AgentSession_::process_register_description(uint32_t msg_id, const fetch::oef::pb::AgentDescription &desc) {
   /* TODO forward to new OEFSearch */
   description_ = Instance(desc.description());
@@ -59,9 +49,11 @@ void AgentSession_::process_unregister_description(uint32_t msg_id) {
   DEBUG(logger, "AgentSession_::processUnregisterDescription setting description to agent {}", publicKey_);
 }
 
-void AgentSession_::process_register_service(uint32_t msg_id, const fetch::oef::pb::AgentDescription &desc) {
-  /* TODO forward to new OEFSearch */
+void AgentSession_::process_register_service(uint32_t msg_id, const fetch::oef::pb::AgentDescription& desc) {
+  auto service_desc = Instance(desc.description()); 
   DEBUG(logger, "AgentSession_::processRegisterService registering agent {} : {}", publicKey_, to_string(desc));
+  oef_search_.register_service_sync(publicKey_, service_desc);
+  // TOFIX should add a status answer, even in the case of no error
 }
 
 void AgentSession_::process_unregister_service(uint32_t msg_id, const fetch::oef::pb::AgentDescription &desc) {
