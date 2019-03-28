@@ -1,4 +1,4 @@
-# OEFCorePluto
+# OEF Core for Pluto
 
 ## Setup a OEF Pluto node
 
@@ -11,7 +11,7 @@ The quickest way to set up a OEF node Pluto is to run the Docker image `oef-core
     
 - Run:
 
-  First you **must** [run an `oef-core-search` node (`OEFNodeSearch`)   ](https://github.com/uvue-git/oef-core-search/blob/master/README.md)
+  First you **must** [run an `oef-core-search` node (`OEFNodeSearch`)   ](https://github.com/uvue-git/oef-search-pluto/blob/docker-img/README.md)
 
       ./oef-core-pluto-image/scripts/docker-run.sh --network host --
 
