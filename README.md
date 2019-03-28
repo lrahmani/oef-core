@@ -11,7 +11,7 @@ Docker image [`oef-core-pluto-image`](https://github.com/uvue-git/oef-core-pluto
     
 - Run:
 
-  First you **must** [run an `oef-core-search` node (`OEFNodeSearch`)   ](https://github.com/uvue-git/oef-search-pluto/blob/docker-img/README.md)
+  First you **must** [run an `oef-search-pluto` node](https://github.com/uvue-git/oef-search-pluto/blob/docker-img/README.md)
 
       ./oef-core-pluto-image/scripts/docker-run.sh --network host --
 
