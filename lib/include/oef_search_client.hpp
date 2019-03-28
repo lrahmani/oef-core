@@ -59,6 +59,7 @@ namespace oef {
   private:
     void addNetworkAddress(fetch::oef::pb::Update &update);
 
+    mutable std::mutex lock_;
     std::shared_ptr<AsioComm> comm_;
     //char *server_key_;
     std::string core_ip_addr_;

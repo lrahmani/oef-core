@@ -34,6 +34,7 @@ void OefSearchClient::register_description_sync(const std::string& agent, const 
 void OefSearchClient::unregister_description_sync(const std::string& agent) {}
 
 void OefSearchClient::register_service_sync(const std::string& agent, const Instance& service) {
+  std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
   // first, prepare cmd message  
   fetch::oef::pb::Server_Phrase cmd; // TOFIX using a string field proto msg for serialization
   cmd.set_phrase("update");
