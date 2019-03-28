@@ -139,16 +139,16 @@ namespace Test {
     std::string output;
     REQUIRE(google::protobuf::TextFormat::PrintToString(att1.handle(), &output));
     std::cout << output;
-    auto buffer = serializer::serialize(att1.handle());
-    auto a1b = serializer::deserialize<fetch::oef::pb::Query_Attribute>(*buffer);
+    auto buffer = pbs::serialize(att1.handle());
+    auto a1b = pbs::deserialize<fetch::oef::pb::Query_Attribute>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(a1b, &output));
     std::cout << output;
     
     Attribute att2{"firstName", Type::String, true, "The first name."};
     REQUIRE(google::protobuf::TextFormat::PrintToString(att2.handle(), &output));
     std::cout << output;
-    buffer = serializer::serialize(att2.handle());
-    auto a2b = serializer::deserialize<fetch::oef::pb::Query_Attribute>(*buffer);
+    buffer = pbs::serialize(att2.handle());
+    auto a2b = pbs::deserialize<fetch::oef::pb::Query_Attribute>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(a2b, &output));
     std::cout << output;
 
@@ -160,8 +160,8 @@ namespace Test {
     
     REQUIRE(google::protobuf::TextFormat::PrintToString(datamodel1.handle(), &output));
     std::cout << output;
-    buffer = serializer::serialize(datamodel1.handle());
-    auto d1b = serializer::deserialize<fetch::oef::pb::Query_DataModel>(*buffer);
+    buffer = pbs::serialize(datamodel1.handle());
+    auto d1b = pbs::deserialize<fetch::oef::pb::Query_DataModel>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(d1b, &output));
     std::cout << output;
 
@@ -170,8 +170,8 @@ namespace Test {
     std::cout << output;
     REQUIRE(range5to10.check(VariantType{6}));
     REQUIRE(!range5to10.check(VariantType{12}));
-    buffer = serializer::serialize(range5to10.handle());
-    auto r1b = serializer::deserialize<fetch::oef::pb::Query_Range>(*buffer);
+    buffer = pbs::serialize(range5to10.handle());
+    auto r1b = pbs::deserialize<fetch::oef::pb::Query_Range>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(r1b, &output));
     std::cout << output;
 
@@ -180,8 +180,8 @@ namespace Test {
     std::cout << output;
     REQUIRE(set1_3_5.check(VariantType{3}));
     REQUIRE(!set1_3_5.check(VariantType{2}));
-    buffer = serializer::serialize(set1_3_5.handle());
-    auto s1b = serializer::deserialize<fetch::oef::pb::Query_Set>(*buffer);
+    buffer = pbs::serialize(set1_3_5.handle());
+    auto s1b = pbs::deserialize<fetch::oef::pb::Query_Set>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(s1b, &output));
     std::cout << output;
 
@@ -190,8 +190,8 @@ namespace Test {
     std::cout << output;
     REQUIRE(relLt5.check(VariantType{3}));
     REQUIRE(!relLt5.check(VariantType{7}));
-    buffer = serializer::serialize(relLt5.handle());
-    auto rel1b = serializer::deserialize<fetch::oef::pb::Query_Relation>(*buffer);
+    buffer = pbs::serialize(relLt5.handle());
+    auto rel1b = pbs::deserialize<fetch::oef::pb::Query_Relation>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(rel1b, &output));
     std::cout << output;
 
@@ -200,8 +200,8 @@ namespace Test {
     std::cout << output;
     REQUIRE(range5to10_cons.check(VariantType{7}));
     REQUIRE(!range5to10_cons.check(VariantType{3}));
-    buffer = serializer::serialize(range5to10_cons.handle());
-    auto c1b = serializer::deserialize<fetch::oef::pb::Query_ConstraintExpr_Constraint>(*buffer);
+    buffer = pbs::serialize(range5to10_cons.handle());
+    auto c1b = pbs::deserialize<fetch::oef::pb::Query_ConstraintExpr_Constraint>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(c1b, &output));
     std::cout << output;
 
@@ -224,8 +224,8 @@ namespace Test {
     ConstraintExpr c2_not{Not{c2}};
     REQUIRE(!c2_not.check(VariantType{3}));
     REQUIRE(c2_not.check(VariantType{2}));
-    buffer = serializer::serialize(c2.handle());
-    auto c2b = serializer::deserialize<fetch::oef::pb::Query_ConstraintExpr>(*buffer);
+    buffer = pbs::serialize(c2.handle());
+    auto c2b = pbs::deserialize<fetch::oef::pb::Query_ConstraintExpr>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(c2b, &output));
     std::cout << output;
     
@@ -239,8 +239,8 @@ namespace Test {
     ConstraintExpr c3_not{Not{c3}};
     REQUIRE(!c3_not.check(VariantType{5}));
     REQUIRE(c3_not.check(VariantType{3}));
-    buffer = serializer::serialize(c3.handle());
-    auto c3b = serializer::deserialize<fetch::oef::pb::Query_ConstraintExpr>(*buffer);
+    buffer = pbs::serialize(c3.handle());
+    auto c3b = pbs::deserialize<fetch::oef::pb::Query_ConstraintExpr>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(c3b, &output));
     std::cout << output;
 
@@ -257,8 +257,8 @@ namespace Test {
     REQUIRE_THROWS_WITH((QueryModel{{Constraint{"fake", setAlan_Chris}}, datamodel1}), "Mismatch between constraints in data model.");
     REQUIRE(google::protobuf::TextFormat::PrintToString(q1.handle(), &output));
     std::cout << output;
-    buffer = serializer::serialize(c3.handle());
-    auto q1b = serializer::deserialize<fetch::oef::pb::Query_Model>(*buffer);
+    buffer = pbs::serialize(c3.handle());
+    auto q1b = pbs::deserialize<fetch::oef::pb::Query_Model>(*buffer);
     REQUIRE(google::protobuf::TextFormat::PrintToString(q1b, &output));
     std::cout << output;
     REQUIRE(q1.check_value<std::string>("Alan"));

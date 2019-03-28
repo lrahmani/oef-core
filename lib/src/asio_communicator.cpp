@@ -42,7 +42,7 @@ void AsioComm::disconnect() {
 }
 
 void AsioComm::send_async(std::shared_ptr<Buffer> buffer,
-                          std::function<void(std::error_code,std::size_t)> continuation) {
+                          LengthContinuation continuation) {
   std::vector<asio::const_buffer> buffers;
   uint32_t len = uint32_t(buffer->size());
   buffers.emplace_back(asio::buffer(&len, sizeof(len)));
@@ -63,7 +63,7 @@ void AsioComm::send_async(std::shared_ptr<Buffer> buffer) {
   send_async(buffer, [](std::error_code ec, std::size_t length) {});
 }
 
-void AsioComm::receive_async(std::function<void(std::error_code,std::shared_ptr<Buffer>)> continuation) {
+void AsioComm::receive_async(BufferContinuation continuation) {
   auto len = std::make_shared<uint32_t>();
   asio::async_read(socket_, asio::buffer(len.get(), sizeof(uint32_t)), 
       [this,len,continuation](std::error_code ec, std::size_t length) {

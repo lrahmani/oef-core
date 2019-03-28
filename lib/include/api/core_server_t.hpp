@@ -17,6 +17,7 @@
 //
 //------------------------------------------------------------------------------
 
+#include "api/continuation_t.hpp"
 #include "api/agent_directory_t.hpp"
 #include "api/agent_session_t.hpp"
 #include "api/oef_search_client_t.hpp"
@@ -35,7 +36,7 @@ namespace oef {
       uint32_t lstn_port_;
       
       //
-      virtual void do_accept(std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) = 0;
+      virtual void do_accept(CommunicatorContinuation continuation) = 0;
       virtual void process_agent_connection(const std::shared_ptr<communicator_t> communicator) = 0; 
     public:
       //

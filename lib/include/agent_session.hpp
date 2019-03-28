@@ -73,11 +73,11 @@ namespace oef {
         write(buffer);
       }
       void send(const fetch::oef::pb::Server_AgentMessage &msg) override {
-        comm_->send_async(serializer::serialize(msg));
+        comm_->send_async(pbs::serialize(msg));
       }
       void send(const fetch::oef::pb::Server_AgentMessage& msg, 
-                std::function<void(std::error_code,std::size_t)> continuation) override {
-        comm_->send_async(serializer::serialize(msg), continuation);
+                LengthContinuation continuation) override {
+        comm_->send_async(pbs::serialize(msg), continuation);
       }
       bool match(const QueryModel &query) const override {
         if(!description_) {

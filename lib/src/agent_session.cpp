@@ -22,14 +22,12 @@
 namespace fetch {
 namespace oef {
 
-extern std::string to_string(const google::protobuf::Message &msg); // TOFIX
-
 fetch::oef::Logger AgentSession::logger = fetch::oef::Logger("agent-session");
     
 void AgentSession::process_register_description(uint32_t msg_id, const fetch::oef::pb::AgentDescription &desc) {
   description_ = Instance(desc.description());
   DEBUG(logger, "AgentSession::processRegisterDescription setting description to agent {} : {}", 
-      publicKey_, to_string(desc));
+      publicKey_, pbs::to_string(desc));
   
   auto ec = oef_search_.register_description_sync(publicKey_, *description_);
   if(ec) {
@@ -50,7 +48,7 @@ void AgentSession::process_unregister_description(uint32_t msg_id) {
 
 void AgentSession::process_register_service(uint32_t msg_id, const fetch::oef::pb::AgentDescription& desc) {
   auto service_desc = Instance(desc.description()); 
-  DEBUG(logger, "AgentSession::processRegisterService registering agent {} : {}", publicKey_, to_string(desc));
+  DEBUG(logger, "AgentSession::processRegisterService registering agent {} : {}", publicKey_, pbs::to_string(desc));
   auto ec = oef_search_.register_service_sync(publicKey_, service_desc);
   if(ec) {
     send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);
@@ -60,7 +58,7 @@ void AgentSession::process_register_service(uint32_t msg_id, const fetch::oef::p
 
 void AgentSession::process_unregister_service(uint32_t msg_id, const fetch::oef::pb::AgentDescription &desc) {
   auto service_desc = Instance(desc.description()); 
-  DEBUG(logger, "AgentSession::processUnregisterService unregistering agent {} : {}", publicKey_, to_string(desc));
+  DEBUG(logger, "AgentSession::processUnregisterService unregistering agent {} : {}", publicKey_, pbs::to_string(desc));
   auto ec = oef_search_.unregister_service_sync(publicKey_, service_desc);
   if(ec) {
     send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::UNREGISTER_SERVICE);
@@ -71,7 +69,7 @@ void AgentSession::process_unregister_service(uint32_t msg_id, const fetch::oef:
 void AgentSession::process_search_agents(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) {
   // TOFIX QueryModel don't save constraintExpr s
   auto query = QueryModel(search.query());
-  DEBUG(logger, "AgentSession::processSearchAgents from agent {} : {}", publicKey_, to_string(search));
+  DEBUG(logger, "AgentSession::processSearchAgents from agent {} : {}", publicKey_, pbs::to_string(search));
   std::vector<agent_t> agents;
   auto ec = oef_search_.search_agents_sync(publicKey_, query, agents);
   
@@ -93,7 +91,7 @@ void AgentSession::process_search_agents(uint32_t msg_id, const fetch::oef::pb::
 void AgentSession::process_search_service(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) {
   // TOFIX QueryModel don't save constraintExpr s
   auto query = QueryModel(search.query());
-  DEBUG(logger, "AgentSession::processQuery from agent {} : {}", publicKey_, to_string(search));
+  DEBUG(logger, "AgentSession::processQuery from agent {} : {}", publicKey_, pbs::to_string(search));
   std::vector<agent_t> agents;
   auto ec = oef_search_.search_service_sync(publicKey_, query, agents);
   if(ec) {
@@ -133,7 +131,7 @@ void AgentSession::send_error(uint32_t msg_id, fetch::oef::pb::Server_AgentMessa
 void AgentSession::process_message(uint32_t msg_id, fetch::oef::pb::Agent_Message *msg) {
   /* TODO update procecss_message to process messages for agents on different OEF Cores */
   auto session = agentDirectory_.session(msg->destination());
-  DEBUG(logger, "AgentSession::process_message from agent {} : {}", publicKey_, to_string(*msg));
+  DEBUG(logger, "AgentSession::process_message from agent {} : {}", publicKey_, pbs::to_string(*msg));
   logger.trace("AgentSession::process_message to {} from {}", msg->destination(), publicKey_);
   uint32_t did = msg->dialogue_id();
   if(session) {
@@ -149,7 +147,7 @@ void AgentSession::process_message(uint32_t msg_id, fetch::oef::pb::Agent_Messag
       content->set_allocated_fipa(msg->release_fipa());
     }
     /* TOFIX until AgentDirectory returns agent_session_t */ 
-    DEBUG(logger, "AgentSession::process_message to agent {} : {}", msg->destination(), to_string(message));
+    DEBUG(logger, "AgentSession::process_message to agent {} : {}", msg->destination(), pbs::to_string(message));
     //auto buffer = serialize(message);
     session->send(message, 
         [this,did,msg_id,msg](std::error_code ec, std::size_t length) {
@@ -163,7 +161,7 @@ void AgentSession::process_message(uint32_t msg_id, fetch::oef::pb::Agent_Messag
 }
 
 void AgentSession::process(const std::shared_ptr<Buffer> &buffer) {
-  auto envelope = serializer::deserialize<fetch::oef::pb::Envelope>(*buffer);
+  auto envelope = pbs::deserialize<fetch::oef::pb::Envelope>(*buffer);
   auto payload_case = envelope.payload_case();
   uint32_t msg_id = envelope.msg_id();
   switch(payload_case) {

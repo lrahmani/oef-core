@@ -25,7 +25,7 @@ namespace fetch {
 namespace oef {
     
   void AsioAcceptor::do_accept_async(
-      std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) {
+      CommunicatorContinuation continuation) {
     acceptor_.async_accept([this,continuation](std::error_code ec, tcp::socket socket) {
                                if (ec) {
                                  std::cerr << "AsioAcceptor::do_accept_async error " 

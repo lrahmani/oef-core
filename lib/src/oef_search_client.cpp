@@ -25,8 +25,6 @@ namespace oef {
     
 fetch::oef::Logger OefSearchClient::logger = fetch::oef::Logger("oef-search-client");
 
-extern std::string to_string(const google::protobuf::Message &msg); // TOFIX
-    
 std::error_code OefSearchClient::register_description_sync(const std::string& agent, const Instance& desc) {
   std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
   logger.warn("OefSearchClient::register_description_sync NOT implemented yet"); 
@@ -44,7 +42,7 @@ std::error_code OefSearchClient::register_service_sync(const std::string& agent,
   // first, prepare cmd message  
   fetch::oef::pb::Server_Phrase cmd; // TOFIX using a string field proto msg for serialization
   cmd.set_phrase("update");
-  auto buffer_cmd = serializer::serialize(cmd);
+  auto buffer_cmd = pbs::serialize(cmd);
   
   // then prepare update proto message
   fetch::oef::pb::Update update;
@@ -57,7 +55,7 @@ std::error_code OefSearchClient::register_service_sync(const std::string& agent,
 
   addNetworkAddress(update);
 
-  auto buffer_update = serializer::serialize(update);
+  auto buffer_update = pbs::serialize(update);
   
   // send messages 
   std::vector<std::shared_ptr<Buffer>> buffers;
@@ -65,7 +63,7 @@ std::error_code OefSearchClient::register_service_sync(const std::string& agent,
   buffers.emplace_back(buffer_update);
   
   logger.debug("OefSearchClient::register_service_sync sending update from agent {} to OefSearch: {}", 
-        agent, to_string(update));
+        agent, pbs::to_string(update));
 
   return comm_->send_sync(buffers); // TOFIX not sure it's appropriate to return network error_code s
 }

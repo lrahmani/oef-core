@@ -74,7 +74,7 @@ namespace oef {
       void stop() override;
     private:
       void do_accept();
-      void do_accept(std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) override;
+      void do_accept(CommunicatorContinuation continuation) override;
       void process_agent_connection(const std::shared_ptr<communicator_t> communicator) override {}
       
       void newSession(std::shared_ptr<communicator_t> comm);

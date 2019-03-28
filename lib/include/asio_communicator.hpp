@@ -45,8 +45,8 @@ namespace oef {
         //
         void send_async(std::shared_ptr<Buffer> buffer) override;
         void send_async(std::shared_ptr<Buffer> buffer,
-                                std::function<void(std::error_code,std::size_t)> continuation) override;
-        void receive_async(std::function<void(std::error_code,std::shared_ptr<Buffer>)> continuation) override;
+                                LengthContinuation continuation) override;
+        void receive_async(BufferContinuation continuation) override;
         //
         ~AsioComm() {
           disconnect();

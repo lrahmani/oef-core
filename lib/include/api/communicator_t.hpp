@@ -17,11 +17,10 @@
 //
 //------------------------------------------------------------------------------
 
+#include "api/continuation_t.hpp"
 #include "api/buffer_t.hpp"
 
 #include <memory>
-#include <functional>
-#include <system_error>
 
 namespace fetch {
 namespace oef {
@@ -36,9 +35,8 @@ namespace oef {
         virtual std::error_code receive_sync(std::shared_ptr<Buffer>& buffer) = 0;
         //
         virtual void send_async(std::shared_ptr<Buffer> buffer) = 0;
-        virtual void send_async(std::shared_ptr<Buffer> buffer,
-                                std::function<void(std::error_code,std::size_t)> continuation) = 0;
-        virtual void receive_async(std::function<void(std::error_code,std::shared_ptr<Buffer>)> continuation) = 0;
+        virtual void send_async(std::shared_ptr<Buffer> buffer, LengthContinuation continuation) = 0;
+        virtual void receive_async(BufferContinuation continuation) = 0;
         //
         virtual ~communicator_t() {}
     };

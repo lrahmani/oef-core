@@ -1,7 +1,6 @@
-#pragma once
 //------------------------------------------------------------------------------
 //
-//   Copyright 2018 Fetch.AI Limited
+//   Copyright 2018-2019 Fetch.AI Limited
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -17,22 +16,19 @@
 //
 //------------------------------------------------------------------------------
 
-#include "api/continuation_t.hpp"
-#include "api/communicator_t.hpp"
-
-#include <memory>
-#include <functional>
-#include <system_error>
+#include "serialization.hpp"
 
 namespace fetch {
 namespace oef {
-    class comm_acceptor_t {
-    public:
-        //
-        virtual void do_accept_async(CommunicatorContinuation  continuation) = 0;
-        //
-        virtual ~comm_acceptor_t() {}
-    };
-} // oef
-} // fetch
+namespace pbs {
+
+std::string to_string(const google::protobuf::Message &msg) {
+  std::string output;
+  google::protobuf::TextFormat::PrintToString(msg, &output);
+  return output;
+}
+
+} // pbs 
+} //oef
+} //fetch
 

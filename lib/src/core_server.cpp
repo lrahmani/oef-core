@@ -20,21 +20,10 @@
 #include "core_server.hpp"
 #include "agent_session.hpp"
 
-#include <iostream> // TOFIX
-#include <google/protobuf/text_format.h>
-#include <sstream> // TOFIX
-#include <iomanip> // TOFIX
-
 namespace fetch {
 namespace oef {
     fetch::oef::Logger CoreServer::logger = fetch::oef::Logger("oef-node");
     
-    std::string to_string(const google::protobuf::Message &msg) {
-      std::string output;
-      google::protobuf::TextFormat::PrintToString(msg, &output);
-      return output;
-    }
-
     void CoreServer::run() {
       for(auto &t : threads_) {
         if(!t) {
@@ -62,7 +51,7 @@ namespace oef {
                              });
     }
 
-    void CoreServer::do_accept(std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) {
+    void CoreServer::do_accept(CommunicatorContinuation continuation) {
       acceptor_.do_accept_async(continuation);
     }
 
@@ -75,8 +64,8 @@ namespace oef {
             } else {
               try {
                 logger.trace("CoreServer::newSession received {} bytes", buffer->size());
-                auto id = serializer::deserialize<fetch::oef::pb::Agent_Server_ID>(*buffer);
-                logger.trace("Debug {}", to_string(id));
+                auto id = pbs::deserialize<fetch::oef::pb::Agent_Server_ID>(*buffer);
+                logger.trace("Debug {}", pbs::to_string(id));
                 logger.trace("CoreServer::newSession connection from {}", id.public_key());
                 if(!agentDirectory_.exist(id.public_key())) { // not yet connected
                   secretHandshake(id.public_key(), comm_agent);
@@ -84,13 +73,13 @@ namespace oef {
                   logger.info("CoreServer::newSession ID {} already connected", id.public_key());
                   fetch::oef::pb::Server_Phrase failure;
                   (void)failure.mutable_failure();
-                  comm_agent->send_async(serializer::serialize(failure));
+                  comm_agent->send_async(pbs::serialize(failure));
                 }
               } catch(std::exception &) {
                 logger.error("CoreServer::newSession error parsing ID");
                 fetch::oef::pb::Server_Phrase failure;
                 (void)failure.mutable_failure();
-                comm_agent->send_async(serializer::serialize(failure));
+                comm_agent->send_async(pbs::serialize(failure));
               }
             }
           });
@@ -99,7 +88,7 @@ namespace oef {
     void CoreServer::secretHandshake(const std::string &publicKey, std::shared_ptr<communicator_t> comm) {
       fetch::oef::pb::Server_Phrase phrase;
       phrase.set_phrase("RandomlyGeneratedString");
-      auto phrase_buffer = serializer::serialize(phrase);
+      auto phrase_buffer = pbs::serialize(phrase);
       logger.trace("CoreServer::secretHandshake sending phrase size {}", phrase_buffer->size());
       comm->send_async(phrase_buffer);
       logger.trace("CoreServer::secretHandshake waiting answer");
@@ -109,7 +98,7 @@ namespace oef {
               logger.error("CoreServer::secretHandshake read failure {}", ec.value());
             } else {
               try {
-                auto ans = serializer::deserialize<fetch::oef::pb::Agent_Server_Answer>(*buffer);
+                auto ans = pbs::deserialize<fetch::oef::pb::Agent_Server_Answer>(*buffer);
                 logger.trace("CoreServer::secretHandshake secret [{}]", ans.answer());
                 auto session = std::make_shared<AgentSession>(publicKey, std::move(comm), agentDirectory_, *oef_search_);
                 if(agentDirectory_.add(publicKey, std::static_pointer_cast<agent_session_t>(session))) {
@@ -117,19 +106,19 @@ namespace oef {
                   session->start();
                   fetch::oef::pb::Server_Connected status;
                   status.set_status(true);
-                  session->send(serializer::serialize(status));
+                  session->send(pbs::serialize(status));
                 } else {
                   fetch::oef::pb::Server_Connected status;
                   status.set_status(false);
                   logger.info("CoreServer::secretHandshake PublicKey already connected (interleaved) publicKey {}", publicKey);
-                  session->send(serializer::serialize(status));
+                  session->send(pbs::serialize(status));
                 }
               // should check the secret with the public key i.e. ID.
               } catch(std::exception &) {
                 logger.error("CoreServer::secretHandshake error on Answer publicKey {}", publicKey);
                 fetch::oef::pb::Server_Connected status;
                 status.set_status(false);
-                comm->send_async(serializer::serialize(status));
+                comm->send_async(pbs::serialize(status));
               }
             }
           });

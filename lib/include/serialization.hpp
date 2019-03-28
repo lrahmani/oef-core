@@ -20,13 +20,10 @@
 #include "api/buffer_t.hpp"
 
 #include <google/protobuf/text_format.h>
-#include <sstream> // TOFIX
-#include <iomanip> // TOFIX
-#include <iostream> // TOFIX
 
 namespace fetch {
 namespace oef {
-namespace serializer {
+namespace pbs {
 
 template <typename T>
 T from_string(const std::string &s) {
@@ -51,15 +48,9 @@ T deserialize(const Buffer &buffer) {
   return t;
 }
 
-/*
-std::string to_string(const google::protobuf::Message &msg) {
-  std::string output;
-  google::protobuf::TextFormat::PrintToString(msg, &output);
-  return output;
-}
-*/
+std::string to_string(const google::protobuf::Message &msg);
 
-} // serializer
+} // pbs 
 } //oef
 } //fetch
 

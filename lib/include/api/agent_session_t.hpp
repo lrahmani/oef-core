@@ -17,6 +17,7 @@
 //
 //------------------------------------------------------------------------------
 
+#include "api/continuation_t.hpp"
 #include "api/communicator_t.hpp"
 #include "api/buffer_t.hpp"
 
@@ -48,8 +49,7 @@ namespace oef {
         virtual void start() = 0;
         virtual std::string agent_id() const = 0;
         //
-        virtual void send(const fetch::oef::pb::Server_AgentMessage& msg, 
-                          std::function<void(std::error_code,std::size_t)> continuation) = 0;
+        virtual void send(const fetch::oef::pb::Server_AgentMessage& msg, LengthContinuation continuation) = 0;
         virtual void send(const fetch::oef::pb::Server_AgentMessage& msg) = 0;
         virtual void send(std::shared_ptr<Buffer> buffer) = 0; // TOFIX
         //

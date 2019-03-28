@@ -41,7 +41,7 @@ namespace oef {
           acceptor_.listen(backlog); // pending connections
         }
       void do_accept_async(
-          std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) override;
+          CommunicatorContinuation continuation) override;
       std::string local_address();
       uint32_t local_port();
       ~AsioAcceptor() {}
