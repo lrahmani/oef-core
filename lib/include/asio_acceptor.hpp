@@ -17,10 +17,11 @@
 //
 //------------------------------------------------------------------------------
 
-#include "interface/comm_acceptor_t.hpp"
-#include "interface/communicator_t.hpp"
+#include "api/communicator_acceptor_t.hpp"
+#include "api/communicator_t.hpp"
 
 #include "config.hpp"
+
 #include "asio.hpp"
 
 #include <memory>
@@ -29,12 +30,14 @@ using asio::ip::tcp;
 
 
 namespace fetch {
-  namespace oef {      
-
+namespace oef {
     class AsioAcceptor : public comm_acceptor_t {
+    private:
+      //asio::io_context io_context_;
+      tcp::acceptor acceptor_;
     public:
       explicit AsioAcceptor(asio::io_context& io_context, uint32_t port, uint32_t backlog = 256) : 
-        acceptor_(io_context, tcp::endpoint(tcp::v4(), port)) {
+        acceptor_{io_context, tcp::endpoint(tcp::v4(), port)} {
           acceptor_.listen(backlog); // pending connections
         }
       void do_accept_async(
@@ -42,9 +45,6 @@ namespace fetch {
       std::string local_address();
       uint32_t local_port();
       ~AsioAcceptor() {}
-    private:
-      //asio::io_context io_context_;
-      tcp::acceptor acceptor_;
     };
-  }
-}
+} // oef
+} // fetch

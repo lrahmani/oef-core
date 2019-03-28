@@ -17,14 +17,14 @@
 //------------------------------------------------------------------------------
 
 #include "asio_communicator.hpp"
+
 #include <iostream>
 #include <string>
 
 namespace fetch {
-  namespace oef {
+namespace oef {
 
-AsioComm::AsioComm(asio::io_context& io_context) : socket_(io_context) {}
-
+// TOFIX add connect operation, that check if already connected
 AsioComm::AsioComm(asio::io_context& io_context, std::string to_ip_addr, uint32_t to_port) : socket_(io_context) {
   tcp::resolver resolver(io_context);
   try {

@@ -16,32 +16,32 @@
 //
 //------------------------------------------------------------------------------
 
-#include "interface/agent_session_t.hpp"
-#include "interface/communicator_t.hpp"
+#include "api/agent_session_t.hpp"
+#include "api/communicator_t.hpp"
+
+#include "agent_directory.hpp"
+#include "oef_search_client.hpp"
 #include "asio_communicator.hpp"
 #include "serialization.hpp"
 #include "logger.hpp"
 
-#include "agent.pb.h"
-#include "agent_directory.hpp"
-#include "oef_search_client.hpp"
+#include "agent.pb.h" // TOFIX
 
 namespace fetch {
 namespace oef {
-    class AgentSession_ : public agent_session_t, public std::enable_shared_from_this<AgentSession_> {
+    class AgentSession : public agent_session_t, public std::enable_shared_from_this<AgentSession> {
     private:
       const std::string publicKey_;
       stde::optional<Instance> description_;
-      AgentDirectory_ &agentDirectory_;
+      AgentDirectory &agentDirectory_;
       OefSearchClient& oef_search_; // TOFIX change to oef_search_client_t&
       std::shared_ptr<communicator_t> comm_;
 
       static fetch::oef::Logger logger;
-      
     public:
-      explicit AgentSession_(
+      explicit AgentSession(
           std::string agent_id, std::shared_ptr<communicator_t> comm, 
-          AgentDirectory_& agentDirectory, 
+          AgentDirectory& agentDirectory, 
           OefSearchClient& oef_search) 
         : publicKey_{std::move(agent_id)} 
         , agentDirectory_{agentDirectory}
@@ -49,11 +49,12 @@ namespace oef {
         , comm_{std::move(comm)}
       {}
 
-      virtual ~AgentSession_() {
-        logger.trace("~AgentSession_");
+      virtual ~AgentSession() {
+        logger.trace("~AgentSession");
       }
-      AgentSession_(const AgentSession_ &) = delete;
-      AgentSession_ operator=(const AgentSession_ &) = delete;
+      
+      AgentSession(const AgentSession &) = delete;
+      AgentSession operator=(const AgentSession &) = delete;
       void start() override {
         read();
       }

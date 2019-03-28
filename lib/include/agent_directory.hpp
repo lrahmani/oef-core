@@ -17,26 +17,28 @@
 //
 //------------------------------------------------------------------------------
 
-#include "interface/agent_directory_t.hpp"
-#include "interface/agent_session_t.hpp"
+#include "api/agent_directory_t.hpp"
+#include "api/agent_session_t.hpp"
+
 #include "logger.hpp"
 #include "schema.hpp"
+
 #include <memory>
 
 namespace fetch {
-    namespace oef {
+namespace oef {
 
-        class AgentDirectory_ : public agent_directory_t {
+        class AgentDirectory : public agent_directory_t {
         private:
             mutable std::mutex lock_;
             std::unordered_map<std::string,std::shared_ptr<agent_session_t>> sessions_;
 
             static fetch::oef::Logger logger;
-
         public:
-            AgentDirectory_() = default;
-            AgentDirectory_(const AgentDirectory_ &) = delete;
-            AgentDirectory_ operator=(const AgentDirectory_ &) = delete;
+            AgentDirectory() = default;
+            
+            AgentDirectory(const AgentDirectory &) = delete;
+            AgentDirectory operator=(const AgentDirectory &) = delete;
             
             bool add(const std::string &id, std::shared_ptr<agent_session_t> session) override {
                 std::lock_guard<std::mutex> lock(lock_);
@@ -71,5 +73,5 @@ namespace fetch {
             
             const std::vector<std::string> search(const QueryModel &query) const override;
         };
-    } // oef
+} // oef
 } // fetch

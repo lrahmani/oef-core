@@ -17,8 +17,8 @@
 //
 //------------------------------------------------------------------------------
 
-#include "interface/communicator_t.hpp"
-#include "interface/buffer_t.hpp"
+#include "api/communicator_t.hpp"
+#include "api/buffer_t.hpp"
 
 #include "schema.hpp" // TOFIX
 
@@ -26,7 +26,7 @@
 #include <system_error>
 
 namespace fetch {
-  namespace oef {
+namespace oef {
     //
     struct agent_t {
       std::string id;
@@ -34,7 +34,7 @@ namespace fetch {
     };
     //
     class oef_search_client_t {
-      public:
+    public:
         //
         virtual void connect() = 0;
         //
@@ -48,6 +48,6 @@ namespace fetch {
         //
         virtual ~oef_search_client_t() {}
     };
-  } // oef
+} // oef
 } // fetch
 

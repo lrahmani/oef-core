@@ -17,16 +17,27 @@
 //
 //------------------------------------------------------------------------------
 
-#include "interface/oef_search_client_t.hpp"
+#include "api/oef_search_client_t.hpp"
 
 #include "asio_communicator.hpp"
 #include "logger.hpp"
+
 #include "search.pb.h"
 
 
 namespace fetch {
 namespace oef {
   class OefSearchClient : public oef_search_client_t {
+  private:
+    mutable std::mutex lock_;
+    std::shared_ptr<AsioComm> comm_;
+    //char *server_key_;
+    std::string core_ip_addr_;
+    uint32_t core_port_ ;
+    std::string core_id_;
+    bool updated_address_;
+    
+    static fetch::oef::Logger logger;
   public:
     explicit OefSearchClient(std::shared_ptr<AsioComm> comm, const std::string& core_id, 
         const std::string& core_ip_addr, uint32_t core_port)
@@ -58,16 +69,6 @@ namespace oef {
 
   private:
     void addNetworkAddress(fetch::oef::pb::Update &update);
-
-    mutable std::mutex lock_;
-    std::shared_ptr<AsioComm> comm_;
-    //char *server_key_;
-    std::string core_ip_addr_;
-    uint32_t core_port_ ;
-    std::string core_id_;
-    bool updated_address_;
-    
-    static fetch::oef::Logger logger;
   };
   
 } //oef

@@ -17,19 +17,22 @@
 //
 //------------------------------------------------------------------------------
 
-#include "interface/communicator_t.hpp"
+#include "api/communicator_t.hpp"
+
 #include "asio.hpp"
 
 using asio::ip::tcp;
 
 namespace fetch {
-  namespace oef {
+namespace oef {
     class AsioComm : public communicator_t {
-      public:
+    private:
+        tcp::socket socket_; 
+    public:
         //
-        explicit AsioComm(asio::io_context& io_context);
-        explicit AsioComm(asio::io_context& io_context, std::string to_ip_addr, uint32_t to_port);
+        explicit AsioComm(asio::io_context& io_context) : socket_{io_context} {}
         explicit AsioComm(tcp::socket socket) : socket_(std::move(socket)) {}
+        explicit AsioComm(asio::io_context& io_context, std::string to_ip_addr, uint32_t to_port);
         //
         explicit AsioComm(AsioComm&& asio_comm) : socket_(std::move(asio_comm.socket_)) {}
         //
@@ -49,8 +52,6 @@ namespace fetch {
           disconnect();
         }
         
-      private:
-        tcp::socket socket_; 
     };
   } // oef
 } // fetch

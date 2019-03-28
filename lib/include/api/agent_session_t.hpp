@@ -17,16 +17,19 @@
 //
 //------------------------------------------------------------------------------
 
-#include <memory>
-#include "interface/communicator_t.hpp"
-#include "interface/buffer_t.hpp"
-#include "agent.pb.h" // TOFIX
+#include "api/communicator_t.hpp"
+#include "api/buffer_t.hpp"
+
 #include "schema.hpp" // TOFIX
 
+#include "agent.pb.h" // TOFIX
+
+#include <memory>
+
 namespace fetch {
-  namespace oef {
+namespace oef {
     class agent_session_t {
-      private:
+    private:
         //
         std::shared_ptr<communicator_t> comm_; // TOFIX shouldn't it be unique_ptr?
         //
@@ -40,7 +43,7 @@ namespace fetch {
         virtual void send_dialog_error(uint32_t msg_id, uint32_t dialogue_id, const std::string &origin) = 0;
         virtual void send_error(uint32_t msg_id, fetch::oef::pb::Server_AgentMessage_OEFError_Operation error) = 0;
         virtual void process(const std::shared_ptr<Buffer> &buffer) = 0;
-      public:
+    public:
         //
         virtual void start() = 0;
         virtual std::string agent_id() const = 0;
@@ -54,6 +57,6 @@ namespace fetch {
         //
         virtual ~agent_session_t() {}
     };
-  } // oef
+} // oef
 } // fetch
 

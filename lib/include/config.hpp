@@ -17,11 +17,18 @@
 //
 //------------------------------------------------------------------------------
 
-#include "interface/buffer_t.hpp"
+#include "api/buffer_t.hpp"
+
+#include <string>
+#include <cstdint>
 
 namespace fetch {
 namespace oef {
 namespace config {
+
+constexpr auto search_default_ip{"127.0.0.1"};
+constexpr uint32_t core_default_backlog{256};
+constexpr uint32_t core_default_nb_threads{4};
 
 enum class Ports {
   ServiceDiscovery = 2222, Agents = 3333, Search = 7501

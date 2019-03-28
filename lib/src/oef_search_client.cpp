@@ -17,11 +17,8 @@
 //------------------------------------------------------------------------------
 
 #include "oef_search_client.hpp"
-
 #include "asio_communicator.hpp"
 #include "serialization.hpp"
-#include "search.pb.h"
-
 
 namespace fetch {
 namespace oef {
@@ -31,11 +28,13 @@ fetch::oef::Logger OefSearchClient::logger = fetch::oef::Logger("oef-search-clie
 extern std::string to_string(const google::protobuf::Message &msg); // TOFIX
     
 std::error_code OefSearchClient::register_description_sync(const std::string& agent, const Instance& desc) {
+  std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
   logger.warn("OefSearchClient::register_description_sync NOT implemented yet"); 
   return std::error_code{}; // success
 }
 
 std::error_code OefSearchClient::unregister_description_sync(const std::string& agent) {
+  std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
   logger.warn("OefSearchClient::unregister_description_sync NOT implemented yet"); 
   return std::error_code{}; // success
 }
@@ -72,15 +71,18 @@ std::error_code OefSearchClient::register_service_sync(const std::string& agent,
 }
 
 std::error_code OefSearchClient::unregister_service_sync(const std::string& agent, const Instance& service) {
+  std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
   logger.warn("OefSearchClient::register_service_sync NOT implemented yet"); 
   return std::error_code{}; // success
 }
 
 std::error_code OefSearchClient::search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) {
+  std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
   logger.warn("OefSearchClient::search_agents_sync NOT implemented yet"); 
   return std::error_code{}; // success
 }
 std::error_code OefSearchClient::search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) {
+  std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
   logger.warn("OefSearchClient::search_service_sync NOT implemented yet"); 
   return std::error_code{}; // success
 }

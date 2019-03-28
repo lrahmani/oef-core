@@ -21,9 +21,9 @@
 namespace fetch {
 namespace oef {
 
-fetch::oef::Logger AgentDirectory_::logger = fetch::oef::Logger("agent-directory");
+fetch::oef::Logger AgentDirectory::logger = fetch::oef::Logger("agent-directory");
 
-const std::vector<std::string> AgentDirectory_::search(const QueryModel &query) const {
+const std::vector<std::string> AgentDirectory::search(const QueryModel &query) const {
   std::lock_guard<std::mutex> lock(lock_);
   std::vector<std::string> res;
   for(const auto &s : sessions_) {

@@ -17,7 +17,12 @@
 //
 //------------------------------------------------------------------------------
 
-#include "interface/buffer_t.hpp"
+#include "api/buffer_t.hpp"
+
+#include <google/protobuf/text_format.h>
+#include <sstream> // TOFIX
+#include <iomanip> // TOFIX
+#include <iostream> // TOFIX
 
 namespace fetch {
 namespace oef {
@@ -46,11 +51,15 @@ T deserialize(const Buffer &buffer) {
   return t;
 }
 
+/*
+std::string to_string(const google::protobuf::Message &msg) {
+  std::string output;
+  google::protobuf::TextFormat::PrintToString(msg, &output);
+  return output;
+}
+*/
+
 } // serializer
 } //oef
 } //fetch
-
-enum class Ports {
-  ServiceDiscovery = 2222, Agents = 3333, OEFSearch = 7501
-};
 

@@ -17,48 +17,41 @@
 //
 //------------------------------------------------------------------------------
 
-#include "interface/core_server_t.hpp"
-#include "interface/communicator_t.hpp"
+#include "api/core_server_t.hpp"
+#include "api/communicator_t.hpp"
 
 #include "agent_directory.hpp"
 #include "asio_communicator.hpp"
 #include "asio_acceptor.hpp"
-#include "serialization.hpp"
 #include "oef_search_client.hpp"
+#include "serialization.hpp"
 #include "config.hpp"
 #include "logger.hpp"
-#include "agent.pb.h"
 
+#include "agent.pb.h"
 #include "asio.hpp"
 
 #include <memory>
 
 namespace fetch {
-  namespace oef {      
+namespace oef {      
 
     class CoreServer : public core_server_t {
     private:
-
       asio::io_context io_context_;
       std::vector<std::unique_ptr<std::thread>> threads_;
       AsioAcceptor acceptor_;
-      AgentDirectory_ agentDirectory_;
+      AgentDirectory agentDirectory_;
       std::shared_ptr<OefSearchClient> oef_search_;
 
       static fetch::oef::Logger logger;
       
-      void do_accept();
-      void do_accept(std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) override;
-      void process_agent_connection(const std::shared_ptr<communicator_t> communicator) override {}
-      
-      void newSession(std::shared_ptr<communicator_t> comm);
-      void secretHandshake(const std::string &publicKey, std::shared_ptr<communicator_t> comm);
     public:
       explicit CoreServer(
-          std::string s_ip_addr = "127.0.0.1", 
+          std::string s_ip_addr = config::search_default_ip, 
           uint32_t s_port = static_cast<uint32_t>(config::Ports::Search),
-          uint32_t nbThreads = 4, 
-          uint32_t backlog = 256) :
+          uint32_t nbThreads = config::core_default_nb_threads, 
+          uint32_t backlog = config::core_default_backlog) :
       acceptor_(io_context_, static_cast<uint32_t>(config::Ports::Agents)){
         threads_.resize(nbThreads);
         try {
@@ -68,7 +61,7 @@ namespace fetch {
           std::cout << "CoreServer::CoreServer info connected to OEF Search " << s_ip_addr 
             << ":" << s_port << std::endl;
         } catch (std::exception e) {
-          std::cerr << "CoreServer::CoreServer error while initializing OefSearchClient " << e.what() << std::endl;
+          std::cerr << "CoreServer::CoreServer error while initializing OefSearchClient " << e.what() << std::endl; // TOFIX use logger
           stop();
         }
       }
@@ -79,6 +72,13 @@ namespace fetch {
       void run_in_thread() override;
       size_t nb_agents() const override { return agentDirectory_.size(); }
       void stop() override;
+    private:
+      void do_accept();
+      void do_accept(std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) override;
+      void process_agent_connection(const std::shared_ptr<communicator_t> communicator) override {}
+      
+      void newSession(std::shared_ptr<communicator_t> comm);
+      void secretHandshake(const std::string &publicKey, std::shared_ptr<communicator_t> comm);
     };
-  }
-}
+} // oef
+} // fetch

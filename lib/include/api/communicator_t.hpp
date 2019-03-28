@@ -17,22 +17,31 @@
 //
 //------------------------------------------------------------------------------
 
-#include "interface/communicator_t.hpp"
+#include "api/buffer_t.hpp"
 
 #include <memory>
 #include <functional>
 #include <system_error>
 
 namespace fetch {
-  namespace oef {
-    class comm_acceptor_t {
-      public:
+namespace oef {
+    class communicator_t {
+    public:
         //
-        virtual void do_accept_async(
-            std::function<void(std::error_code,std::shared_ptr<communicator_t>)> continuation) = 0;
+        virtual void connect() = 0;
+        virtual void disconnect() = 0;
         //
-        virtual ~comm_acceptor_t() {}
+        virtual std::error_code send_sync(std::shared_ptr<Buffer> buffer) = 0;
+        virtual std::error_code send_sync(std::vector<std::shared_ptr<Buffer>> buffers) = 0;
+        virtual std::error_code receive_sync(std::shared_ptr<Buffer>& buffer) = 0;
+        //
+        virtual void send_async(std::shared_ptr<Buffer> buffer) = 0;
+        virtual void send_async(std::shared_ptr<Buffer> buffer,
+                                std::function<void(std::error_code,std::size_t)> continuation) = 0;
+        virtual void receive_async(std::function<void(std::error_code,std::shared_ptr<Buffer>)> continuation) = 0;
+        //
+        virtual ~communicator_t() {}
     };
-  } // oef
+} // oef
 } // fetch
 
