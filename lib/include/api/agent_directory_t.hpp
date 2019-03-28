@@ -26,18 +26,30 @@
 
 namespace fetch {
 namespace oef {
+    /* 
+     * Defines API for Agent Directory object.
+     * Agent Directory is responsible for keeping track of connected agents and their Agent Sessions
+     * Agent Directory is owned by the Core Server.
+     */
     class agent_directory_t {
     public:
-      //
-      virtual bool add(const std::string& agent_id, std::shared_ptr<agent_session_t>) = 0;
+      /* Add a new agent 
+       * params:
+       *   - [in] agent_id: new agent public key
+       *   - [in] session: new agent Agent Session object (object responsible for communicating with agent `agent_id`)
+       */   
+      virtual bool add(const std::string& agent_id, std::shared_ptr<agent_session_t> session) = 0;
+      /* Test if `agent_id` agent already exists (is connected) */
       virtual bool exist(const std::string& agent_id) const = 0;
+      /* Remove `agent_id` agent from directory */
       virtual bool remove(const std::string& agent_id) = 0;
-      //
+      /* Get `agent_id` session */
       virtual std::shared_ptr<agent_session_t> session(const std::string& agent_id) const = 0; // not sure about this operation
+      /* Get the number of connected agents */
       virtual size_t size() const = 0;
-      virtual void clear() = 0; // not sure about this operation
-      virtual const std::vector<std::string> search(const QueryModel&) const = 0; // change the name to query // TOFIX not needed anymore
-      //
+      /* Reset Agent Directory */
+      virtual void clear() = 0;
+      
       virtual ~agent_directory_t() {}
     };
 } // oef

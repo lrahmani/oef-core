@@ -39,43 +39,43 @@ namespace oef {
     class CoreServer : public core_server_t {
     private:
       asio::io_context io_context_;
-      std::vector<std::unique_ptr<std::thread>> threads_;
       AsioAcceptor acceptor_;
       AgentDirectory agentDirectory_;
-      std::shared_ptr<OefSearchClient> oef_search_;
-
-      static fetch::oef::Logger logger;
+      std::shared_ptr<OefSearchClient> oef_search_; // TOFIX change to oef_client_t
+      std::vector<std::unique_ptr<std::thread>> threads_;
       
+      static fetch::oef::Logger logger;
     public:
       explicit CoreServer(
           std::string s_ip_addr = config::search_default_ip, 
-          uint32_t s_port = static_cast<uint32_t>(config::Ports::Search),
-          uint32_t nbThreads = config::core_default_nb_threads, 
-          uint32_t backlog = config::core_default_backlog) :
-      acceptor_(io_context_, static_cast<uint32_t>(config::Ports::Agents)){
+          uint32_t s_port       = static_cast<uint32_t>(config::Ports::Search),
+          uint32_t nbThreads    = config::core_default_nb_threads, 
+          uint32_t backlog      = config::core_default_backlog) 
+          : acceptor_{io_context_, static_cast<uint32_t>(config::Ports::Agents)} {
         threads_.resize(nbThreads);
         try {
           auto s_comm = std::make_shared<AsioComm>(io_context_, s_ip_addr, s_port);
           oef_search_ = std::make_shared<OefSearchClient>(s_comm, 
               "core-server", acceptor_.local_address(), acceptor_.local_port());
-          std::cout << "CoreServer::CoreServer info connected to OEF Search " << s_ip_addr 
-            << ":" << s_port << std::endl;
+          logger.debug("CoreServer::CoreServer info connected to OEF Search {}:{} ", s_ip_addr, s_port);
         } catch (std::exception e) {
-          std::cerr << "CoreServer::CoreServer error while initializing OefSearchClient " << e.what() << std::endl; // TOFIX use logger
+          logger.error("CoreServer::CoreServer error while initializing OefSearchClient {}",e.what());
           stop();
         }
       }
+      
       CoreServer(const CoreServer &) = delete;
       CoreServer operator=(const CoreServer &) = delete;
       virtual ~CoreServer();
+      
       void run() override;
       void run_in_thread() override;
       size_t nb_agents() const override { return agentDirectory_.size(); }
       void stop() override;
     private:
-      void do_accept();
       void do_accept(CommunicatorContinuation continuation) override;
       void process_agent_connection(const std::shared_ptr<communicator_t> communicator) override {}
+      void do_accept();
       
       void newSession(std::shared_ptr<communicator_t> comm);
       void secretHandshake(const std::string &publicKey, std::shared_ptr<communicator_t> comm);

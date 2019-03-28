@@ -22,6 +22,9 @@
 
 namespace fetch {
 namespace oef {
+    /* 
+     * Defines datatype for serialized data, mainly to be exchanged over network 
+     */
     using Buffer = std::vector<uint8_t>;
 } // oef
 } // fetch

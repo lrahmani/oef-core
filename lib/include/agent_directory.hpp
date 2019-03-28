@@ -71,7 +71,7 @@ namespace oef {
                 sessions_.clear();
             }
             
-            const std::vector<std::string> search(const QueryModel &query) const override;
+            const std::vector<std::string> search(const QueryModel &query) const;
         };
 } // oef
 } // fetch

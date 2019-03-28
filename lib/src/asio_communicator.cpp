@@ -24,7 +24,7 @@
 namespace fetch {
 namespace oef {
 
-// TOFIX add connect operation, that check if already connected
+/* TODO add connect operation, that check if already connected */
 AsioComm::AsioComm(asio::io_context& io_context, std::string to_ip_addr, uint32_t to_port) : socket_(io_context) {
   tcp::resolver resolver(io_context);
   try {
@@ -39,10 +39,10 @@ AsioComm::AsioComm(asio::io_context& io_context, std::string to_ip_addr, uint32_
 void AsioComm::disconnect() {
   socket_.shutdown(asio::socket_base::shutdown_type::shutdown_both);
   socket_.close();
+  /* TODO add reset, for future reconnections */
 }
 
-void AsioComm::send_async(std::shared_ptr<Buffer> buffer,
-                          LengthContinuation continuation) {
+void AsioComm::send_async(std::shared_ptr<Buffer> buffer, LengthContinuation continuation) {
   std::vector<asio::const_buffer> buffers;
   uint32_t len = uint32_t(buffer->size());
   buffers.emplace_back(asio::buffer(&len, sizeof(len)));

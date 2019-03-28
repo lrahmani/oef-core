@@ -33,7 +33,7 @@ void AgentSession::process_register_description(uint32_t msg_id, const fetch::oe
   if(ec) {
     send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_DESCRIPTION);
   } 
-  // TOFIX shoudl always return status message to agent
+  // TOFIX should always return status message to agent
 }
 
 void AgentSession::process_unregister_description(uint32_t msg_id) {
@@ -67,7 +67,7 @@ void AgentSession::process_unregister_service(uint32_t msg_id, const fetch::oef:
 }
 
 void AgentSession::process_search_agents(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) {
-  // TOFIX QueryModel don't save constraintExpr s
+  // TOFIX QueryModel don't save constraintExprs (you sure?)
   auto query = QueryModel(search.query());
   DEBUG(logger, "AgentSession::processSearchAgents from agent {} : {}", publicKey_, pbs::to_string(search));
   std::vector<agent_t> agents;
@@ -89,7 +89,7 @@ void AgentSession::process_search_agents(uint32_t msg_id, const fetch::oef::pb::
 }
 
 void AgentSession::process_search_service(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) {
-  // TOFIX QueryModel don't save constraintExpr s
+  // TOFIX QueryModel don't save constraintExpr s (you sure?)
   auto query = QueryModel(search.query());
   DEBUG(logger, "AgentSession::processQuery from agent {} : {}", publicKey_, pbs::to_string(search));
   std::vector<agent_t> agents;
@@ -146,7 +146,6 @@ void AgentSession::process_message(uint32_t msg_id, fetch::oef::pb::Agent_Messag
     if(msg->has_fipa()) {
       content->set_allocated_fipa(msg->release_fipa());
     }
-    /* TOFIX until AgentDirectory returns agent_session_t */ 
     DEBUG(logger, "AgentSession::process_message to agent {} : {}", msg->destination(), pbs::to_string(message));
     //auto buffer = serialize(message);
     session->send(message, 

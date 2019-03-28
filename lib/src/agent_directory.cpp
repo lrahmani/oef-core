@@ -26,11 +26,13 @@ fetch::oef::Logger AgentDirectory::logger = fetch::oef::Logger("agent-directory"
 const std::vector<std::string> AgentDirectory::search(const QueryModel &query) const {
   std::lock_guard<std::mutex> lock(lock_);
   std::vector<std::string> res;
+  /*
   for(const auto &s : sessions_) {
     if(s.second->match(query)) {
       res.emplace_back(s.first);
     }
   }
+  */
   return res;
 }
 

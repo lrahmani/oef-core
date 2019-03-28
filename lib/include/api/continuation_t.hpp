@@ -25,6 +25,10 @@
 
 namespace fetch {
 namespace oef {
+    /*
+     * Defines type aliases for different continuation functions (callbacks) needed to handle asynchrounous
+     * operations responses. All parameters are [in]. 
+     */
     using BufferContinuation = std::function<void(std::error_code,std::shared_ptr<Buffer>)>;
     using LengthContinuation = std::function<void(std::error_code,std::size_t)>;
     class communicator_t;

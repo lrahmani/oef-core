@@ -26,11 +26,18 @@
 
 namespace fetch {
 namespace oef {
+    /* 
+     * Defines API for Communication Acceptor object.
+     * Acceptor is a listening socket for new connections.
+     * A Communicator object will be created for each successful new connection.
+     */
     class comm_acceptor_t {
     public:
-        //
+        /* Listen for new connections asynchronously 
+         * params:
+         *   - [in] continuation: callback function with the newly created Communicator, or error */
         virtual void do_accept_async(CommunicatorContinuation  continuation) = 0;
-        //
+        
         virtual ~comm_acceptor_t() {}
     };
 } // oef

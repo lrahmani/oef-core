@@ -27,26 +27,34 @@
 
 namespace fetch {
 namespace oef {
-    //
-    struct agent_t {
-      std::string id;
-      std::string core_ip_addr;
-    };
-    //
+    /* 
+     * Defines API for Oef Search Client object.
+     * Oef Search Client is responsible for mainting a connection with the OEF Search and 
+     * exchanging messages on behalf of Core Server.
+     * It is created and owned by Core Server. 
+     * Agent Sessions have a reference to it, to forward agents requests to OEF Search.
+     * Interactions between Oef Seach Client and the OEF Search are governed by search.proto contract file
+     */
+    struct agent_t;
     class oef_search_client_t {
     public:
-        //
+        /* Open a client connection to the OEF Search */
         virtual void connect() = 0;
-        //
+        
+        /* OEF Search operations, as specified in search.proto */
         virtual std::error_code register_description_sync(const std::string& agent, const Instance& desc) = 0;
         virtual std::error_code unregister_description_sync(const std::string& agent) = 0;
         virtual std::error_code register_service_sync(const std::string& agent, const Instance& service) = 0;
         virtual std::error_code unregister_service_sync(const std::string& agent, const Instance& service) = 0;
-        // TOFIX QueryModel don't save constraintExpr s
         virtual std::error_code search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) = 0; 
         virtual std::error_code search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) = 0;
-        //
+        
         virtual ~oef_search_client_t() {}
+    };
+    
+    struct agent_t {
+      std::string id;
+      std::string core_ip_addr;
     };
 } // oef
 } // fetch

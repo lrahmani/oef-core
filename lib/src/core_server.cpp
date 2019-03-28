@@ -56,7 +56,6 @@ namespace oef {
     }
 
     void CoreServer::newSession(std::shared_ptr<communicator_t> comm_agent) {
-      //auto comm_agent = std::make_shared<AsioComm>(std::move(socket));
       comm_agent->receive_async(
           [this,comm_agent](std::error_code ec, std::shared_ptr<Buffer> buffer) {
             if(ec) {

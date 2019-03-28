@@ -48,38 +48,32 @@ namespace oef {
         , oef_search_{oef_search} 
         , comm_{std::move(comm)}
       {}
-
+      
+      AgentSession(const AgentSession &) = delete;
+      AgentSession operator=(const AgentSession &) = delete;
       virtual ~AgentSession() {
         logger.trace("~AgentSession");
       }
       
-      AgentSession(const AgentSession &) = delete;
-      AgentSession operator=(const AgentSession &) = delete;
       void start() override {
         read();
       }
+
       std::string agent_id() const override {
         return publicKey_;
       }
-      std::string id() const { return publicKey_; }
-
-      void start_pluto() {
-        read_pluto();
-      }
-      void write(std::shared_ptr<Buffer> buffer) {
+      
+      void send(std::shared_ptr<Buffer> buffer) { // TOFIX needed to send status messages at handshake
         comm_->send_async(std::move(buffer));
-      }
-      void send(std::shared_ptr<Buffer> buffer) override { // TOFIX
-        write(buffer);
       }
       void send(const fetch::oef::pb::Server_AgentMessage &msg) override {
         comm_->send_async(pbs::serialize(msg));
       }
-      void send(const fetch::oef::pb::Server_AgentMessage& msg, 
-                LengthContinuation continuation) override {
+      void send(const fetch::oef::pb::Server_AgentMessage& msg, LengthContinuation continuation) override {
         comm_->send_async(pbs::serialize(msg), continuation);
       }
-      bool match(const QueryModel &query) const override {
+
+      bool match(const QueryModel &query) const {
         if(!description_) {
           return false;
         }
@@ -97,9 +91,6 @@ namespace oef {
       void process_message(uint32_t msg_id, fetch::oef::pb::Agent_Message *msg) override;
       void process(const std::shared_ptr<Buffer> &buffer) override;
       
-      void process_pluto(const std::shared_ptr<Buffer> &buffer);
-      void process_pluto_new(const std::shared_ptr<Buffer> &buffer);
-      void read_pluto();
       void read();
 };
 

@@ -31,7 +31,6 @@ namespace oef {
   private:
     mutable std::mutex lock_;
     std::shared_ptr<AsioComm> comm_;
-    //char *server_key_;
     std::string core_ip_addr_;
     uint32_t core_port_ ;
     std::string core_id_;
@@ -51,19 +50,14 @@ namespace oef {
     
     virtual ~OefSearchClient() {}
     
-    /*
-
-    void connect(tcp::resolver::iterator endpoint_iterator);
-    void RegisterServiceDescription(const std::string &agent, const Instance &instance);
-    */
-
+    /* TODO */
     void connect() override {};
     
     std::error_code register_description_sync(const std::string& agent, const Instance& desc) override;
     std::error_code unregister_description_sync(const std::string& agent) override;
     std::error_code register_service_sync(const std::string& agent, const Instance& service) override;
     std::error_code unregister_service_sync(const std::string& agent, const Instance& service) override;
-    // TOFIX QueryModel don't save constraintExpr s
+    // TOFIX QueryModel don't save constraintExpr s (you sure?)
     std::error_code search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) override;
     std::error_code search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) override;
 
