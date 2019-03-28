@@ -30,10 +30,17 @@ fetch::oef::Logger OefSearchClient::logger = fetch::oef::Logger("oef-search-clie
 
 extern std::string to_string(const google::protobuf::Message &msg); // TOFIX
     
-void OefSearchClient::register_description_sync(const std::string& agent, const Instance& desc) {}
-void OefSearchClient::unregister_description_sync(const std::string& agent) {}
+std::error_code OefSearchClient::register_description_sync(const std::string& agent, const Instance& desc) {
+  logger.warn("OefSearchClient::register_description_sync NOT implemented yet"); 
+  return std::error_code{}; // success
+}
 
-void OefSearchClient::register_service_sync(const std::string& agent, const Instance& service) {
+std::error_code OefSearchClient::unregister_description_sync(const std::string& agent) {
+  logger.warn("OefSearchClient::unregister_description_sync NOT implemented yet"); 
+  return std::error_code{}; // success
+}
+
+std::error_code OefSearchClient::register_service_sync(const std::string& agent, const Instance& service) {
   std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
   // first, prepare cmd message  
   fetch::oef::pb::Server_Phrase cmd; // TOFIX using a string field proto msg for serialization
@@ -58,18 +65,24 @@ void OefSearchClient::register_service_sync(const std::string& agent, const Inst
   buffers.emplace_back(buffer_cmd);
   buffers.emplace_back(buffer_update);
   
-  logger.debug("OefSearchClient::register_servicec_sync sending update from agent {} to OefSearch: {}", 
+  logger.debug("OefSearchClient::register_service_sync sending update from agent {} to OefSearch: {}", 
         agent, to_string(update));
-  comm_->send_sync(buffers);
+
+  return comm_->send_sync(buffers); // TOFIX not sure it's appropriate to return network error_code s
 }
 
-void OefSearchClient::unregister_service_sync(const std::string& agent, const Instance& service) {}
-
-std::vector<agent_t> OefSearchClient::search_agents_sync(const std::string& agent, const QueryModel& query) {
-  return std::vector<agent_t>();
+std::error_code OefSearchClient::unregister_service_sync(const std::string& agent, const Instance& service) {
+  logger.warn("OefSearchClient::register_service_sync NOT implemented yet"); 
+  return std::error_code{}; // success
 }
-std::vector<agent_t> OefSearchClient::search_service_sync(const std::string& agent, const QueryModel& query) {
-  return std::vector<agent_t>();
+
+std::error_code OefSearchClient::search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) {
+  logger.warn("OefSearchClient::search_agents_sync NOT implemented yet"); 
+  return std::error_code{}; // success
+}
+std::error_code OefSearchClient::search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) {
+  logger.warn("OefSearchClient::search_service_sync NOT implemented yet"); 
+  return std::error_code{}; // success
 }
 
 void OefSearchClient::addNetworkAddress(fetch::oef::pb::Update &update)

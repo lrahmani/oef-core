@@ -26,49 +26,91 @@ namespace oef {
 extern std::string to_string(const google::protobuf::Message &msg); // TOFIX
 
 
-fetch::oef::Logger AgentSession_::logger = fetch::oef::Logger("oef-node::agent-session");
+fetch::oef::Logger AgentSession_::logger = fetch::oef::Logger("agent-session");
     
 void AgentSession_::process_register_description(uint32_t msg_id, const fetch::oef::pb::AgentDescription &desc) {
-  /* TODO forward to new OEFSearch */
   description_ = Instance(desc.description());
   DEBUG(logger, "AgentSession_::processRegisterDescription setting description to agent {} : {}", 
       publicKey_, to_string(desc));
-  if(!description_) {
-    fetch::oef::pb::Server_AgentMessage answer;
-    answer.set_answer_id(msg_id);
-    auto *error = answer.mutable_oef_error();
-    error->set_operation(fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_DESCRIPTION);
-    logger.trace("AgentSession_::processRegisterDescription sending error {} to {}", error->operation(), publicKey_);
-    send(answer);
-  }
+  
+  auto ec = oef_search_.register_description_sync(publicKey_, *description_);
+  if(ec) {
+    send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_DESCRIPTION);
+  } 
+  // TOFIX shoudl always return status message to agent
 }
 
 void AgentSession_::process_unregister_description(uint32_t msg_id) {
-  /* TODO forward to new OEFSearch */
   description_ = stde::nullopt;
   DEBUG(logger, "AgentSession_::processUnregisterDescription setting description to agent {}", publicKey_);
+  auto ec = oef_search_.unregister_description_sync(publicKey_);
+  if(ec) {
+    send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::UNREGISTER_DESCRIPTION);
+  } 
+  // TOFIX should add a status answer, even in the case of no error
 }
 
 void AgentSession_::process_register_service(uint32_t msg_id, const fetch::oef::pb::AgentDescription& desc) {
   auto service_desc = Instance(desc.description()); 
   DEBUG(logger, "AgentSession_::processRegisterService registering agent {} : {}", publicKey_, to_string(desc));
-  oef_search_.register_service_sync(publicKey_, service_desc);
+  auto ec = oef_search_.register_service_sync(publicKey_, service_desc);
+  if(ec) {
+    send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);
+  } 
   // TOFIX should add a status answer, even in the case of no error
 }
 
 void AgentSession_::process_unregister_service(uint32_t msg_id, const fetch::oef::pb::AgentDescription &desc) {
-  /* TODO forward to new OEFSearch */
+  auto service_desc = Instance(desc.description()); 
   DEBUG(logger, "AgentSession_::processUnregisterService unregistering agent {} : {}", publicKey_, to_string(desc));
+  auto ec = oef_search_.unregister_service_sync(publicKey_, service_desc);
+  if(ec) {
+    send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::UNREGISTER_SERVICE);
+  } 
+  // TOFIX should add a status answer, even in the case of no error
 }
 
 void AgentSession_::process_search_agents(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) {
-  /* TODO forward to new OEFSearch */
+  // TOFIX QueryModel don't save constraintExpr s
+  auto query = QueryModel(search.query());
   DEBUG(logger, "AgentSession_::processSearchAgents from agent {} : {}", publicKey_, to_string(search));
+  std::vector<agent_t> agents;
+  auto ec = oef_search_.search_agents_sync(publicKey_, query, agents);
+  
+  if(ec) {
+    // TOFIX no error message defined for search_agents
+    send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);
+  } else {
+    fetch::oef::pb::Server_AgentMessage answer;
+    answer.set_answer_id(msg_id);
+    auto answer_agents = answer.mutable_agents();
+    for(auto &a : agents) {
+      answer_agents->add_agents(a.id);
+    }
+    logger.trace("AgentSession::processSearchAgents sending {} agents to {}", agents.size(), publicKey_);
+    send(answer);
+  }
 }
 
 void AgentSession_::process_search_service(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) {
-  /* TODO forward to new OEFSearch */
+  // TOFIX QueryModel don't save constraintExpr s
+  auto query = QueryModel(search.query());
   DEBUG(logger, "AgentSession_::processQuery from agent {} : {}", publicKey_, to_string(search));
+  std::vector<agent_t> agents;
+  auto ec = oef_search_.search_service_sync(publicKey_, query, agents);
+  if(ec) {
+    // TOFIX no error message defined for search_agents
+    send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);
+  } else {
+    fetch::oef::pb::Server_AgentMessage answer;
+    answer.set_answer_id(msg_id);
+    auto answer_agents = answer.mutable_agents();
+    for(auto &a : agents) {
+     answer_agents->add_agents(a.id);
+    }
+    logger.trace("AgentSession::processQuery sending {} agents to {}", agents.size(), publicKey_);
+    send(answer);
+  }
 }
 
 void AgentSession_::send_dialog_error(uint32_t msg_id, uint32_t dialogue_id, const std::string &origin) {
@@ -81,9 +123,17 @@ void AgentSession_::send_dialog_error(uint32_t msg_id, uint32_t dialogue_id, con
   send(answer);
 }
 
-void AgentSession_::send_error(uint32_t msg_id, fetch::oef::pb::Server_AgentMessage_OEFError error) {/*TODO*/}
+void AgentSession_::send_error(uint32_t msg_id, fetch::oef::pb::Server_AgentMessage_OEFError_Operation error_op) {
+  fetch::oef::pb::Server_AgentMessage answer;
+  answer.set_answer_id(msg_id);
+  auto *error = answer.mutable_oef_error();
+  error->set_operation(error_op);
+  logger.trace("AgentSession::processUnregisterService sending error {} to {}", error->operation(), publicKey_);
+  send(answer);
+}
 
 void AgentSession_::process_message(uint32_t msg_id, fetch::oef::pb::Agent_Message *msg) {
+  /* TODO update procecss_message to process messages for agents on different OEF Cores */
   auto session = agentDirectory_.session(msg->destination());
   DEBUG(logger, "AgentSession_::process_message from agent {} : {}", publicKey_, to_string(*msg));
   logger.trace("AgentSession_::process_message to {} from {}", msg->destination(), publicKey_);

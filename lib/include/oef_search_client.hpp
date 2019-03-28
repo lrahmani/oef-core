@@ -48,13 +48,13 @@ namespace oef {
 
     void connect() override {};
     
-    void register_description_sync(const std::string& agent, const Instance& desc) override;
-    void unregister_description_sync(const std::string& agent) override;
-    void register_service_sync(const std::string& agent, const Instance& service) override;
-    void unregister_service_sync(const std::string& agent, const Instance& service) override;
+    std::error_code register_description_sync(const std::string& agent, const Instance& desc) override;
+    std::error_code unregister_description_sync(const std::string& agent) override;
+    std::error_code register_service_sync(const std::string& agent, const Instance& service) override;
+    std::error_code unregister_service_sync(const std::string& agent, const Instance& service) override;
     // TOFIX QueryModel don't save constraintExpr s
-    std::vector<agent_t> search_agents_sync(const std::string& agent, const QueryModel& query) override;
-    std::vector<agent_t> search_service_sync(const std::string& agent, const QueryModel& query) override;
+    std::error_code search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) override;
+    std::error_code search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) override;
 
   private:
     void addNetworkAddress(fetch::oef::pb::Update &update);

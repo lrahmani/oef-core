@@ -17,10 +17,13 @@
 //
 //------------------------------------------------------------------------------
 
-#include <memory>
 #include "interface/communicator_t.hpp"
 #include "interface/buffer_t.hpp"
+
 #include "schema.hpp" // TOFIX
+
+#include <memory>
+#include <system_error>
 
 namespace fetch {
   namespace oef {
@@ -35,13 +38,13 @@ namespace fetch {
         //
         virtual void connect() = 0;
         //
-        virtual void register_description_sync(const std::string& agent, const Instance& desc) = 0;
-        virtual void unregister_description_sync(const std::string& agent) = 0;
-        virtual void register_service_sync(const std::string& agent, const Instance& service) = 0;
-        virtual void unregister_service_sync(const std::string& agent, const Instance& service) = 0;
+        virtual std::error_code register_description_sync(const std::string& agent, const Instance& desc) = 0;
+        virtual std::error_code unregister_description_sync(const std::string& agent) = 0;
+        virtual std::error_code register_service_sync(const std::string& agent, const Instance& service) = 0;
+        virtual std::error_code unregister_service_sync(const std::string& agent, const Instance& service) = 0;
         // TOFIX QueryModel don't save constraintExpr s
-        virtual std::vector<agent_t> search_agents_sync(const std::string& agent, const QueryModel& query) = 0; 
-        virtual std::vector<agent_t> search_service_sync(const std::string& agent, const QueryModel& query) = 0;
+        virtual std::error_code search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) = 0; 
+        virtual std::error_code search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) = 0;
         //
         virtual ~oef_search_client_t() {}
     };

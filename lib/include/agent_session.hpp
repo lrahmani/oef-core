@@ -92,7 +92,7 @@ namespace oef {
       void process_search_agents(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) override;
       void process_search_service(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) override;
       void send_dialog_error(uint32_t msg_id, uint32_t dialogue_id, const std::string &origin) override;
-      void send_error(uint32_t msg_id, fetch::oef::pb::Server_AgentMessage_OEFError error) override;
+      void send_error(uint32_t msg_id, fetch::oef::pb::Server_AgentMessage_OEFError_Operation error) override;
       void process_message(uint32_t msg_id, fetch::oef::pb::Agent_Message *msg) override;
       void process(const std::shared_ptr<Buffer> &buffer) override;
       
