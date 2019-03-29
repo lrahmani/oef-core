@@ -22,23 +22,26 @@ services:
     hostname: "oef-core-pluto"
     links:
       - oef-search-pluto
-    command: ["/source/wait_for.sh", "oef-search-pluto:7501", "--", "/apps/node-pluto/OEFNodePluto", "core-server-key", "oef-core-pluto", "oef-search-pluto", "7501"] 
+    command: ["/source/wait_for.sh", "oef-search-pluto:7501", "--", "/apps/node-pluto/OEFNodePluto", "core-server-key", "oef-core-pluto", "3333", "oef-search-pluto", "7501"] 
 
-#  # Oef Agent | python echo service
-#  oef-sdk-python:
-#    image: "oef-sdk-python:end-to-end-oef"
-#    links:
-#      - oef-core-pluto
-#    command: ["/build/wait_for.sh", "oef-core-pluto:3333", "--", "python" , "/build/echo_service.py", "oef-core-pluto"] 
+  # Oef Agent | python echo service
+  oef-sdk-python:
+    image: "oef-sdk-python:end-to-end-oef"
+    build:
+      context: ./build/oef-sdk-python/
+      dockerfile: ./oef-sdk-python-image/Dockerfile
+    links:
+      - oef-core-pluto
+    command: ["/build/wait_for.sh", "oef-core-pluto:3333", "--", "/build/install_n_run_echo_service.sh", "oef-core-pluto"] 
 
-#  # Oef Agent | c# echo client
-#  oef-sdk-csharp:
-#    image: "oef-sdk-csharp:end-to-end-oef"
-#    build:
-#      context: ./build/oef-sdk-csharp/
-#      dockerfile: ./oef-sdk-csharp-image/Dockerfile
-#    links:
-#      - oef-core-pluto
-#      #- oef-sdk-python
-#    command: ["/work/wait_for.sh", "oef-core-pluto:3333", "--", "mono" , "/work/examples/agent/OefClient.exe", "oef-core-pluto"] 
+  # Oef Agent | c# echo client
+  oef-sdk-csharp:
+    image: "oef-sdk-csharp:end-to-end-oef"
+    build:
+      context: ./build/oef-sdk-csharp/
+      dockerfile: ./oef-sdk-csharp-image/Dockerfile
+    links:
+      - oef-core-pluto
+      #- oef-sdk-python
+    command: ["/work/wait_for.sh", "oef-core-pluto:3333", "--", "mono" , "/work/examples/echo/EchoClientPersistant.exe", "oef-core-pluto"] 
 
