@@ -20,7 +20,19 @@ You can access the node at `127.0.0.1:3333`.
 
 ## Run End-to-End Oef
 
-![alt text](https://github.com/uvue-git/oef-core-pluto/wiki/basic-end-to-end.jpg "Basic end-to-end Oef")
+```
+    +----------------+
+    |Oef Python Agent|---+
+    +----------------+   |   +--------------+         +----------------+
+     1. register a       +---|              |         |                |
+         service             |Oef Core Pluto|+-------+|Oef Search Pluto|
+                         +---|              |         |                |
+    +----------------+   |   +--------------+         +----------------+
+    |Oef C# Agent    |---+
+    +----------------+
+     2. query for a
+         service
+```
 
 Directory `./end-to-end-oef` contains a docker-compose that deploys the full Oef system: Oef Search (`uvue-git/oef-search-pluto`), Oef Core (`uvue-git/oef-core-pluto`), and two agents using different languages SDKs (`uvue-git/oef-sdk-python` and `uvue-git/oef-sdk-csharp`).
 ```bash
