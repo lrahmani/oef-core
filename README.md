@@ -34,7 +34,7 @@ This script will:
 
 1. Clone all needed repositories
 2. Apply (quick) patches to cloned repositories (mainly, launch scripts and updated code)
-3. Build all needed images (using `docker-compose build`)
+3. Build all needed images (using `docker-compose build`) with `end-to-end-oef` tag
 
 ### Deploy containers
 ```bash
