@@ -1,4 +1,4 @@
 #!/bin/bash
 
-python setup.py install
-python /build/examples/echo/echo_service.py $1
+cd /build/ && python3 setup.py install
+python3 /build/examples/echo/echo_service.py $1
