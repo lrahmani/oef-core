@@ -25,7 +25,7 @@ Directory `./end-to-end-oef` contains a docker-compose that deploys the full Oef
 cd ./end-to-end-oef/
 ```
 
-### Prepare different docker images
+### Prepare needed docker images
 First, you need to run configuration script:
 ```bash
 ./configure_from_scratch.sh
