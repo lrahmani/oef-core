@@ -17,3 +17,27 @@ Docker image [`oef-core-pluto-image`](https://github.com/uvue-git/oef-core-pluto
 
 
 You can access the node at `127.0.0.1:3333`.
+
+## Run End-to-End Oef
+
+Directory `./end-to-end-oef` contains a docker-compose that deploys the full Oef system: Oef Search (`uvue-git/oef-search-pluto`), Oef Core (`uvue-git/oef-core-pluto`), and two agents using different languages SDKs (`uvue-git/oef-sdk-python` and `uvue-git/oef-sdk-csharp`).
+```bash
+cd ./end-to-end-oef/
+```
+
+### Prepare different docker images
+First, you need to run configuration script:
+```bash
+./configure_from_scratch.sh
+```
+This script will:
+
+1. Clone all needed repositories
+2. Apply (quick) patches to cloned repositories (mainly, launch scripts and updated code)
+3. Build all needed images (using `docker-compose build`)
+
+### Deploy containers
+```bash
+docker-compose up
+```
+ 
