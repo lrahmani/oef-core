@@ -1,4 +1,4 @@
-3.3.77#!/bin/bash -e
+#!/bin/bash -e
 
 #
 # Oef System from end-to-end
@@ -23,7 +23,6 @@ cp ${DIR}/wait_for.sh ${BUILD}/oef-search-pluto/
 cp ${DIR}/wait_for.sh ${BUILD}/oef-core-pluto/ 
 cp ${DIR}/wait_for.sh ${BUILD}/oef-sdk-python/
 cp ${DIR}/install_n_run_echo_service.sh ${BUILD}/oef-sdk-python/
-chmod 777 ${DIR}/echo_service.py
 cp ${DIR}/echo_service.py ${BUILD}/oef-sdk-python/examples/echo/
 cp ${DIR}/wait_for.sh ${BUILD}/oef-sdk-csharp/ 
 
