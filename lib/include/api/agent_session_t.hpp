@@ -52,6 +52,7 @@ namespace oef {
         virtual void send(const fetch::oef::pb::Server_AgentMessage& msg, LengthContinuation continuation) = 0;
         /* Send a message to managed agent */
         virtual void send(const fetch::oef::pb::Server_AgentMessage& msg) = 0;
+        virtual void send_error(uint32_t msg_id, fetch::oef::pb::Server_AgentMessage_OEFError_Operation error) = 0;
         
         virtual ~agent_session_t() {}
     private:
@@ -64,7 +65,6 @@ namespace oef {
         virtual void process_search_service(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) = 0;
         virtual void process_message(uint32_t msg_id, fetch::oef::pb::Agent_Message *msg) = 0;
         virtual void send_dialog_error(uint32_t msg_id, uint32_t dialogue_id, const std::string &origin) = 0;
-        virtual void send_error(uint32_t msg_id, fetch::oef::pb::Server_AgentMessage_OEFError_Operation error) = 0;
         /* Process received serialized data from agent */
         virtual void process(const std::shared_ptr<Buffer> &buffer) = 0;
     };

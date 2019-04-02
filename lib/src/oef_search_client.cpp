@@ -39,11 +39,12 @@ std::error_code OefSearchClient::unregister_description_sync(const std::string& 
 
 std::error_code OefSearchClient::register_service_sync(const std::string& agent, const Instance& service) {
   std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
-  // first, prepare cmd message  
-  fetch::oef::pb::Server_Phrase cmd; // TOFIX using a string field proto msg for serialization
-  cmd.set_phrase("update");
-  auto buffer_cmd = pbs::serialize(cmd);
+  // first, prepare cmd message and send it
+  std::string cmd("update"); // TOFIX using a string field proto msg for serialization
+  auto buffer_cmd = as::serialize(cmd);
   
+  comm_->send_sync(buffer_cmd);
+
   // then prepare update proto message
   fetch::oef::pb::Update update;
   update.set_key(core_id_);
@@ -59,7 +60,7 @@ std::error_code OefSearchClient::register_service_sync(const std::string& agent,
   
   // send messages 
   std::vector<std::shared_ptr<Buffer>> buffers;
-  buffers.emplace_back(buffer_cmd);
+  //buffers.emplace_back(buffer_cmd);
   buffers.emplace_back(buffer_update);
   
   logger.debug("OefSearchClient::register_service_sync sending update from agent {} to OefSearch: {}", 
@@ -83,6 +84,108 @@ std::error_code OefSearchClient::search_service_sync(const std::string& agent, c
   std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
   logger.warn("OefSearchClient::search_service_sync NOT implemented yet"); 
   return std::error_code{}; // success
+}
+
+/* async operation */
+
+void OefSearchClient::register_description(const std::string& agent, const Instance& desc) {
+}
+
+void OefSearchClient::unregister_description(const std::string& agent) {
+}
+
+void OefSearchClient::register_service(const Instance& service, const std::string& agent, uint32_t msg_id) {
+  std::string cmd("update"); // TOFIX using a string field proto msg for serialization
+  auto buffer_cmd = as::serialize(cmd);
+  
+  comm_->send_sync(buffer_cmd);
+
+  // then prepare update proto message
+  fetch::oef::pb::Update update;
+  update.set_key(core_id_);
+
+  fetch::oef::pb::Update_DataModelInstance* dm = update.add_data_models();
+
+  dm->set_key(agent.c_str());
+  dm->mutable_model()->CopyFrom(service.model());
+
+  addNetworkAddress(update);
+
+  auto buffer_update = pbs::serialize(update);
+  
+  // send messages 
+  //std::vector<std::shared_ptr<Buffer>> buffers;
+  //buffers.emplace_back(buffer_cmd);
+  //buffers.emplace_back(buffer_update);
+  
+  logger.debug("OefSearchClient::register_service sending update from agent {} to OefSearch: {}", 
+        agent, pbs::to_string(update));
+
+  search_send_async_(buffer_update, agent, msg_id);
+}
+
+void OefSearchClient::unregister_service(const std::string& agent, const Instance& service) {
+}
+
+void OefSearchClient::search_agents(const std::string& agent, const QueryModel& query) {
+}
+
+void OefSearchClient::search_service(const std::string& agent, const QueryModel& query) {
+}
+  
+
+// TOFIX refactor to use std::vector<std::shared_ptr<Buffer>> overload
+//       or, implicit conversion?
+void OefSearchClient::search_send_async_(std::shared_ptr<Buffer> buffer, const std::string& agent, uint32_t msg_id) {
+  comm_->send_async(buffer, [this,agent,msg_id](std::error_code ec, uint32_t len){
+                               if(ec) {
+                                 agent_send_error_(agent,msg_id);
+                               } else {
+                                 search_schedule_rcv_();
+                               }
+                             });
+}
+
+// TOFIX Not really implemented - sends only first buffer 
+void OefSearchClient::search_send_async_(std::vector<std::shared_ptr<Buffer>> buffers, const std::string& agent, uint32_t msg_id) {
+  comm_->send_async(buffers[0], [this,agent,msg_id](std::error_code ec, uint32_t len){
+                               if(ec) {
+                                 agent_send_error_(agent,msg_id);
+                               } else {
+                                 search_schedule_rcv_();
+                               }
+                             });
+}
+
+void OefSearchClient::search_schedule_rcv_() {
+  comm_->receive_async([this](std::error_code ec, std::shared_ptr<Buffer> buffer) {
+                         if(ec){
+                           logger.error("----------------- Non-handled situation -------------------");
+                         } else {
+                           search_handle_msg_(buffer);
+                         }
+                       });
+}
+
+void OefSearchClient::agent_send_error_(const std::string& agent, uint32_t msg_id) {
+  auto session = agent_directory_.session(agent);
+  if(session){
+    session->send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::UNREGISTER_SERVICE); // TOFIX add OEFError::SEARCH
+  } else {
+    logger.error("OefSearchClient::agent_send_error agent {} not found", agent);
+  }
+}
+
+void OefSearchClient::search_handle_msg_(std::shared_ptr<Buffer> buffer) {
+  //auto envelope = pbs::deserialize<fetch::oef::pb::Message>(*buffer);  
+  std::string agent;
+  fetch::oef::pb::Server_AgentMessage message;
+  auto session = agent_directory_.session(agent);
+  if(session){
+    session->send(message);  
+  } else {
+    logger.error("OefSearchClient::agent_send_error agent {} not found", agent);
+  }
 }
 
 void OefSearchClient::addNetworkAddress(fetch::oef::pb::Update &update)

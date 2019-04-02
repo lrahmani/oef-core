@@ -21,6 +21,8 @@
 
 #include "asio.hpp"
 
+#include <vector>
+
 using asio::ip::tcp;
 
 namespace fetch {
@@ -46,13 +48,24 @@ namespace oef {
         void send_async(std::shared_ptr<Buffer> buffer) override;
         void send_async(std::shared_ptr<Buffer> buffer,
                                 LengthContinuation continuation) override;
+        void send_async(std::vector<std::shared_ptr<Buffer>> buffer,
+                                LengthContinuation continuation);// override;
         void receive_async(BufferContinuation continuation) override;
+        //
+        std::error_code send_sync(asio::const_buffer& buffer);
         //
         ~AsioComm() {
           disconnect();
         }
         
     };
+
+    namespace as {
+      template <typename T>
+      asio::const_buffer serialize(T msg){
+        return asio::buffer(msg);
+      }
+    }
   } // oef
 } // fetch
 

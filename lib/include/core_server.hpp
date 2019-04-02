@@ -56,7 +56,7 @@ namespace oef {
         try {
           auto s_comm = std::make_shared<AsioComm>(io_context_, s_ip_addr, s_port);
           oef_search_ = std::make_shared<OefSearchClient>(s_comm, 
-              "core-server", acceptor_.local_address(), acceptor_.local_port());
+              "core-server", acceptor_.local_address(), acceptor_.local_port(), agentDirectory_);
           logger.debug("CoreServer::CoreServer info connected to OEF Search {}:{} ", s_ip_addr, s_port);
         } catch (std::exception e) {
           logger.error("CoreServer::CoreServer error while initializing OefSearchClient {}",e.what());

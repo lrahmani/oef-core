@@ -49,11 +49,16 @@ void AgentSession::process_unregister_description(uint32_t msg_id) {
 void AgentSession::process_register_service(uint32_t msg_id, const fetch::oef::pb::AgentDescription& desc) {
   auto service_desc = Instance(desc.description()); 
   DEBUG(logger, "AgentSession::processRegisterService registering agent {} : {}", publicKey_, pbs::to_string(desc));
+  oef_search_.register_service(service_desc, publicKey_, msg_id);
+
+  /* 
+   * sync version 
   auto ec = oef_search_.register_service_sync(publicKey_, service_desc);
   if(ec) {
     send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);
   } 
-  // TOFIX should add a status answer, even in the case of no error
+  // TOFIX should add a status answer, even in the case of no error 
+  */
 }
 
 void AgentSession::process_unregister_service(uint32_t msg_id, const fetch::oef::pb::AgentDescription &desc) {

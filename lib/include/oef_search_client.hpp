@@ -19,11 +19,13 @@
 
 #include "api/oef_search_client_t.hpp"
 
+#include "agent_directory.hpp"
 #include "asio_communicator.hpp"
 #include "logger.hpp"
 
 #include "search.pb.h"
 
+#include <memory>
 
 namespace fetch {
 namespace oef {
@@ -35,16 +37,18 @@ namespace oef {
     uint32_t core_port_ ;
     std::string core_id_;
     bool updated_address_;
-    
+    AgentDirectory& agent_directory_;
+     
     static fetch::oef::Logger logger;
   public:
     explicit OefSearchClient(std::shared_ptr<AsioComm> comm, const std::string& core_id, 
-        const std::string& core_ip_addr, uint32_t core_port)
+        const std::string& core_ip_addr, uint32_t core_port, AgentDirectory& agent_directory)
         : comm_(std::move(comm))
         , core_ip_addr_{core_ip_addr}
         , core_port_{core_port}
         , core_id_{core_id}
         , updated_address_{true}
+        , agent_directory_{agent_directory}
     {
     }
     
@@ -61,7 +65,20 @@ namespace oef {
     std::error_code search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) override;
     std::error_code search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) override;
 
+    void register_description(const std::string& agent, const Instance& desc);
+    void unregister_description(const std::string& agent);
+    void register_service(const Instance& service, const std::string& agent, uint32_t msg_id);
+    void unregister_service(const std::string& agent, const Instance& service);
+    // TOFIX QueryModel don't save constraintExpr s (you sure?)
+    void search_agents(const std::string& agent, const QueryModel& query);
+    void search_service(const std::string& agent, const QueryModel& query);
+  
   private:
+    void search_send_async_(std::shared_ptr<Buffer> buffer, const std::string& agent, uint32_t msg_id);
+    void search_send_async_(std::vector<std::shared_ptr<Buffer>> buffers, const std::string& agent, uint32_t msg_id);
+    void search_schedule_rcv_();
+    void search_handle_msg_(std::shared_ptr<Buffer> buffer);
+    void agent_send_error_(const std::string& agent, uint32_t msg_id);
     void addNetworkAddress(fetch::oef::pb::Update &update);
   };
   

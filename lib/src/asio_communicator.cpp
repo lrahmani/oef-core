@@ -144,5 +144,21 @@ std::error_code AsioComm::receive_sync(std::shared_ptr<Buffer>& buffer) {
   return ec;
 }
 
+std::error_code AsioComm::send_sync(asio::const_buffer& buffer) {
+  std::vector<asio::const_buffer> buffers;
+  int32_t len = -int32_t(buffer.size());
+  buffers.emplace_back(asio::buffer(&len, sizeof(len)));
+  buffers.emplace_back(buffer);
+  uint32_t total = len+sizeof(len);
+  std::error_code ec;
+  std::size_t length = asio::write(socket_, buffers, ec);
+  if (length != total) {
+    std::cerr << "AsioComm::send_sync error sent " << length << " expected " << total 
+      << " : " << ec.value() << std::endl;
+    // TOFIX should connection be closed?
+  }
+  return ec;
+}
+
 } // oef
 } // fetch
