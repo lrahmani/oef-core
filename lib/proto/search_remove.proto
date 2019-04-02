@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package fetch.oef.pb;
+
+import "query.proto";
+import "search_update.proto";
+
+message Remove {
+    bytes key = 1;
+    bool all = 2;
+    repeated Update.Attribute attributes = 3;
+    repeated fetch.oef.pb.Query.DataModel data_models = 4;
+}

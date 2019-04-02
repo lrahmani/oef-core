@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-import "query.proto";
-
 package fetch.oef.pb;
+
+import "query.proto";
 
 message Update {
 

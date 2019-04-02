@@ -37,36 +37,53 @@ std::error_code OefSearchClient::unregister_description_sync(const std::string& 
   return std::error_code{}; // success
 }
 
-std::error_code OefSearchClient::register_service_sync(const std::string& agent, const Instance& service) {
+std::error_code OefSearchClient::register_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) {
   std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
-  // first, prepare cmd message and send it
-  std::string cmd("update"); // TOFIX using a string field proto msg for serialization
-  auto buffer_cmd = as::serialize(cmd);
-  
-  comm_->send_sync(buffer_cmd);
+  // prepare search message
+  pb::SearchMessage message;
+  message.set_id(msg_id);
+  message.set_uri("update");
 
-  // then prepare update proto message
+  // then prepare payload message
   fetch::oef::pb::Update update;
   update.set_key(core_id_);
 
   fetch::oef::pb::Update_DataModelInstance* dm = update.add_data_models();
-
   dm->set_key(agent.c_str());
   dm->mutable_model()->CopyFrom(service.model());
 
   addNetworkAddress(update);
 
-  auto buffer_update = pbs::serialize(update);
+  message.set_body(update.SerializeAsString());
+
+  // serialize message
+  auto buffer = pbs::serialize(update);
   
-  // send messages 
-  std::vector<std::shared_ptr<Buffer>> buffers;
-  //buffers.emplace_back(buffer_cmd);
-  buffers.emplace_back(buffer_update);
+  // send message
   
   logger.debug("OefSearchClient::register_service_sync sending update from agent {} to OefSearch: {}", 
-        agent, pbs::to_string(update));
+        agent, pbs::to_string(message));
 
-  return comm_->send_sync(buffers); // TOFIX not sure it's appropriate to return network error_code s
+  auto ec = comm_->send_sync(buffer); 
+  
+  if(ec){
+    logger.debug("OefSearchClient::register_service_sync error while sending update from agent {} to OefSearch", agent);
+    return ec;
+  }
+
+  logger.debug("OefSearchClient::register_service_sync waiting for update confirmation from OefSearch");
+  std::shared_ptr<Buffer> buffer_resp;
+  ec = comm_->receive_sync(buffer_resp);
+    
+  if(ec) {
+    logger.debug("OefSearchClient::register_service_sync error while receiving confirmation from OefSearch");
+    return ec;
+  } 
+  
+  auto message_resp = pbs::deserialize<pb::SearchMessage>(*buffer_resp);
+  logger.debug("received search message {} ", pbs::to_string(message_resp));
+
+  return std::error_code{};
 }
 
 std::error_code OefSearchClient::unregister_service_sync(const std::string& agent, const Instance& service) {

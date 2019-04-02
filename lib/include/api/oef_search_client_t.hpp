@@ -44,7 +44,7 @@ namespace oef {
         /* OEF Search operations, as specified in search.proto */
         virtual std::error_code register_description_sync(const std::string& agent, const Instance& desc) = 0;
         virtual std::error_code unregister_description_sync(const std::string& agent) = 0;
-        virtual std::error_code register_service_sync(const std::string& agent, const Instance& service) = 0;
+        virtual std::error_code register_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) = 0;
         virtual std::error_code unregister_service_sync(const std::string& agent, const Instance& service) = 0;
         virtual std::error_code search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) = 0; 
         virtual std::error_code search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) = 0;

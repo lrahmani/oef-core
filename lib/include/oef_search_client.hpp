@@ -23,7 +23,11 @@
 #include "asio_communicator.hpp"
 #include "logger.hpp"
 
-#include "search.pb.h"
+#include "search_message.pb.h"
+#include "search_query.pb.h"
+#include "search_remove.pb.h"
+#include "search_response.pb.h"
+#include "search_update.pb.h"
 
 #include <memory>
 
@@ -59,7 +63,7 @@ namespace oef {
     
     std::error_code register_description_sync(const std::string& agent, const Instance& desc) override;
     std::error_code unregister_description_sync(const std::string& agent) override;
-    std::error_code register_service_sync(const std::string& agent, const Instance& service) override;
+    std::error_code register_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
     std::error_code unregister_service_sync(const std::string& agent, const Instance& service) override;
     // TOFIX QueryModel don't save constraintExpr s (you sure?)
     std::error_code search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) override;

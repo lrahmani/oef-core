@@ -31,7 +31,7 @@ constexpr uint32_t core_default_backlog{256};
 constexpr uint32_t core_default_nb_threads{4};
 
 enum class Ports {
-  ServiceDiscovery = 2222, Agents = 3333, Search = 7501
+  ServiceDiscovery = 2222, Agents = 3333, Search = 7500
 };
 
 } // config
