@@ -67,7 +67,7 @@ namespace oef {
     std::error_code unregister_service_sync(const std::string& agent, const Instance& service) override;
     // TOFIX QueryModel don't save constraintExpr s (you sure?)
     std::error_code search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) override;
-    std::error_code search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) override;
+    std::error_code search_service_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) override;
 
     void register_description(const std::string& agent, const Instance& desc);
     void unregister_description(const std::string& agent);

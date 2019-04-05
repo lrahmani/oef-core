@@ -99,7 +99,7 @@ void AgentSession::process_search_service(uint32_t msg_id, const fetch::oef::pb:
   auto query = QueryModel(search.query());
   DEBUG(logger, "AgentSession::processQuery from agent {} : {}", publicKey_, pbs::to_string(search));
   std::vector<agent_t> agents;
-  auto ec = oef_search_.search_service_sync(publicKey_, query, agents);
+  auto ec = oef_search_.search_service_sync(query, publicKey_, msg_id, agents);
   if(ec) {
     // TOFIX no error message defined for search_agents
     send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);

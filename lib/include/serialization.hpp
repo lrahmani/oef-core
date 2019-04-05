@@ -48,6 +48,13 @@ T deserialize(const Buffer &buffer) {
   return t;
 }
 
+template <typename T>
+T deserialize(const std::string &buffer) {
+  T t;
+  t.ParseFromArray(buffer.data(), buffer.size());
+  return t;
+}
+
 std::string to_string(const google::protobuf::Message &msg);
 
 } // pbs 

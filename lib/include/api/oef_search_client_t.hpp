@@ -47,7 +47,7 @@ namespace oef {
         virtual std::error_code register_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) = 0;
         virtual std::error_code unregister_service_sync(const std::string& agent, const Instance& service) = 0;
         virtual std::error_code search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) = 0; 
-        virtual std::error_code search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) = 0;
+        virtual std::error_code search_service_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) = 0;
         
         virtual ~oef_search_client_t() {}
     };

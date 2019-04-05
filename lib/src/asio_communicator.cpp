@@ -129,7 +129,7 @@ std::error_code AsioComm::receive_sync(std::shared_ptr<Buffer>& buffer) {
   auto length = asio::read(socket_, asio::buffer(len.get(), sizeof(uint32_t)), ec);
   if (ec || length!=sizeof(uint32_t)) { // TOFIX testing length is not needed
     // http://charette.no-ip.com:81/programming/doxygen/boost/group__read.html#gab89bd5df06ea19ed5542ebfd514aef30
-    std::cerr << "AsioComm::receive_sync error while receivin lenght of data " << ec.value() << std::endl;
+    std::cerr << "AsioComm::receive_sync error while receivin lenght of data, got " << length << " : ec " << ec.value() << std::endl;
     return ec;
     // TOFIX should connection be closed?
   }

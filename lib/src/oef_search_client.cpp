@@ -93,12 +93,65 @@ std::error_code OefSearchClient::unregister_service_sync(const std::string& agen
   return std::error_code{}; // success
 }
 
-std::error_code OefSearchClient::search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) {
+std::error_code OefSearchClient::search_service_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) {
   std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
-  logger.warn("OefSearchClient::search_agents_sync NOT implemented yet"); 
-  return std::error_code{}; // success
+  // prepare search message
+  pb::SearchMessage envelope;
+  envelope.set_id(msg_id);
+  envelope.set_uri("search");
+  envelope.mutable_status()->set_success(true);
+
+  // then prepare payload envelope
+  pb::SearchQuery search_query;
+  search_query.set_source_key(core_id_);
+  search_query.mutable_model()->CopyFrom(search_query.model());
+  search_query.set_ttl(1);
+
+  envelope.set_body(search_query.SerializeAsString());
+
+  // serialize envelope
+  auto buffer = pbs::serialize(envelope);
+  
+  // send envelope
+  
+  logger.debug("OefSearchClient::search_service_sync sending query from agent {} to OefSearch: {}", 
+        agent, pbs::to_string(envelope));
+
+  auto ec = comm_->send_sync(buffer); 
+  
+  if(ec){
+    logger.debug("OefSearchClient::search_service_sync error while sending query from agent {} to OefSearch", agent);
+    return ec;
+  }
+
+  logger.debug("OefSearchClient::search_service_sync waiting for query answer from OefSearch");
+  std::shared_ptr<Buffer> buffer_resp;
+  ec = comm_->receive_sync(buffer_resp);
+    
+  if(ec) {
+    logger.debug("OefSearchClient::search_service_sync error while receiving query answer from OefSearch");
+    return ec;
+  } 
+  
+  auto envelope_resp = pbs::deserialize<pb::SearchMessage>(*buffer_resp);
+  logger.debug("received search envelope {} ", pbs::to_string(envelope_resp));
+
+  // get query results
+  auto search_resp = pbs::deserialize<pb::SearchResponse>(envelope_resp.body());
+  logger.debug("received search results {} ", pbs::to_string(search_resp));
+  
+  auto items = search_resp.result();
+  for (auto& item : items) {
+    auto agts = item.agents();
+    for (auto& a : agts) {
+      std::string key{*a.mutable_key()};
+      agents.emplace_back(agent_t{key,""});
+    }
+  }
+
+  return std::error_code{};
 }
-std::error_code OefSearchClient::search_service_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) {
+std::error_code OefSearchClient::search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) {
   std::lock_guard<std::mutex> lock(lock_); // TOFIX until a state is maintained
   logger.warn("OefSearchClient::search_service_sync NOT implemented yet"); 
   return std::error_code{}; // success
