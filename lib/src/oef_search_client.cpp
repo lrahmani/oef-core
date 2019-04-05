@@ -43,6 +43,7 @@ std::error_code OefSearchClient::register_service_sync(const Instance& service, 
   pb::SearchMessage message;
   message.set_id(msg_id);
   message.set_uri("update");
+  message.mutable_status()->set_success(true);
 
   // then prepare payload message
   fetch::oef::pb::Update update;
@@ -57,7 +58,7 @@ std::error_code OefSearchClient::register_service_sync(const Instance& service, 
   message.set_body(update.SerializeAsString());
 
   // serialize message
-  auto buffer = pbs::serialize(update);
+  auto buffer = pbs::serialize(message);
   
   // send message
   
