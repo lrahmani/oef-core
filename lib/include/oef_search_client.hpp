@@ -20,7 +20,6 @@
 #include "api/oef_search_client_t.hpp"
 
 #include "agent_directory.hpp"
-#include "asio_search_communicator.hpp"
 #include "asio_basic_communicator.hpp"
 #include "logger.hpp"
 

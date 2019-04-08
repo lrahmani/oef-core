@@ -24,7 +24,6 @@
 #include "asio_communicator.hpp"
 #include "asio_acceptor.hpp"
 #include "asio_basic_communicator.hpp"
-#include "asio_search_communicator.hpp"
 #include "oef_search_client.hpp"
 #include "serialization.hpp"
 #include "config.hpp"
