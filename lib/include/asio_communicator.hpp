@@ -28,8 +28,6 @@ using asio::ip::tcp;
 namespace fetch {
 namespace oef {
     class AsioComm : public communicator_t {
-    private:
-        tcp::socket socket_; 
     public:
         //
         explicit AsioComm(asio::io_context& io_context) : socket_{io_context} {}
@@ -57,6 +55,20 @@ namespace oef {
         ~AsioComm() {
           disconnect();
         }
+    private:
+        void pack_core_protocol_(std::vector<std::shared_ptr<Buffer>> buffers, std::vector<asio::const_buffer>& out, uint32_t& out_total) {
+          std::vector<uint32_t> lens;
+          out_total = 0;
+          for(auto& buffer : buffers) {
+            lens.emplace_back(uint32_t(buffer->size()));
+            auto* len = &lens.back();
+            out.emplace_back(asio::buffer(len, sizeof(*len)));
+            out.emplace_back(asio::buffer(buffer->data(), *len));
+            out_total += *len+sizeof(*len);
+          }
+        }
+    private:
+        tcp::socket socket_; 
         
     };
 

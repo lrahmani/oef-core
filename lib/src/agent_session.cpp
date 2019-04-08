@@ -130,7 +130,7 @@ void AgentSession::send_error(uint32_t msg_id, fetch::oef::pb::Server_AgentMessa
   answer.set_answer_id(msg_id);
   auto *error = answer.mutable_oef_error();
   error->set_operation(error_op);
-  logger.trace("AgentSession::processUnregisterService sending error {} to {}", error->operation(), publicKey_);
+  logger.trace("AgentSession:: sending error {} to {}", error->operation(), publicKey_);
   send(answer);
 }
 

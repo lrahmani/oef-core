@@ -18,24 +18,20 @@
 //------------------------------------------------------------------------------
 
 #include "api/continuation_t.hpp"
-#include "api/buffer_t.hpp"
 
 #include <memory>
 
 namespace fetch {
 namespace oef {
     /* 
-     * Defines API for a Communicator object.
+     * Defines API for a Basic Communicator object.
      * Communicator establishes a bi-directional communication channel between two participant, on 
      * the same machine or accross a network, depending on its implementation.
      * Communicator implements primitive send and receive operations, both synchronous and asynchronous.
-     * Data is sent and received as Buffer objects.
-     * Important: Communication protocol imposes to: 
-     *   - first, send the size of the data as a (serialized) uint32_t
-     *   - then, send the actual data
-     * Same protocol applies when receiving it.
+     * Data is sent and received as pointer to void with number of bytes to send/received.
+     * Important: No protocol is defined.
      */ 
-    class communicator_t {
+    class basic_communicator_t {
     public:
         /* Establish a new connection */
         virtual void connect() = 0;
@@ -48,28 +44,31 @@ namespace oef {
          *   - [overload1][in] buffer: serialized message to be sent
          *   - [overload2][in] buffers: a grouped send
          * return: error_code for error or success : if(ec) error; if(!ec) success */
-        virtual std::error_code send_sync(std::shared_ptr<Buffer> buffer) = 0;
-        virtual std::error_code send_sync(std::vector<std::shared_ptr<Buffer>> buffers) = 0;
+        
+        /* TOFIX add constness */ 
+        
+        virtual std::error_code send_sync(const void* buffer, std::size_t nbytes) = 0; 
+        virtual std::error_code send_sync(std::vector<void*> buffers, std::vector<std::size_t> nbytes) = 0;
         
         /* Receive data synchronously through Communicator. Will block until all data has been received or an error occured
          * params: 
          *   - [overload1][out] buffer: received serialized message 
          * return: error_code for error or success : if(ec) error; if(!ec) success */
-        virtual std::error_code receive_sync(std::shared_ptr<Buffer>& buffer) = 0;
+        virtual std::error_code receive_sync(void* buffer, const std::size_t& nbytes ) = 0;
         
         /* Send data asynchronously. Will not block.
          * params:
          *   - [in] buffer: serialized message to be sent
          *   - [overload][in] continuation: callback function to handle successful transmission, or errors */
-        virtual void send_async(std::shared_ptr<Buffer> buffer, LengthContinuation continuation) = 0;
-        virtual void send_async(std::shared_ptr<Buffer> buffer) = 0;
+        virtual void send_async(std::shared_ptr<void> buffer, std::size_t nbytes, LengthContinuation continuation) = 0;
+        virtual void send_async(std::shared_ptr<void> buffer, std::size_t nbytes) = 0;
         
         /* Receive data asynchronously. Will not black.
          * params:
          *   - [in] continuation: callback function to handle received data, or errors */
-        virtual void receive_async(BufferContinuation continuation) = 0;
+        virtual void receive_async(VoidBuffContinuation continuation) = 0;
         
-        virtual ~communicator_t() {}
+        virtual ~basic_communicator_t() {}
     };
 } // oef
 } // fetch

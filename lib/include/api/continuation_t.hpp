@@ -30,6 +30,7 @@ namespace oef {
      * operations responses. All parameters are [in]. 
      */
     using BufferContinuation = std::function<void(std::error_code,std::shared_ptr<Buffer>)>;
+    using VoidBuffContinuation = std::function<void(std::error_code,std::shared_ptr<void>,std::size_t)>;
     using LengthContinuation = std::function<void(std::error_code,std::size_t)>;
     class communicator_t;
     using CommunicatorContinuation = std::function<void(std::error_code,std::shared_ptr<communicator_t>)>;

@@ -20,7 +20,8 @@
 #include "api/oef_search_client_t.hpp"
 
 #include "agent_directory.hpp"
-#include "asio_communicator.hpp"
+#include "asio_search_communicator.hpp"
+#include "asio_basic_communicator.hpp"
 #include "logger.hpp"
 
 #include "search_message.pb.h"
@@ -28,6 +29,7 @@
 #include "search_remove.pb.h"
 #include "search_response.pb.h"
 #include "search_update.pb.h"
+#include "search_transport.pb.h"
 
 #include <memory>
 
@@ -36,7 +38,7 @@ namespace oef {
   class OefSearchClient : public oef_search_client_t {
   private:
     mutable std::mutex lock_;
-    std::shared_ptr<AsioComm> comm_;
+    std::shared_ptr<AsioBasicComm> comm_;
     std::string core_ip_addr_;
     uint32_t core_port_ ;
     std::string core_id_;
@@ -45,7 +47,7 @@ namespace oef {
      
     static fetch::oef::Logger logger;
   public:
-    explicit OefSearchClient(std::shared_ptr<AsioComm> comm, const std::string& core_id, 
+    explicit OefSearchClient(std::shared_ptr<AsioBasicComm> comm, const std::string& core_id, 
         const std::string& core_ip_addr, uint32_t core_port, AgentDirectory& agent_directory)
         : comm_(std::move(comm))
         , core_ip_addr_{core_ip_addr}
@@ -78,12 +80,21 @@ namespace oef {
     void search_service(const std::string& agent, const QueryModel& query);
   
   private:
+    //
+    pb::TransportHeader generate_header_(const std::string& uri, uint32_t msg_id);
+    pb::Update generate_update_(const Instance& service, const std::string& agent, uint32_t msg_id);
+    void addNetworkAddress(fetch::oef::pb::Update &update); // TOFIX to merge in generate_update_()
+    //
+    /* check lib/proto/search_transport.proto for Oef Search communication protocol */
+    std::error_code search_send_sync_(std::shared_ptr<Buffer> header, std::shared_ptr<Buffer> payload);
+    std::error_code search_receive_sync_(pb::TransportHeader& header, std::shared_ptr<Buffer>& payload);
+    //
+    //
     void search_send_async_(std::shared_ptr<Buffer> buffer, const std::string& agent, uint32_t msg_id);
     void search_send_async_(std::vector<std::shared_ptr<Buffer>> buffers, const std::string& agent, uint32_t msg_id);
     void search_schedule_rcv_();
     void search_handle_msg_(std::shared_ptr<Buffer> buffer);
     void agent_send_error_(const std::string& agent, uint32_t msg_id);
-    void addNetworkAddress(fetch::oef::pb::Update &update);
   };
   
 } //oef

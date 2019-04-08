@@ -23,6 +23,8 @@
 #include "agent_directory.hpp"
 #include "asio_communicator.hpp"
 #include "asio_acceptor.hpp"
+#include "asio_basic_communicator.hpp"
+#include "asio_search_communicator.hpp"
 #include "oef_search_client.hpp"
 #include "serialization.hpp"
 #include "config.hpp"
@@ -54,7 +56,7 @@ namespace oef {
           : acceptor_{io_context_, static_cast<uint32_t>(config::Ports::Agents)} {
         threads_.resize(nbThreads);
         try {
-          auto s_comm = std::make_shared<AsioComm>(io_context_, s_ip_addr, s_port);
+          auto s_comm = std::make_shared<AsioBasicComm>(io_context_, s_ip_addr, s_port);
           oef_search_ = std::make_shared<OefSearchClient>(s_comm, 
               "core-server", acceptor_.local_address(), acceptor_.local_port(), agentDirectory_);
           logger.debug("CoreServer::CoreServer info connected to OEF Search {}:{} ", s_ip_addr, s_port);

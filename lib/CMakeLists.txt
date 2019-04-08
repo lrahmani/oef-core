@@ -5,7 +5,7 @@ find_package(Protobuf REQUIRED)
 
 PROTOBUF_GENERATE_CPP(PROTO_SRC PROTO_HEADER proto/query.proto proto/fipa.proto proto/agent.proto 
   proto/search_message.proto proto/search_query.proto proto/search_remove.proto 
-  proto/search_response.proto proto/search_update.proto)
+  proto/search_response.proto proto/search_update.proto proto/search_transport.proto)
 set (PROTOBUF_LIBRARIES  ${PROTOBUF_LIBRARIES} PARENT_SCOPE)
 
 add_library(proto OBJECT ${PROTO_HEADER} ${PROTO_SRC})
@@ -50,7 +50,7 @@ set (PROTO_HEADER_FILES "${CMAKE_CURRENT_BINARY_DIR}/agent.pb.h"
     "${CMAKE_CURRENT_BINARY_DIR}/fipa.pb.h" "${CMAKE_CURRENT_BINARY_DIR}/query.pb.h"
     "${CMAKE_CURRENT_BINARY_DIR}/search_message.pb.h" "${CMAKE_CURRENT_BINARY_DIR}/search_query.pb.h"
     "${CMAKE_CURRENT_BINARY_DIR}/search_remove.pb.h" "${CMAKE_CURRENT_BINARY_DIR}/search_response.pb.h"
-    "${CMAKE_CURRENT_BINARY_DIR}/search_update.pb.h")
+    "${CMAKE_CURRENT_BINARY_DIR}/search_update.pb.h" "${CMAKE_CURRENT_BINARY_DIR}/search_transport.pb.h")
 message("Proto file ${PROTO_HEADER_FILES}")
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LIB_NAME})
 #install(DIRECTORY proto DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${LIB_NAME})
