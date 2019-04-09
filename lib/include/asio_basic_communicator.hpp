@@ -65,13 +65,16 @@ namespace oef {
       } 
       std::error_code send_sync(std::vector<void*> buffers, std::vector<std::size_t> nbytes) override {
         assert(buffers.size()==nbytes.size());
+        //std::cerr << "AsioBasicComm::send_sync preparing to send buffers " << buffers.size() << " with nbytes " << nbytes.size() << std::endl;
         std::error_code ec;
         std::vector<asio::const_buffer> asio_buffers;
         size_t n = buffers.size();
         size_t nbytes_acc = 0;
         for (size_t i = 0; i < n ; ++i) {
           asio_buffers.emplace_back(asio::buffer(buffers[i],nbytes[i]));
+          //std::cerr << "AsioBasicComm::nbytes_acc " << nbytes_acc;
           nbytes_acc+=nbytes[i];
+          //std::cerr << " adding " << nbytes[i] << " = " << nbytes_acc << std::endl;
         }
         auto len = asio_send_sync_(asio_buffers, ec);
         if (len != nbytes_acc) {
@@ -82,13 +85,16 @@ namespace oef {
         return ec;
       }
       std::error_code receive_sync(void* buffer, const std::size_t& nbytes ) override {
+        //std::cerr << "AsioBasicComm::receive_sync attempting to receive " << nbytes << std::endl;
         std::error_code ec;
-        auto len = asio_receive_sync_(asio::buffer(buffer, nbytes), ec);
+        auto asio_buffer = asio::buffer(buffer, nbytes);
+        auto len = asio_receive_sync_(asio_buffer, ec);
         if (len != nbytes) {
           std::cerr << "AsioBasicComm::receive_sync error while receiving data - got " << len 
                     << " expected " << nbytes << " : " << ec.value() << std::endl;
           // TOFIX should connection be closed?
         }
+        //std::cerr << "AsioBasicComm::receive_sync received " << len << std::endl;
         return ec;
       }
       //

@@ -62,12 +62,12 @@ namespace oef {
     /* TODO */
     void connect() override {};
     
-    std::error_code register_description_sync(const std::string& agent, const Instance& desc) override;
-    std::error_code unregister_description_sync(const std::string& agent) override;
+    std::error_code register_description_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
+    std::error_code unregister_description_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
     std::error_code register_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
-    std::error_code unregister_service_sync(const std::string& agent, const Instance& service) override;
+    std::error_code unregister_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
     // TOFIX QueryModel don't save constraintExpr s (you sure?)
-    std::error_code search_agents_sync(const std::string& agent, const QueryModel& query, std::vector<agent_t>& agents) override;
+    std::error_code search_agents_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) override;
     std::error_code search_service_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) override;
 
     void register_description(const std::string& agent, const Instance& desc);
@@ -82,6 +82,8 @@ namespace oef {
     //
     pb::TransportHeader generate_header_(const std::string& uri, uint32_t msg_id);
     pb::Update generate_update_(const Instance& service, const std::string& agent, uint32_t msg_id);
+    pb::SearchQuery generate_search_(const QueryModel& query, const std::string& agent, uint32_t msg_id);
+    pb::Remove generate_remove_(const Instance& instance, const std::string& agent, uint32_t msg_id);
     void addNetworkAddress(fetch::oef::pb::Update &update); // TOFIX to merge in generate_update_()
     //
     /* check lib/proto/search_transport.proto for Oef Search communication protocol */

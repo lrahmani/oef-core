@@ -29,7 +29,7 @@ void AgentSession::process_register_description(uint32_t msg_id, const fetch::oe
   DEBUG(logger, "AgentSession::processRegisterDescription setting description to agent {} : {}", 
       publicKey_, pbs::to_string(desc));
   
-  auto ec = oef_search_.register_description_sync(publicKey_, *description_);
+  auto ec = oef_search_.register_description_sync(*description_, publicKey_, msg_id);
   if(ec) {
     send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_DESCRIPTION);
   } 
@@ -37,12 +37,16 @@ void AgentSession::process_register_description(uint32_t msg_id, const fetch::oe
 }
 
 void AgentSession::process_unregister_description(uint32_t msg_id) {
-  description_ = stde::nullopt;
-  DEBUG(logger, "AgentSession::processUnregisterDescription setting description to agent {}", publicKey_);
-  auto ec = oef_search_.unregister_description_sync(publicKey_);
+  if(!description_) {
+    DEBUG(logger, "AgentSession::processUnregisterDescription agent {} hasn't registered description", publicKey_);
+    return;// TOFIX should add a status answer, even in the case of no error
+  }
+  DEBUG(logger, "AgentSession::processUnregisterDescription unsetting description to agent {}", publicKey_);
+  auto ec = oef_search_.unregister_description_sync(*description_, publicKey_, msg_id);
   if(ec) {
     send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::UNREGISTER_DESCRIPTION);
   } 
+  description_ = stde::nullopt;
   // TOFIX should add a status answer, even in the case of no error
 }
 
@@ -65,7 +69,7 @@ void AgentSession::process_register_service(uint32_t msg_id, const fetch::oef::p
 void AgentSession::process_unregister_service(uint32_t msg_id, const fetch::oef::pb::AgentDescription &desc) {
   auto service_desc = Instance(desc.description()); 
   DEBUG(logger, "AgentSession::processUnregisterService unregistering agent {} : {}", publicKey_, pbs::to_string(desc));
-  auto ec = oef_search_.unregister_service_sync(publicKey_, service_desc);
+  auto ec = oef_search_.unregister_service_sync(service_desc, publicKey_, msg_id);
   if(ec) {
     send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::UNREGISTER_SERVICE);
   } 
@@ -77,7 +81,7 @@ void AgentSession::process_search_agents(uint32_t msg_id, const fetch::oef::pb::
   auto query = QueryModel(search.query());
   DEBUG(logger, "AgentSession::processSearchAgents from agent {} : {}", publicKey_, pbs::to_string(search));
   std::vector<agent_t> agents;
-  auto ec = oef_search_.search_agents_sync(publicKey_, query, agents);
+  auto ec = oef_search_.search_agents_sync(query, publicKey_, msg_id, agents);
   
   if(ec) {
     // TOFIX no error message defined for search_agents
