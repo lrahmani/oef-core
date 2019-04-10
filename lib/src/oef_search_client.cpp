@@ -209,16 +209,39 @@ std::error_code OefSearchClient::search_service_sync(const QueryModel& query, co
 */
 
 
-void OefSearchClient::register_description(const std::string& agent, const Instance& desc) {
+void OefSearchClient::register_description(const Instance& desc, const std::string& agent, uint32_t msg_id, LengthContinuation continuation) {
 }
 
-void OefSearchClient::unregister_description(const std::string& agent) {
+void OefSearchClient::unregister_description(const Instance& desc, const std::string& agent, uint32_t msg_id, LengthContinuation continuation) {
 }
 
-void OefSearchClient::register_service(const Instance& service, const std::string& agent, uint32_t msg_id) {
+void OefSearchClient::register_service(const Instance& service, const std::string& agent, uint32_t msg_id, LengthContinuation continuation) {
+  // prepare header
+  auto header = generate_header_("update", msg_id);
+  auto header_buffer = pbs::serialize(header);
+
+  // then prepare payload message
+  auto update = generate_update_(service, agent, msg_id);
+  auto update_buffer = pbs::serialize(update);
+ 
+  // send message
+  logger.debug("::register_service sending update from agent {} to OefSearch: {} - {}", 
+        agent, pbs::to_string(header), pbs::to_string(update));
+  
+  search_send_async_(header_buffer, update_buffer, 
+      [this,agent,msg_id,continuation](std::error_code ec, uint32_t length) {
+        if (ec) {
+          logger.debug("::register_service error while sending update from agent {} to OefSearch: {}",
+              agent, ec.value());
+          continuation(ec, length);          
+        } else {
+          // schedule reception of answer
+          search_schedule_rcv_(msg_id, continuation);
+        }
+      });
 }
 
-void OefSearchClient::unregister_service(const std::string& agent, const Instance& service) {
+void OefSearchClient::unregister_service(const Instance& service, const std::string& agent, uint32_t msg_id, LengthContinuation continuation) {
 }
 
 void OefSearchClient::search_agents(const std::string& agent, const QueryModel& query) {
@@ -237,41 +260,81 @@ void OefSearchClient::search_service(const std::string& agent, const QueryModel&
 
 // TOFIX refactor to use std::vector<std::shared_ptr<Buffer>> overload
 //       or, implicit conversion?
-void OefSearchClient::search_send_async_(std::shared_ptr<Buffer> buffer, const std::string& agent, uint32_t msg_id) {
-  /*
-  comm_->send_async(buffer, [this,agent,msg_id](std::error_code ec, uint32_t len){
-                               if(ec) {
-                                 agent_send_error_(agent,msg_id);
-                               } else {
-                                 search_schedule_rcv_();
-                               }
-                             });
-  */
+void OefSearchClient::search_send_async_(std::shared_ptr<Buffer> header, std::shared_ptr<Buffer> payload,
+          LengthContinuation continuation) {
+  logger.debug("search_send_async_ preparing to send {} and {}", header->size(), payload->size());
+  std::vector<std::shared_ptr<void>> buffers;
+  std::vector<size_t> nbytes;
+  
+  // first, pack sizes of buffers
+  auto header_size = std::make_shared<uint32_t>(htonl(header->size()));
+  auto payload_size = std::make_shared<uint32_t>(htonl(payload->size()));
+  buffers.emplace_back(std::static_pointer_cast<void>(header_size));
+  buffers.emplace_back(std::static_pointer_cast<void>(payload_size));
+  nbytes.emplace_back(sizeof(uint32_t));
+  nbytes.emplace_back(sizeof(uint32_t));
+  
+  // then, pack the actual buffers
+  buffers.emplace_back(header); // TOFIX why implicit conversion is happening for Buffer -> void but not for uint32_t (bc its a pointer type?)
+  buffers.emplace_back(payload);
+  nbytes.emplace_back(header->size());
+  nbytes.emplace_back(payload->size());
+
+  // send message
+  comm_->send_async(buffers, nbytes, continuation);
 }
 
-// TOFIX Not really implemented - sends only first buffer 
-void OefSearchClient::search_send_async_(std::vector<std::shared_ptr<Buffer>> buffers, const std::string& agent, uint32_t msg_id) {
-  /*
-  comm_->send_async(buffers[0], [this,agent,msg_id](std::error_code ec, uint32_t len){
-                               if(ec) {
-                                 agent_send_error_(agent,msg_id);
-                               } else {
-                                 search_schedule_rcv_();
-                               }
-                             });
-  */
+void OefSearchClient::search_schedule_rcv_(uint32_t msg_id, LengthContinuation continuation) {
+  msgs_handles_add(msg_id, continuation);
+  search_receive_async(
+      [this](pb::TransportHeader header, std::shared_ptr<Buffer> payload) {
+        search_process_message_(header, payload);
+      });
 }
 
-void OefSearchClient::search_schedule_rcv_() {
-  /*
-  comm_->receive_async([this](std::error_code ec, std::shared_ptr<Buffer> buffer) {
-                         if(ec){
-                           logger.error("----------------- Non-handled situation -------------------");
-                         } else {
-                           search_handle_msg_(buffer);
-                         }
-                       });
-  */
+void OefSearchClient::search_receive_async(std::function<void(pb::TransportHeader,std::shared_ptr<Buffer>)> continuation){
+  // needs locking, to make sure sizes and header & body are received al together
+  std::lock_guard<std::mutex> lock(lock_); // TOFIX be careful with deadlocks (which func should lock,mixing sync and async, ...)
+  // first, receive sizes
+  comm_->receive_async(2*sizeof(uint32_t),
+      [this,continuation](std::error_code ec, std::shared_ptr<void> buffer){
+        if (ec) {
+          logger.error("search_receive_async_ Error while receiving header and payload lengths : {}", ec.value());
+          pb::TransportHeader header;
+          continuation(header, nullptr);
+        } else {
+          uint32_t* sizes = (uint32_t*)buffer.get();
+          uint32_t header_size = ntohl(sizes[0]);
+          uint32_t payload_size = ntohl(sizes[1]);
+          logger.debug("search_receive_async_ received lenghts : {} - {}", header_size, payload_size);
+          // then receive the actual message
+          comm_->receive_async(header_size+payload_size,
+              [this,header_size,payload_size,continuation](std::error_code ec, std::shared_ptr<void> buffer){
+                if (ec) {
+                  logger.error("search_receive_async_ Error while receiving header and payload : {}", ec.value());
+                  pb::TransportHeader header;
+                  continuation(header, nullptr);
+                } else {
+                  uint8_t* message = (uint8_t*)buffer.get();
+                  std::vector<uint8_t> header_buffer(message, message+header_size);
+                  std::vector<uint8_t> payload_buffer(message+header_size,message+header_size+payload_size);
+                  // get header
+                  pb::TransportHeader header = pbs::deserialize<pb::TransportHeader>(header_buffer);
+                  if(!payload_size) {
+                    continuation(header,nullptr);  
+                  } else {
+                    continuation(header, std::make_shared<Buffer>(payload_buffer));
+                  }
+                }
+              }); 
+
+        }
+      });
+}
+
+void OefSearchClient::search_process_message_(pb::TransportHeader header, std::shared_ptr<Buffer> payload) {
+  // get payload type
+  // get payload continuation
 }
 
 void OefSearchClient::agent_send_error_(const std::string& agent, uint32_t msg_id) {

@@ -31,6 +31,7 @@
 #include "search_transport.pb.h"
 
 #include <memory>
+#include <unordered_map>
 
 namespace fetch {
 namespace oef {
@@ -43,7 +44,9 @@ namespace oef {
     std::string core_id_;
     bool updated_address_;
     AgentDirectory& agent_directory_;
-     
+    std::unordered_map<uint32_t, LengthContinuation> msgs_handles_;
+    mutable std::mutex msgs_handles_lock_;
+
     static fetch::oef::Logger logger;
   public:
     explicit OefSearchClient(std::shared_ptr<AsioBasicComm> comm, const std::string& core_id, 
@@ -66,15 +69,13 @@ namespace oef {
     std::error_code unregister_description_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
     std::error_code register_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
     std::error_code unregister_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
-    // TOFIX QueryModel don't save constraintExpr s (you sure?)
     std::error_code search_agents_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) override;
     std::error_code search_service_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) override;
 
-    void register_description(const std::string& agent, const Instance& desc);
-    void unregister_description(const std::string& agent);
-    void register_service(const Instance& service, const std::string& agent, uint32_t msg_id);
-    void unregister_service(const std::string& agent, const Instance& service);
-    // TOFIX QueryModel don't save constraintExpr s (you sure?)
+    void register_description(const Instance& desc, const std::string& agent, uint32_t msg_id, LengthContinuation continuation);
+    void unregister_description(const Instance& desc, const std::string& agent, uint32_t msg_id, LengthContinuation continuation);
+    void register_service(const Instance& service, const std::string& agent, uint32_t msg_id, LengthContinuation continuation);
+    void unregister_service(const Instance& service, const std::string& agent, uint32_t msg_id, LengthContinuation continuation);
     void search_agents(const std::string& agent, const QueryModel& query);
     void search_service(const std::string& agent, const QueryModel& query);
   
@@ -91,11 +92,33 @@ namespace oef {
     std::error_code search_receive_sync_(pb::TransportHeader& header, std::shared_ptr<Buffer>& payload);
     //
     //
-    void search_send_async_(std::shared_ptr<Buffer> buffer, const std::string& agent, uint32_t msg_id);
+    void search_send_async_(std::shared_ptr<Buffer> header, std::shared_ptr<Buffer> payload, LengthContinuation agent_session_cont);
     void search_send_async_(std::vector<std::shared_ptr<Buffer>> buffers, const std::string& agent, uint32_t msg_id);
-    void search_schedule_rcv_();
+    void search_schedule_rcv_(uint32_t msg_id, LengthContinuation continuation);
+    void search_receive_async(std::function<void(pb::TransportHeader,std::shared_ptr<Buffer>)> continuation);
+    void search_process_message_(pb::TransportHeader header, std::shared_ptr<Buffer> payload);
     void search_handle_msg_(std::shared_ptr<Buffer> buffer);
     void agent_send_error_(const std::string& agent, uint32_t msg_id);
+    //
+    bool msgs_handles_add(uint32_t msg_id, LengthContinuation continuation) {
+      std::lock_guard<std::mutex> lock(msgs_handles_lock_);
+      if(msgs_handles_.find(msg_id) != msgs_handles_.end())
+        return false;
+      msgs_handles_[msg_id] = continuation;
+      return true;
+    }
+    bool msgs_handles_rmv(uint32_t msg_id) {
+      std::lock_guard<std::mutex> lock(msgs_handles_lock_);
+      return msgs_handles_.erase(msg_id) == 1;
+    }
+    LengthContinuation msgs_handles_get(uint32_t msg_id) {
+      std::lock_guard<std::mutex> lock(msgs_handles_lock_);
+      auto iter = msgs_handles_.find(msg_id);
+      if(iter != msgs_handles_.end()) {
+        return iter->second;
+      }
+      return [msg_id](std::error_code, uint32_t length){std::cerr << "No handle registered for message " << msg_id << std::endl;};
+    }
   };
   
 } //oef

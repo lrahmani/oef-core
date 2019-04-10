@@ -61,15 +61,15 @@ namespace oef {
          *   - [in] buffer: serialized message to be sent
          *   - [in] continuation: callback function to handle successful transmission, or errors 
          *   - [overload][in] buffers: a grouped send */
-        virtual void send_async(std::shared_ptr<std::vector<void*>> buffers, std::shared_ptr<std::vector<std::size_t>> nbytes, 
+        virtual void send_async(std::vector<std::shared_ptr<void>> buffers, std::vector<std::size_t> nbytes, 
                                 LengthContinuation continuation) = 0;
-        virtual void send_async(std::shared_ptr<void> buffer, std::shared_ptr<std::size_t> nbytes, LengthContinuation continuation) = 0;
+        virtual void send_async(std::shared_ptr<void> buffer, std::size_t nbytes, LengthContinuation continuation) = 0;
         //virtual void send_async(std::shared_ptr<void> buffer, std::size_t nbytes) = 0;
         
-        /* Receive data asynchronously. Will not black.
+        /* Receive data asynchronously. Will not block.
          * params:
          *   - [in] continuation: callback function to handle received data, or errors */
-        virtual void receive_async(VoidBuffContinuation continuation) = 0;
+        virtual void receive_async(std::size_t nbytes, VoidBuffContinuation continuation) = 0;
         
         virtual ~basic_communicator_t() {}
     };
