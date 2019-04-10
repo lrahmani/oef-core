@@ -44,20 +44,32 @@ namespace oef {
       AgentDirectory agentDirectory_;
       std::shared_ptr<OefSearchClient> oef_search_; // TOFIX change to oef_client_t
       std::vector<std::unique_ptr<std::thread>> threads_;
-      
+      //
+      std::string core_key_;
+      std::string core_ip_addr_;
+      uint32_t core_port_;
+
       static fetch::oef::Logger logger;
     public:
       explicit CoreServer(
-          std::string s_ip_addr = config::search_default_ip, 
-          uint32_t s_port       = static_cast<uint32_t>(config::Ports::Search),
-          uint32_t nbThreads    = config::core_default_nb_threads, 
-          uint32_t backlog      = config::core_default_backlog) 
-          : acceptor_{io_context_, static_cast<uint32_t>(config::Ports::Agents)} {
+          std::string core_key      = "oef-core-pluto",
+          std::string core_ip_addr  = config::default_ip,
+          uint32_t core_port        = static_cast<uint32_t>(config::Ports::Agents),
+          std::string s_ip_addr     = config::default_ip, 
+          uint32_t s_port           = static_cast<uint32_t>(config::Ports::Search),
+          uint32_t nbThreads        = config::core_default_nb_threads, 
+          uint32_t backlog          = config::core_default_backlog) 
+          : 
+            acceptor_{io_context_, static_cast<uint32_t>(config::Ports::Agents)}
+          , core_key_{core_key}
+          , core_ip_addr_{core_ip_addr}
+          , core_port_{core_port}
+      {
         threads_.resize(nbThreads);
         try {
           auto s_comm = std::make_shared<AsioBasicComm>(io_context_, s_ip_addr, s_port);
           oef_search_ = std::make_shared<OefSearchClient>(s_comm, 
-              "core-server", acceptor_.local_address(), acceptor_.local_port(), agentDirectory_);
+              core_key, core_ip_addr, core_port, agentDirectory_);
           logger.debug("CoreServer::CoreServer info connected to OEF Search {}:{} ", s_ip_addr, s_port);
         } catch (std::exception e) {
           logger.error("CoreServer::CoreServer error while initializing OefSearchClient {}",e.what());

@@ -1,6 +1,6 @@
 //------------------------------------------------------------------------------
 //
-//   Copyright 2018 Fetch.AI Limited
+//   Copyright 2018-2019 Fetch.AI Limited
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -25,13 +25,14 @@ int main(int argc, char* argv[])
   spdlog::set_level(spdlog::level::level_enum::trace);
   try
   {
-    if (argc != 1)
+    if (argc != 6)
     {
       std::cerr << "Usage: node\n";
+      std::cerr << "Usage: node <core_key> <core_ip> <core_port> <search_ip> <search_port>\n";
       return 1;
     }
 
-    fetch::oef::CoreServer s;
+    fetch::oef::CoreServer s(argv[1], argv[2], std::stoi(argv[3]), argv[4], std::stoi(argv[5]));
     s.run_in_thread();
 
   } catch (std::exception& e)

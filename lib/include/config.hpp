@@ -26,7 +26,7 @@ namespace fetch {
 namespace oef {
 namespace config {
 
-constexpr auto search_default_ip{"127.0.0.1"};
+constexpr auto default_ip{"127.0.0.1"};
 constexpr uint32_t core_default_backlog{256};
 constexpr uint32_t core_default_nb_threads{4};
 
