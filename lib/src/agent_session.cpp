@@ -175,7 +175,6 @@ void AgentSession::process_search_agents(uint32_t msg_id, const fetch::oef::pb::
 }
 
 void AgentSession::process_search_service(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) {
-  // TOFIX QueryModel don't save constraintExpr s (you sure?)
   auto query = QueryModel(search.query());
   DEBUG(logger, "AgentSession::processQuery from agent {} : {}", publicKey_, pbs::to_string(search));
   

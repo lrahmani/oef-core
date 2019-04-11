@@ -575,7 +575,11 @@ pb::Update OefSearchClient::generate_update_(const Instance& service, const std:
 pb::SearchQuery OefSearchClient::generate_search_(const QueryModel& query, const std::string& agent, uint32_t msg_id) {
   pb::SearchQuery search_query;
   search_query.set_source_key(core_id_);
-  search_query.mutable_model()->CopyFrom(query.handle());
+  // remove old core constraints
+  pb::Query_Model query_no_cnstrs;
+  query_no_cnstrs.mutable_model()->CopyFrom(query.handle().model());
+  //
+  search_query.mutable_model()->CopyFrom(query_no_cnstrs);
   search_query.set_ttl(1);
   return search_query;
 }
