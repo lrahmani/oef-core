@@ -242,7 +242,7 @@ void OefSearchClient::register_service(const Instance& service, const std::strin
         if (ec) {
           logger.debug("::register_service error while sending update from agent {} to OefSearch: {}",
               agent, ec.value());
-          continuation(ec, length, std::vector<std::string>{});          
+          continuation(ec, length, std::vector<std::string>{}, pb::Server_SearchResultWide{});          
         } else {
           // schedule reception of answer
           logger.debug("::register_service update message sent to OefSearch");
@@ -269,7 +269,7 @@ void OefSearchClient::unregister_service(const Instance& service, const std::str
         if (ec) {
           logger.debug("::unregister_service error while sending remove from agent {} to OefSearch: {}",
               agent, ec.value());
-          continuation(ec, length, std::vector<std::string>{});          
+          continuation(ec, length, std::vector<std::string>{}, pb::Server_SearchResultWide{});          
         } else {
           // schedule reception of answer
           logger.debug("::unregister_service remove message sent to OefSearch");
@@ -296,7 +296,7 @@ void OefSearchClient::search_service(const QueryModel& query, const std::string&
         if (ec) {
           logger.debug("::search_service error while sending search from agent {} to OefSearch: {}",
               agent, ec.value());
-          continuation(ec, length, std::vector<std::string>{});          
+          continuation(ec, length, std::vector<std::string>{}, pb::Server_SearchResultWide{});          
         } else {
           // schedule reception of answer
           logger.debug("::search_service search message sent to OefSearch");
@@ -323,7 +323,7 @@ void OefSearchClient::search_service_wide(const QueryModel& query, const std::st
         if (ec) {
           logger.debug("::search_service_wide error while sending search from agent {} to OefSearch: {}",
               agent, ec.value());
-          continuation(ec, length, std::vector<std::string>{});          
+          continuation(ec, length, std::vector<std::string>{}, pb::Server_SearchResultWide{});          
         } else {
           // schedule reception of answer
           logger.debug("::search_service_wide search message sent to OefSearch");
@@ -427,6 +427,7 @@ void OefSearchClient::search_process_message_(pb::TransportHeader header, std::s
   std::error_code ec{};
   uint32_t length{0};
   std::vector<std::string> agents{};
+  pb::Server_SearchResultWide agents_wide;
 
   if(!header.status().success()) {
     logger.warn("::search_process_message_ answer to message {} unsuccessful", msg_id);
@@ -435,7 +436,7 @@ void OefSearchClient::search_process_message_(pb::TransportHeader header, std::s
   
   if(!payload) {
     logger.info("::search_process_message_ no payload received for message {} answer", msg_id);
-    msg_continuation(ec, length, agents);
+    msg_continuation(ec, length, agents, agents_wide);
     return;
   }
 
@@ -451,11 +452,23 @@ void OefSearchClient::search_process_message_(pb::TransportHeader header, std::s
   if(msg_operation == "search") {
     auto search_resp = pbs::deserialize<pb::SearchResponse>(*payload);
     logger.debug("::search_process_message_ received search results for msg {} : {} ", msg_id, pbs::to_string(search_resp));
-    // get agents
+    // get agents and SearchResultWide
     auto items = search_resp.result();
     for (auto& item : items) {
+      //
+      auto* aw_item = agents_wide.add_result();
+      aw_item->set_key(item.key());
+      aw_item->set_ip(item.ip());
+      aw_item->set_score(item.score());
+      aw_item->set_info(item.info());
+      aw_item->set_distance(item.distance());
+      //
       auto agts = item.agents();
       for (auto& a : agts) {
+        //
+        auto *aw = aw_item->add_agents();
+        aw->set_key(a.key());
+        //
         std::string key{*a.mutable_key()};
         agents.emplace_back(key);
       }
@@ -464,7 +477,7 @@ void OefSearchClient::search_process_message_(pb::TransportHeader header, std::s
     logger.error("::search_process_message_ unknown operation '{}' for message {} answer", msg_operation, msg_id);
   }
 
-  msg_continuation(ec, length, agents);
+  msg_continuation(ec, length, agents, agents_wide);
 }
 
 /*

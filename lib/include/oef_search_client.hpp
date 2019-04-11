@@ -120,7 +120,7 @@ namespace oef {
         auto iter_op = msg_operation_.find(msg_id);
         return std::make_pair(iter_op->second,iter->second);
       }
-      return std::make_pair("",[msg_id](std::error_code, uint32_t length, std::vector<std::string> agents){std::cerr << "No handle registered for message " << msg_id << std::endl;});
+      return std::make_pair("",[msg_id](std::error_code, uint32_t length, std::vector<std::string> agents, pb::Server_SearchResultWide){std::cerr << "No handle registered for message " << msg_id << std::endl;});
     }
   };
   
