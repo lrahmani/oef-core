@@ -366,7 +366,7 @@ void OefSearchClient::search_send_async_(std::shared_ptr<Buffer> header, std::sh
 }
 
 void OefSearchClient::search_schedule_rcv_(uint32_t msg_id, std::string operation, AgentSessionContinuation continuation) {
-  msg_handle_add(msg_id, operation, continuation);
+  msg_handle_save(msg_id, MsgHandle{operation, continuation});
   search_receive_async(
       [this](pb::TransportHeader header, std::shared_ptr<Buffer> payload) {
         search_process_message_(header, payload);
@@ -418,10 +418,10 @@ void OefSearchClient::search_process_message_(pb::TransportHeader header, std::s
   uint32_t msg_id = header.id();
   logger.debug("::search_process_message processing message with header {} ", pbs::to_string(header)); 
   // get msg payload type and continuation
-  auto msg_state = msg_handle_get(msg_id);
-  msg_handle_rmv(msg_id);
-  std::string msg_operation = msg_state.first;
-  AgentSessionContinuation msg_continuation = msg_state.second;
+  auto msg_handle = msg_handle_get(msg_id);
+  msg_handle_erase(msg_id);
+  std::string msg_operation = msg_handle.operation;
+  AgentSessionContinuation msg_continuation = msg_handle.continuation;
   
   // answer to AgentSession
   std::error_code ec{};

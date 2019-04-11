@@ -22,6 +22,7 @@
 #include "agent_directory.hpp"
 #include "asio_basic_communicator.hpp"
 #include "logger.hpp"
+#include "msg_handle.hpp"
 
 #include "search_message.pb.h"
 #include "search_query.pb.h"
@@ -44,9 +45,8 @@ namespace oef {
     std::string core_id_;
     bool updated_address_;
     AgentDirectory& agent_directory_;
-    std::unordered_map<uint32_t, AgentSessionContinuation> msg_handle_;
-    std::unordered_map<uint32_t, std::string> msg_operation_;
-    mutable std::mutex msg_handle_lock_;
+    std::unordered_map<uint32_t, MsgHandle> handles_;
+    mutable std::mutex handles_lock_;
 
     static fetch::oef::Logger logger;
   public:
@@ -100,27 +100,24 @@ namespace oef {
     void search_receive_async(std::function<void(pb::TransportHeader,std::shared_ptr<Buffer>)> continuation);
     void search_process_message_(pb::TransportHeader header, std::shared_ptr<Buffer> payload);
     //
-    bool msg_handle_add(uint32_t msg_id, std::string operation, AgentSessionContinuation continuation) {
-      std::lock_guard<std::mutex> lock(msg_handle_lock_);
-      if(msg_handle_.find(msg_id) != msg_handle_.end())
+    bool msg_handle_save(uint32_t msg_id, MsgHandle handle) {
+      std::lock_guard<std::mutex> lock(handles_lock_);
+      if(handles_.find(msg_id) != handles_.end())
         return false;
-      msg_handle_[msg_id] = continuation;
-      msg_operation_[msg_id] = operation;
+      handles_[msg_id] = handle;
       return true;
     }
-    bool msg_handle_rmv(uint32_t msg_id) {
-      std::lock_guard<std::mutex> lock(msg_handle_lock_);
-      msg_operation_.erase(msg_id);
-      return msg_handle_.erase(msg_id) == 1;
+    bool msg_handle_erase(uint32_t msg_id) {
+      std::lock_guard<std::mutex> lock(handles_lock_);
+      return handles_.erase(msg_id) == 1;
     }
-    std::pair<std::string,AgentSessionContinuation> msg_handle_get(uint32_t msg_id) {
-      std::lock_guard<std::mutex> lock(msg_handle_lock_);
-      auto iter = msg_handle_.find(msg_id);
-      if(iter != msg_handle_.end()) {
-        auto iter_op = msg_operation_.find(msg_id);
-        return std::make_pair(iter_op->second,iter->second);
+    MsgHandle msg_handle_get(uint32_t msg_id) {
+      std::lock_guard<std::mutex> lock(handles_lock_);
+      auto iter = handles_.find(msg_id);
+      if(iter != handles_.end()) {
+        return iter->second;
       }
-      return std::make_pair("",[msg_id](std::error_code, uint32_t length, std::vector<std::string> agents, pb::Server_SearchResultWide){std::cerr << "No handle registered for message " << msg_id << std::endl;});
+      return MsgHandle{msg_id};
     }
   };
   
