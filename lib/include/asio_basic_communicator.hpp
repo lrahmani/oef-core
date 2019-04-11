@@ -98,13 +98,13 @@ namespace oef {
         return ec;
       }
       // async operations
-      void send_async(std::vector<std::shared_ptr<void>> buffers, std::vector<std::size_t> nbytes, LengthContinuation continuation) override {
+      void send_async(std::vector<std::shared_ptr<Buffer>> buffers, std::vector<std::size_t> nbytes, LengthContinuation continuation) override {
         assert(buffers.size()==nbytes.size());
         std::vector<asio::const_buffer> asio_buffers;
         size_t n = buffers.size();
         size_t nbytes_acc = 0;
         for (size_t i = 0; i < n ; ++i) {
-          asio_buffers.emplace_back(asio::buffer(buffers[i].get(),nbytes[i]));
+          asio_buffers.emplace_back(asio::buffer(buffers[i]->data(),nbytes[i]));
           nbytes_acc+=nbytes[i];
         }
         asio::async_write(socket_, asio_buffers,
@@ -116,8 +116,8 @@ namespace oef {
               continuation(ec, length);
             });
       }
-      void send_async(std::shared_ptr<void> buffer, std::size_t nbytes, LengthContinuation continuation) override {
-        asio::async_write(socket_, asio::buffer(buffer.get(), nbytes),
+      void send_async(std::shared_ptr<Buffer> buffer, std::size_t nbytes, LengthContinuation continuation) override {
+        asio::async_write(socket_, asio::buffer(buffer->data(), nbytes),
             [nbytes,continuation](std::error_code ec, std::size_t length) {
               if(ec) {
                 std::cerr << "AsioBasicComm::send_async: error while sending data sent " 
@@ -127,14 +127,14 @@ namespace oef {
             });
       }
       //void send_async(std::shared_ptr<void> buffer, std::size_t nbytes) override {};
-      void receive_async(std::size_t nbytes, VoidBuffContinuation continuation) override {
-        std::shared_ptr<void> buffer = std::make_shared<char>(nbytes);
-        asio::async_read(socket_, asio::buffer(buffer.get(), nbytes), 
+      void receive_async(std::size_t nbytes, BufferContinuation continuation) override {
+        std::shared_ptr<Buffer> buffer = std::make_shared<Buffer>(nbytes);
+        asio::async_read(socket_, asio::buffer(buffer->data(), nbytes), 
             [buffer,nbytes,continuation](std::error_code ec, std::size_t length) {
               if(ec) {
                 std::cerr << "AsioBasicComm::receive_async: error while receiving data, expected " 
                           << nbytes << " got " << length << " : " << ec.value() << std::endl;
-                continuation(ec, std::make_shared<char>());
+                continuation(ec, std::make_shared<Buffer>());
               } else {
                 continuation(ec, buffer);
               }

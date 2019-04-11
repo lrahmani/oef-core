@@ -58,6 +58,9 @@ T deserialize(const std::string &buffer) {
 std::string to_string(const google::protobuf::Message &msg);
 
 } // pbs 
+
+std::shared_ptr<Buffer> serialize(uint32_t size);
+
 } //oef
 } //fetch
 

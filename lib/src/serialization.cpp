@@ -29,6 +29,13 @@ std::string to_string(const google::protobuf::Message &msg) {
 }
 
 } // pbs 
+
+std::shared_ptr<Buffer> serialize(uint32_t size) {
+  uint8_t* addr = (uint8_t*) &size;
+  Buffer data(addr,addr+sizeof(uint32_t));
+  return std::make_shared<Buffer>(data);
+}
+
 } //oef
 } //fetch
 

@@ -44,8 +44,9 @@ namespace oef {
     std::string core_id_;
     bool updated_address_;
     AgentDirectory& agent_directory_;
-    std::unordered_map<uint32_t, LengthContinuation> msgs_handles_;
-    mutable std::mutex msgs_handles_lock_;
+    std::unordered_map<uint32_t, AgentSessionContinuation> msg_handle_;
+    std::unordered_map<uint32_t, std::string> msg_operation_;
+    mutable std::mutex msg_handle_lock_;
 
     static fetch::oef::Logger logger;
   public:
@@ -72,12 +73,12 @@ namespace oef {
     std::error_code search_agents_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) override;
     std::error_code search_service_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) override;
 
-    void register_description(const Instance& desc, const std::string& agent, uint32_t msg_id, LengthContinuation continuation);
-    void unregister_description(const Instance& desc, const std::string& agent, uint32_t msg_id, LengthContinuation continuation);
-    void register_service(const Instance& service, const std::string& agent, uint32_t msg_id, LengthContinuation continuation);
-    void unregister_service(const Instance& service, const std::string& agent, uint32_t msg_id, LengthContinuation continuation);
-    void search_agents(const std::string& agent, const QueryModel& query);
-    void search_service(const std::string& agent, const QueryModel& query);
+    void register_description(const Instance& desc, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
+    void unregister_description(const Instance& desc, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
+    void register_service(const Instance& service, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
+    void unregister_service(const Instance& service, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
+    void search_agents(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
+    void search_service(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
   
   private:
     //
@@ -92,32 +93,33 @@ namespace oef {
     std::error_code search_receive_sync_(pb::TransportHeader& header, std::shared_ptr<Buffer>& payload);
     //
     //
-    void search_send_async_(std::shared_ptr<Buffer> header, std::shared_ptr<Buffer> payload, LengthContinuation agent_session_cont);
+    void search_send_async_(std::shared_ptr<Buffer> header, std::shared_ptr<Buffer> payload, LengthContinuation continuation);
     void search_send_async_(std::vector<std::shared_ptr<Buffer>> buffers, const std::string& agent, uint32_t msg_id);
-    void search_schedule_rcv_(uint32_t msg_id, LengthContinuation continuation);
+    void search_schedule_rcv_(uint32_t msg_id, std::string operation, AgentSessionContinuation continuation);
     void search_receive_async(std::function<void(pb::TransportHeader,std::shared_ptr<Buffer>)> continuation);
     void search_process_message_(pb::TransportHeader header, std::shared_ptr<Buffer> payload);
-    void search_handle_msg_(std::shared_ptr<Buffer> buffer);
-    void agent_send_error_(const std::string& agent, uint32_t msg_id);
     //
-    bool msgs_handles_add(uint32_t msg_id, LengthContinuation continuation) {
-      std::lock_guard<std::mutex> lock(msgs_handles_lock_);
-      if(msgs_handles_.find(msg_id) != msgs_handles_.end())
+    bool msg_handle_add(uint32_t msg_id, std::string operation, AgentSessionContinuation continuation) {
+      std::lock_guard<std::mutex> lock(msg_handle_lock_);
+      if(msg_handle_.find(msg_id) != msg_handle_.end())
         return false;
-      msgs_handles_[msg_id] = continuation;
+      msg_handle_[msg_id] = continuation;
+      msg_operation_[msg_id] = operation;
       return true;
     }
-    bool msgs_handles_rmv(uint32_t msg_id) {
-      std::lock_guard<std::mutex> lock(msgs_handles_lock_);
-      return msgs_handles_.erase(msg_id) == 1;
+    bool msg_handle_rmv(uint32_t msg_id) {
+      std::lock_guard<std::mutex> lock(msg_handle_lock_);
+      msg_operation_.erase(msg_id);
+      return msg_handle_.erase(msg_id) == 1;
     }
-    LengthContinuation msgs_handles_get(uint32_t msg_id) {
-      std::lock_guard<std::mutex> lock(msgs_handles_lock_);
-      auto iter = msgs_handles_.find(msg_id);
-      if(iter != msgs_handles_.end()) {
-        return iter->second;
+    std::pair<std::string,AgentSessionContinuation> msg_handle_get(uint32_t msg_id) {
+      std::lock_guard<std::mutex> lock(msg_handle_lock_);
+      auto iter = msg_handle_.find(msg_id);
+      if(iter != msg_handle_.end()) {
+        auto iter_op = msg_operation_.find(msg_id);
+        return std::make_pair(iter_op->second,iter->second);
       }
-      return [msg_id](std::error_code, uint32_t length){std::cerr << "No handle registered for message " << msg_id << std::endl;};
+      return std::make_pair("",[msg_id](std::error_code, uint32_t length, std::vector<std::string> agents){std::cerr << "No handle registered for message " << msg_id << std::endl;});
     }
   };
   
