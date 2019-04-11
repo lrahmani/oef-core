@@ -217,6 +217,33 @@ void AgentSession::process_search_service(uint32_t msg_id, const fetch::oef::pb:
   //*/
 }
 
+void AgentSession::process_search_service_wide(uint32_t msg_id, const fetch::oef::pb::AgentSearch &search) {
+  auto query = QueryModel(search.query());
+  DEBUG(logger, "AgentSession::processQueryWide from agent {} : {}", publicKey_, pbs::to_string(search));
+  
+  //* async version
+  auto self(shared_from_this()); 
+  oef_search_.search_service_wide(query, publicKey_, msg_id,
+      [this, self, msg_id](std::error_code ec, uint32_t length, std::vector<std::string> agents) {
+        if (ec) {
+          DEBUG(logger, "::processQueryWide failed operation for msg {} of agent {}", msg_id, publicKey_);
+          send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);
+        } else {
+          DEBUG(logger, "::processQueryWide operation successful for msg {} of agent {}", msg_id, publicKey_);
+          fetch::oef::pb::Server_AgentMessage answer;
+          answer.set_answer_id(msg_id);
+          auto answer_agents = answer.mutable_agents_wide();
+          for(auto &a : agents) {
+            answer_agents->add_agents(a);
+          }
+          logger.trace("AgentSession::processQueryWide sending {} agents to {}", agents.size(), publicKey_);
+          send(answer);
+        }
+      });
+  /*/
+  //*/
+}
+
 void AgentSession::send_dialog_error(uint32_t msg_id, uint32_t dialogue_id, const std::string &origin) {
   fetch::oef::pb::Server_AgentMessage answer;
   answer.set_answer_id(msg_id);
@@ -292,6 +319,9 @@ void AgentSession::process(const std::shared_ptr<Buffer> &buffer) {
       break;
     case fetch::oef::pb::Envelope::kSearchServices:
       process_search_service(msg_id, envelope.search_services());
+      break;
+    case fetch::oef::pb::Envelope::kSearchServicesWide:
+      process_search_service_wide(msg_id, envelope.search_services_wide());
       break;
     case fetch::oef::pb::Envelope::PAYLOAD_NOT_SET:
       logger.error("AgentSession::process cannot process payload {} from {}", payload_case, publicKey_);

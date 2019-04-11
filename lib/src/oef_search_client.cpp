@@ -152,7 +152,7 @@ std::error_code OefSearchClient::search_service_sync(const QueryModel& query, co
   auto header_buffer = pbs::serialize(header);
 
   // then prepare payload message
-  auto search = generate_search_(query, agent, msg_id);
+  auto search = generate_search_(query, agent, msg_id, 1);
   auto search_buffer = pbs::serialize(search);
   
   // send message
@@ -284,7 +284,7 @@ void OefSearchClient::search_service(const QueryModel& query, const std::string&
   auto header_buffer = pbs::serialize(header);
 
   // then prepare payload message
-  auto search = generate_search_(query, agent, msg_id);
+  auto search = generate_search_(query, agent, msg_id, 1);
   auto search_buffer = pbs::serialize(search);
   
   // send message
@@ -300,6 +300,33 @@ void OefSearchClient::search_service(const QueryModel& query, const std::string&
         } else {
           // schedule reception of answer
           logger.debug("::search_service search message sent to OefSearch");
+          search_schedule_rcv_(msg_id, "search", continuation);
+        }
+      });
+}
+
+void OefSearchClient::search_service_wide(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) {
+  // prepare header
+  auto header = generate_header_("search", msg_id);
+  auto header_buffer = pbs::serialize(header);
+
+  // then prepare payload message
+  auto search = generate_search_(query, agent, msg_id, 3);
+  auto search_buffer = pbs::serialize(search);
+  
+  // send message
+  logger.debug("::search_service_wide sending search from agent {} to OefSearch: {} - {}", 
+        agent, pbs::to_string(header), pbs::to_string(search));
+  
+  search_send_async_(header_buffer, search_buffer, 
+      [this,agent,msg_id,continuation](std::error_code ec, uint32_t length) {
+        if (ec) {
+          logger.debug("::search_service_wide error while sending search from agent {} to OefSearch: {}",
+              agent, ec.value());
+          continuation(ec, length, std::vector<std::string>{});          
+        } else {
+          // schedule reception of answer
+          logger.debug("::search_service_wide search message sent to OefSearch");
           search_schedule_rcv_(msg_id, "search", continuation);
         }
       });
@@ -572,7 +599,7 @@ pb::Update OefSearchClient::generate_update_(const Instance& service, const std:
   return update;
 }
 
-pb::SearchQuery OefSearchClient::generate_search_(const QueryModel& query, const std::string& agent, uint32_t msg_id) {
+pb::SearchQuery OefSearchClient::generate_search_(const QueryModel& query, const std::string& agent, uint32_t msg_id, uint32_t ttl) {
   pb::SearchQuery search_query;
   search_query.set_source_key(core_id_);
   // remove old core constraints
@@ -580,7 +607,7 @@ pb::SearchQuery OefSearchClient::generate_search_(const QueryModel& query, const
   query_no_cnstrs.mutable_model()->CopyFrom(query.handle().model());
   //
   search_query.mutable_model()->CopyFrom(query_no_cnstrs);
-  search_query.set_ttl(1);
+  search_query.set_ttl(ttl);
   return search_query;
 }
 

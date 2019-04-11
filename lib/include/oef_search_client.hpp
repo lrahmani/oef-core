@@ -79,12 +79,13 @@ namespace oef {
     void unregister_service(const Instance& service, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
     void search_agents(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
     void search_service(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
+    void search_service_wide(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
   
   private:
     //
     pb::TransportHeader generate_header_(const std::string& uri, uint32_t msg_id);
     pb::Update generate_update_(const Instance& service, const std::string& agent, uint32_t msg_id);
-    pb::SearchQuery generate_search_(const QueryModel& query, const std::string& agent, uint32_t msg_id);
+    pb::SearchQuery generate_search_(const QueryModel& query, const std::string& agent, uint32_t msg_id, uint32_t ttl);
     pb::Remove generate_remove_(const Instance& instance, const std::string& agent, uint32_t msg_id);
     void addNetworkAddress(fetch::oef::pb::Update &update); // TOFIX to merge in generate_update_()
     //

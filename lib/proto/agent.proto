@@ -67,7 +67,8 @@ message Server {
             Content content = 2; // from agent
             OEFError oef_error = 3;   // from oef
             SearchResult agents = 4; // from oef
-            DialogueError dialogue_error = 5;
+            SearchResult agents_wide = 5; // from oef
+            DialogueError dialogue_error = 6;
         }
     }
 }
@@ -90,7 +91,8 @@ message Envelope {
         AgentDescription register_description = 5;
         Nothing unregister_description = 6;
         AgentSearch search_services = 7;
-        AgentSearch search_agents = 8;
+        AgentSearch search_services_wide = 8;
+        AgentSearch search_agents = 9;
     }
 }
 
