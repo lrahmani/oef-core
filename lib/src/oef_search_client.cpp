@@ -415,7 +415,7 @@ void OefSearchClient::search_receive_async(std::function<void(pb::TransportHeade
 
 void OefSearchClient::search_process_message_(pb::TransportHeader header, std::shared_ptr<Buffer> payload) {
   // get msg id
-  uint32_t msg_id = header.id();
+  uint32_t msg_id = header.id()-1;
   logger.debug("::search_process_message processing message with header {} ", pbs::to_string(header)); 
   // get msg payload type and continuation
   auto msg_handle = msg_handle_get(msg_id);
@@ -595,7 +595,7 @@ void OefSearchClient::addNetworkAddress(fetch::oef::pb::Update &update)
 pb::TransportHeader OefSearchClient::generate_header_(const std::string& uri, uint32_t msg_id) {
   pb::TransportHeader header;
   header.set_uri(uri);
-  header.set_id(msg_id);
+  header.set_id(msg_id+1);
   header.mutable_status()->set_success(true);
   return header;
 }
