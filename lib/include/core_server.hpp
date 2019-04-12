@@ -60,7 +60,7 @@ namespace oef {
           uint32_t nbThreads        = config::core_default_nb_threads, 
           uint32_t backlog          = config::core_default_backlog) 
           : 
-            acceptor_{io_context_, static_cast<uint32_t>(config::Ports::Agents)}
+            acceptor_{io_context_, core_port}
           , core_key_{core_key}
           , core_ip_addr_{core_ip_addr}
           , core_port_{core_port}
