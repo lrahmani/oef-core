@@ -371,11 +371,11 @@ void OefSearchClient::search_schedule_rcv_(uint32_t msg_id, std::string operatio
       [this](pb::TransportHeader header, std::shared_ptr<Buffer> payload) {
         search_process_message_(header, payload);
       });
+  logger.debug("search_schedule_rcv_ scheduled receive for message {}", msg_id);
+  
 }
 
 void OefSearchClient::search_receive_async(std::function<void(pb::TransportHeader,std::shared_ptr<Buffer>)> continuation){
-  // needs locking, to make sure sizes and header & body are received al together
-  std::lock_guard<std::mutex> lock(lock_); // TOFIX be careful with deadlocks (which func should lock,mixing sync and async, ...)
   // first, receive sizes
   comm_->receive_async(2*sizeof(uint32_t),
       [this,continuation](std::error_code ec, std::shared_ptr<Buffer> buffer){
@@ -389,18 +389,27 @@ void OefSearchClient::search_receive_async(std::function<void(pb::TransportHeade
           uint32_t payload_size = ntohl(sizes[1]);
           logger.debug("search_receive_async_ received lenghts : {} - {}", header_size, payload_size);
           // then receive the actual message
+          // needs to be syncronous, to make sure sizes and header & body are received al together
           comm_->receive_async(header_size+payload_size,
               [this,header_size,payload_size,continuation](std::error_code ec, std::shared_ptr<Buffer> buffer){
                 if (ec) {
                   logger.error("search_receive_async_ Error while receiving header and payload : {}", ec.value());
-                  pb::TransportHeader header;
-                  continuation(header, nullptr);
+                  logger.error("search_receive_async_ message discarded"); // TOFIX don't know which msg it was supposed to answer
+                  //pb::TransportHeader header;
+                  //continuation(header, nullptr);
                 } else {
                   uint8_t* message = (uint8_t*)buffer->data();
                   std::vector<uint8_t> header_buffer(message, message+header_size);
                   std::vector<uint8_t> payload_buffer(message+header_size,message+header_size+payload_size);
                   // get header
-                  pb::TransportHeader header = pbs::deserialize<pb::TransportHeader>(header_buffer);
+                  bool hstatus = false;
+                  std::string sheader((char*)message,header_size);
+                  logger.error("search_receive_async_ received header (serialized) : {}", sheader);
+                  pb::TransportHeader header = pbs::deserialize<pb::TransportHeader>(header_buffer, hstatus);
+                  if(!hstatus) {
+                    logger.error("::search_receive_async_ failed to deserialize header, message discarded "); // TOFIX don't know which msg it was supposed to answer 
+                    return;
+                  }
                   if(!payload_size) {
                     continuation(header,nullptr);  
                   } else {
