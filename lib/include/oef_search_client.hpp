@@ -59,13 +59,23 @@ namespace oef {
         , updated_address_{true}
         , agent_directory_{agent_directory}
     {
+      handle_messages();
     }
     
     virtual ~OefSearchClient() {}
     
     /* TODO */
     void connect() override {};
-    
+
+    void handle_messages() {
+      logger.debug("::handles_messages listening for messages from Oef Search ...");
+      search_receive_async(
+          [this](pb::TransportHeader header, std::shared_ptr<Buffer> payload) {
+            search_process_message_(header, payload);
+            handle_messages();
+          });
+    }
+
     std::error_code register_description_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
     std::error_code unregister_description_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
     std::error_code register_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;

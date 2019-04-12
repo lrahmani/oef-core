@@ -367,10 +367,12 @@ void OefSearchClient::search_send_async_(std::shared_ptr<Buffer> header, std::sh
 
 void OefSearchClient::search_schedule_rcv_(uint32_t msg_id, std::string operation, AgentSessionContinuation continuation) {
   msg_handle_save(msg_id, MsgHandle{operation, continuation});
+  /*
   search_receive_async(
       [this](pb::TransportHeader header, std::shared_ptr<Buffer> payload) {
         search_process_message_(header, payload);
       });
+  */
   logger.debug("search_schedule_rcv_ scheduled receive for message {}", msg_id);
   
 }
@@ -390,34 +392,31 @@ void OefSearchClient::search_receive_async(std::function<void(pb::TransportHeade
           logger.debug("search_receive_async_ received lenghts : {} - {}", header_size, payload_size);
           // then receive the actual message
           // needs to be syncronous, to make sure sizes and header & body are received al together
-          comm_->receive_async(header_size+payload_size,
-              [this,header_size,payload_size,continuation](std::error_code ec, std::shared_ptr<Buffer> buffer){
-                if (ec) {
-                  logger.error("search_receive_async_ Error while receiving header and payload : {}", ec.value());
-                  logger.error("search_receive_async_ message discarded"); // TOFIX don't know which msg it was supposed to answer
-                  //pb::TransportHeader header;
-                  //continuation(header, nullptr);
-                } else {
-                  uint8_t* message = (uint8_t*)buffer->data();
-                  std::vector<uint8_t> header_buffer(message, message+header_size);
-                  std::vector<uint8_t> payload_buffer(message+header_size,message+header_size+payload_size);
-                  // get header
-                  bool hstatus = false;
-                  std::string sheader((char*)message,header_size);
-                  logger.error("search_receive_async_ received header (serialized) : {}", sheader);
-                  pb::TransportHeader header = pbs::deserialize<pb::TransportHeader>(header_buffer, hstatus);
-                  if(!hstatus) {
-                    logger.error("::search_receive_async_ failed to deserialize header, message discarded "); // TOFIX don't know which msg it was supposed to answer 
-                    return;
-                  }
-                  if(!payload_size) {
-                    continuation(header,nullptr);  
-                  } else {
-                    continuation(header, std::make_shared<Buffer>(payload_buffer));
-                  }
-                }
-              }); 
-
+          std::unique_ptr<Buffer> data_buffer = std::make_unique<Buffer>(header_size+payload_size);
+          ec = comm_->receive_sync(data_buffer->data(), header_size+payload_size);
+          if (ec) {
+            logger.error("search_receive_async_ Error while receiving header and payload : {}", ec.value());
+            logger.error("search_receive_async_ message discarded"); // TOFIX don't know which msg it was supposed to answer
+          } else {
+            uint8_t* data_ptr = (uint8_t*)data_buffer->data();
+            std::vector<uint8_t> header_buffer(data_ptr, data_ptr+header_size);
+            std::vector<uint8_t> payload_buffer(data_ptr+header_size, data_ptr+header_size+payload_size);
+            // get header
+            bool hstatus = false;
+            logger.error("search_receive_async_ received data (serialized) : header {} - payload {}", 
+                pbs::diagnostic(header_buffer.data(), header_buffer.size()),
+                pbs::diagnostic(payload_buffer.data(), payload_buffer.size()));
+            pb::TransportHeader header = pbs::deserialize<pb::TransportHeader>(header_buffer, hstatus);
+            if(!hstatus) {
+              logger.error("::search_receive_async_ failed to deserialize header, message discarded "); // TOFIX don't know which msg it was supposed to answer 
+              return;
+            }
+            if(!payload_size) {
+              continuation(header,nullptr);  
+            } else {
+              continuation(header, std::make_shared<Buffer>(payload_buffer));
+            }
+          }
         }
       });
 }

@@ -22,6 +22,7 @@
 #include <google/protobuf/text_format.h>
 
 #include <iostream>
+#include <sstream>
 
 namespace fetch {
 namespace oef {
@@ -66,6 +67,8 @@ T deserialize(const std::string &buffer) {
 }
 
 std::string to_string(const google::protobuf::Message &msg);
+
+std::string diagnostic(void *p, size_t sz);
 
 } // pbs 
 
