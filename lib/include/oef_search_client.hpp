@@ -44,20 +44,18 @@ namespace oef {
     uint32_t core_port_ ;
     std::string core_id_;
     bool updated_address_;
-    AgentDirectory& agent_directory_;
     std::unordered_map<uint32_t, MsgHandle> handles_;
     mutable std::mutex handles_lock_;
 
     static fetch::oef::Logger logger;
   public:
     explicit OefSearchClient(std::shared_ptr<AsioBasicComm> comm, const std::string& core_id, 
-        const std::string& core_ip_addr, uint32_t core_port, AgentDirectory& agent_directory)
+        const std::string& core_ip_addr, uint32_t core_port)
         : comm_(std::move(comm))
         , core_ip_addr_{core_ip_addr}
         , core_port_{core_port}
         , core_id_{core_id}
         , updated_address_{true}
-        , agent_directory_{agent_directory}
     {
       handle_messages();
     }
@@ -85,7 +83,6 @@ namespace oef {
     //
     /* check lib/proto/search_transport.proto for Oef Search communication protocol */
     void send_(std::shared_ptr<Buffer> header, std::shared_ptr<Buffer> payload, LengthContinuation continuation);
-    void send_(std::vector<std::shared_ptr<Buffer>> buffers, const std::string& agent, uint32_t msg_id);
     void receive_(std::function<void(std::error_code,pb::TransportHeader,std::shared_ptr<Buffer>)> continuation); 
     //
     void schedule_rcv_callback_(uint32_t msg_id, std::string operation, AgentSessionContinuation continuation);
