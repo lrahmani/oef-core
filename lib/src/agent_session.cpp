@@ -32,7 +32,7 @@ void AgentSession::process_register_description(uint32_t msg_id, const fetch::oe
   //* async version
   auto self(shared_from_this()); 
   oef_search_.register_description(*description_, publicKey_, msg_id,
-      [this, self, msg_id](std::error_code ec, uint32_t length, std::vector<std::string> agents, pb::Server_SearchResultWide agents_wide) {
+      [this, self, msg_id](std::error_code ec, OefSearchResponse response) {
         if (ec) {
           DEBUG(logger, "::processRegisterDescription failed operation for msg {} of agent {}", msg_id, publicKey_);
           send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_DESCRIPTION);
@@ -59,7 +59,7 @@ void AgentSession::process_unregister_description(uint32_t msg_id) {
   //* async version
   auto self(shared_from_this()); 
   oef_search_.unregister_description(*description_, publicKey_, msg_id,
-      [this, self, msg_id](std::error_code ec, uint32_t length, std::vector<std::string> agents, pb::Server_SearchResultWide agents_wide) {
+      [this, self, msg_id](std::error_code ec, OefSearchResponse response) {
         if (ec) {
           DEBUG(logger, "::processUnregisterDescription failed operation for msg {} of agent {}", msg_id, publicKey_);
           send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::UNREGISTER_DESCRIPTION);
@@ -86,7 +86,7 @@ void AgentSession::process_register_service(uint32_t msg_id, const fetch::oef::p
   //* async version
   auto self(shared_from_this()); 
   oef_search_.register_service(service_desc, publicKey_, msg_id,
-      [this, self, msg_id](std::error_code ec, uint32_t length, std::vector<std::string> agents, pb::Server_SearchResultWide agents_wide) {
+      [this, self, msg_id](std::error_code ec, OefSearchResponse response) {
         if (ec) {
           DEBUG(logger, "::processRegisterService failed operation for msg {} of agent {}", msg_id, publicKey_);
           send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);
@@ -111,7 +111,7 @@ void AgentSession::process_unregister_service(uint32_t msg_id, const fetch::oef:
   //* async version
   auto self(shared_from_this()); 
   oef_search_.unregister_service(service_desc, publicKey_, msg_id,
-      [this, self, msg_id](std::error_code ec, uint32_t length, std::vector<std::string> agents, pb::Server_SearchResultWide agents_wide) {
+      [this, self, msg_id](std::error_code ec, OefSearchResponse response) {
         if (ec) {
           DEBUG(logger, "::processUnregisterService failed operation for msg {} of agent {}", msg_id, publicKey_);
           send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::UNREGISTER_SERVICE);
@@ -137,7 +137,7 @@ void AgentSession::process_search_agents(uint32_t msg_id, const fetch::oef::pb::
   //* async version
   auto self(shared_from_this()); 
   oef_search_.search_agents(query, publicKey_, msg_id,
-      [this, self, msg_id](std::error_code ec, uint32_t length, std::vector<std::string> agents, pb::Server_SearchResultWide agents_wide) {
+      [this, self, msg_id](std::error_code ec, OefSearchResponse response) {
         if (ec) {
           DEBUG(logger, "::processSearchAgents failed operation for msg {} of agent {}", msg_id, publicKey_);
           send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);
@@ -146,10 +146,10 @@ void AgentSession::process_search_agents(uint32_t msg_id, const fetch::oef::pb::
           fetch::oef::pb::Server_AgentMessage answer;
           answer.set_answer_id(msg_id);
           auto answer_agents = answer.mutable_agents();
-          for(auto &a : agents) {
+          for(auto &a : response.agents) {
             answer_agents->add_agents(a);
           }
-          logger.trace("AgentSession::processSearchAgents sending {} agents to {}", agents.size(), publicKey_);
+          logger.trace("AgentSession::processSearchAgents sending {} agents to {}", answer_agents->agents().size(), publicKey_);
           send(answer);
         }
       });
@@ -181,7 +181,7 @@ void AgentSession::process_search_service(uint32_t msg_id, const fetch::oef::pb:
   //* async version
   auto self(shared_from_this()); 
   oef_search_.search_service(query, publicKey_, msg_id,
-      [this, self, msg_id](std::error_code ec, uint32_t length, std::vector<std::string> agents, pb::Server_SearchResultWide agents_wide) {
+      [this, self, msg_id](std::error_code ec, OefSearchResponse response) {
         if (ec) {
           DEBUG(logger, "::processQuery failed operation for msg {} of agent {}", msg_id, publicKey_);
           send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);
@@ -190,10 +190,10 @@ void AgentSession::process_search_service(uint32_t msg_id, const fetch::oef::pb:
           fetch::oef::pb::Server_AgentMessage answer;
           answer.set_answer_id(msg_id);
           auto answer_agents = answer.mutable_agents();
-          for(auto &a : agents) {
+          for(auto &a : response.agents) {
             answer_agents->add_agents(a);
           }
-          logger.trace("AgentSession::processQuery sending {} agents to {}", agents.size(), publicKey_);
+          logger.trace("AgentSession::processQuery sending {} agents to {}", answer_agents->agents().size(), publicKey_);
           send(answer);
         }
       });
@@ -224,7 +224,7 @@ void AgentSession::process_search_service_wide(uint32_t msg_id, const fetch::oef
   //* async version
   auto self(shared_from_this()); 
   oef_search_.search_service_wide(query, publicKey_, msg_id,
-      [this, self, msg_id](std::error_code ec, uint32_t length, std::vector<std::string> agents, pb::Server_SearchResultWide agents_wide) {
+      [this, self, msg_id](std::error_code ec, OefSearchResponse response) {
         if (ec) {
           DEBUG(logger, "::processQueryWide failed operation for msg {} of agent {}", msg_id, publicKey_);
           send_error(msg_id, fetch::oef::pb::Server_AgentMessage_OEFError::REGISTER_SERVICE);
@@ -232,10 +232,10 @@ void AgentSession::process_search_service_wide(uint32_t msg_id, const fetch::oef
           DEBUG(logger, "::processQueryWide operation successful for msg {} of agent {}", msg_id, publicKey_);
           fetch::oef::pb::Server_AgentMessage answer;
           answer.set_answer_id(msg_id);
-          answer.mutable_agents_wide()->CopyFrom(agents_wide);
+          answer.mutable_agents_wide()->CopyFrom(response.search_result_wide);
           //
           int agents_nbr = 0;
-          auto items = agents_wide.result();
+          auto items = response.search_result_wide.result();
           for (auto& item : items) {
             agents_nbr+= item.agents().size();
           }

@@ -18,6 +18,7 @@
 //------------------------------------------------------------------------------
 
 #include "api/continuation_t.hpp"
+#include "api/oef_search_response_t.hpp"
 
 namespace fetch {
 namespace oef {
@@ -25,7 +26,7 @@ namespace oef {
     explicit MsgHandle(){}
     explicit MsgHandle(uint32_t msg_id) 
       : operation{""}
-      , continuation{[msg_id](std::error_code, uint32_t length, std::vector<std::string> agents, pb::Server_SearchResultWide){std::cerr << "No handle registered for message " << msg_id << std::endl;}}
+      , continuation{[msg_id](std::error_code ec, oef::OefSearchResponse response) -> void{std::cerr << "No handle registered for message " << msg_id << std::endl;}}
     {}
     explicit MsgHandle(std::string op, AgentSessionContinuation cont)
       : operation{op}, continuation{cont}

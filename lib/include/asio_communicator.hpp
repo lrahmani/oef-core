@@ -36,7 +36,7 @@ namespace oef {
         //
         explicit AsioComm(AsioComm&& asio_comm) : socket_(std::move(asio_comm.socket_)) {}
         //
-        void connect() {};
+        void connect() override {};
         void disconnect() override;
         //
         std::error_code send_sync(std::shared_ptr<Buffer> buffer) override;

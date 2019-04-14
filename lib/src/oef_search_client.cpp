@@ -242,7 +242,7 @@ void OefSearchClient::register_service(const Instance& service, const std::strin
         if (ec) {
           logger.debug("::register_service error while sending update from agent {} to OefSearch: {}",
               agent, ec.value());
-          continuation(ec, length, std::vector<std::string>{}, pb::Server_SearchResultWide{});          
+          continuation(ec, OefSearchResponse{});          
         } else {
           // schedule reception of answer
           logger.debug("::register_service update message sent to OefSearch");
@@ -269,7 +269,7 @@ void OefSearchClient::unregister_service(const Instance& service, const std::str
         if (ec) {
           logger.debug("::unregister_service error while sending remove from agent {} to OefSearch: {}",
               agent, ec.value());
-          continuation(ec, length, std::vector<std::string>{}, pb::Server_SearchResultWide{});          
+          continuation(ec, OefSearchResponse{});          
         } else {
           // schedule reception of answer
           logger.debug("::unregister_service remove message sent to OefSearch");
@@ -296,11 +296,11 @@ void OefSearchClient::search_service(const QueryModel& query, const std::string&
         if (ec) {
           logger.debug("::search_service error while sending search from agent {} to OefSearch: {}",
               agent, ec.value());
-          continuation(ec, length, std::vector<std::string>{}, pb::Server_SearchResultWide{});          
+          continuation(ec, OefSearchResponse{});          
         } else {
           // schedule reception of answer
           logger.debug("::search_service search message sent to OefSearch");
-          search_schedule_rcv_(msg_id, "search", continuation);
+          search_schedule_rcv_(msg_id, "search-local", continuation);
         }
       });
 }
@@ -323,11 +323,11 @@ void OefSearchClient::search_service_wide(const QueryModel& query, const std::st
         if (ec) {
           logger.debug("::search_service_wide error while sending search from agent {} to OefSearch: {}",
               agent, ec.value());
-          continuation(ec, length, std::vector<std::string>{}, pb::Server_SearchResultWide{});          
+          continuation(ec, OefSearchResponse{});          
         } else {
           // schedule reception of answer
           logger.debug("::search_service_wide search message sent to OefSearch");
-          search_schedule_rcv_(msg_id, "search", continuation);
+          search_schedule_rcv_(msg_id, "search-wide", continuation);
         }
       });
 }
@@ -433,9 +433,6 @@ void OefSearchClient::search_process_message_(pb::TransportHeader header, std::s
   
   // answer to AgentSession
   std::error_code ec{};
-  uint32_t length{0};
-  std::vector<std::string> agents{};
-  pb::Server_SearchResultWide agents_wide;
 
   if(!header.status().success()) {
     logger.warn("::search_process_message_ answer to message {} unsuccessful", msg_id);
@@ -444,7 +441,7 @@ void OefSearchClient::search_process_message_(pb::TransportHeader header, std::s
   
   if(!payload) {
     logger.info("::search_process_message_ no payload received for message {} answer", msg_id);
-    msg_continuation(ec, length, agents, agents_wide);
+    msg_continuation(ec, OefSearchResponse{});
     return;
   }
 
@@ -452,40 +449,63 @@ void OefSearchClient::search_process_message_(pb::TransportHeader header, std::s
   if(msg_operation == "update") {
     auto update_resp = pbs::deserialize<pb::UpdateResponse>(*payload);
     logger.debug("::search_process_message_ received update confirmation for msg {} : {} ", msg_id, pbs::to_string(update_resp));
-  } else 
+    msg_continuation(ec, OefSearchResponse{});
+    return;
+  } else
+
   if(msg_operation == "remove") {
     auto remove_resp = pbs::deserialize<pb::RemoveResponse>(*payload);
     logger.debug("::search_process_message_ received remove confirmation for msg {} : {} ", msg_id, pbs::to_string(remove_resp));
+    msg_continuation(ec, OefSearchResponse{});
+    return;
   } else
-  if(msg_operation == "search") {
+  
+  if(msg_operation == "search-local") {
     auto search_resp = pbs::deserialize<pb::SearchResponse>(*payload);
-    logger.debug("::search_process_message_ received search results for msg {} : {} ", msg_id, pbs::to_string(search_resp));
-    // get agents and SearchResultWide
+    logger.debug("::search_process_message_ received local search results for msg {} : {} ", msg_id, pbs::to_string(search_resp));
+    // get agents
+    std::vector<std::string> agents{};
     auto items = search_resp.result();
     for (auto& item : items) {
-      //
+      auto agts = item.agents();
+      for (auto& a : agts) {
+        std::string key{a.key()};
+        agents.emplace_back(key);
+      }
+    }
+    msg_continuation(ec, OefSearchResponse{agents});
+    return;
+  } else
+  
+  if(msg_operation == "search-wide") {
+    auto search_resp = pbs::deserialize<pb::SearchResponse>(*payload);
+    logger.debug("::search_process_message_ received wide search results for msg {} : {} ", msg_id, pbs::to_string(search_resp));
+    // get SearchResultWide
+    pb::Server_SearchResultWide agents_wide;
+    auto items = search_resp.result();
+    for (auto& item : items) {
       auto* aw_item = agents_wide.add_result();
       aw_item->set_key(item.key());
       aw_item->set_ip(item.ip());
       aw_item->set_score(item.score());
       aw_item->set_info(item.info());
       aw_item->set_distance(item.distance());
-      //
       auto agts = item.agents();
       for (auto& a : agts) {
-        //
         auto *aw = aw_item->add_agents();
         aw->set_key(a.key());
-        //
-        std::string key{*a.mutable_key()};
-        agents.emplace_back(key);
       }
     }
-  } else {
+    msg_continuation(ec, OefSearchResponse{agents_wide});
+    return;
+  } 
+  
+  else {
     logger.error("::search_process_message_ unknown operation '{}' for message {} answer", msg_operation, msg_id);
+    ec = std::make_error_code(std::errc::no_message_available);
   }
 
-  msg_continuation(ec, length, agents, agents_wide);
+  msg_continuation(ec, OefSearchResponse{});
 }
 
 /*
