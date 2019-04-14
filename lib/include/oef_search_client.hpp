@@ -67,48 +67,41 @@ namespace oef {
     /* TODO */
     void connect() override {};
 
-    void handle_messages() {
-      logger.debug("::handles_messages listening for messages from Oef Search ...");
-      search_receive_async(
-          [this](pb::TransportHeader header, std::shared_ptr<Buffer> payload) {
-            search_process_message_(header, payload);
-            handle_messages();
-          });
-    }
-
-    std::error_code register_description_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
-    std::error_code unregister_description_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
-    std::error_code register_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
-    std::error_code unregister_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) override;
-    std::error_code search_agents_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) override;
-    std::error_code search_service_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) override;
-
-    void register_description(const Instance& desc, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
-    void unregister_description(const Instance& desc, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
-    void register_service(const Instance& service, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
-    void unregister_service(const Instance& service, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
-    void search_agents(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
-    void search_service(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
-    void search_service_wide(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation);
+    void register_description(const Instance& desc, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) override;
+    void unregister_description(const Instance& desc, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) override;
+    void register_service(const Instance& service, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) override;
+    void unregister_service(const Instance& service, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) override;
+    void search_agents(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) override;
+    void search_service(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) override;
+    void search_service_wide(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) override;
   
   private:
     //
     pb::TransportHeader generate_header_(const std::string& uri, uint32_t msg_id);
     pb::Update generate_update_(const Instance& service, const std::string& agent, uint32_t msg_id);
+    void generate_update_add_naddr_(fetch::oef::pb::Update &update); // TOFIX to merge in generate_update_()
     pb::SearchQuery generate_search_(const QueryModel& query, const std::string& agent, uint32_t msg_id, uint32_t ttl);
     pb::Remove generate_remove_(const Instance& instance, const std::string& agent, uint32_t msg_id);
-    void addNetworkAddress(fetch::oef::pb::Update &update); // TOFIX to merge in generate_update_()
     //
     /* check lib/proto/search_transport.proto for Oef Search communication protocol */
-    std::error_code search_send_sync_(std::shared_ptr<Buffer> header, std::shared_ptr<Buffer> payload);
-    std::error_code search_receive_sync_(pb::TransportHeader& header, std::shared_ptr<Buffer>& payload);
+    void send_(std::shared_ptr<Buffer> header, std::shared_ptr<Buffer> payload, LengthContinuation continuation);
+    void send_(std::vector<std::shared_ptr<Buffer>> buffers, const std::string& agent, uint32_t msg_id);
+    void receive_(std::function<void(std::error_code,pb::TransportHeader,std::shared_ptr<Buffer>)> continuation); 
     //
+    void schedule_rcv_callback_(uint32_t msg_id, std::string operation, AgentSessionContinuation continuation);
+    void process_message_(pb::TransportHeader header, std::shared_ptr<Buffer> payload);
     //
-    void search_send_async_(std::shared_ptr<Buffer> header, std::shared_ptr<Buffer> payload, LengthContinuation continuation);
-    void search_send_async_(std::vector<std::shared_ptr<Buffer>> buffers, const std::string& agent, uint32_t msg_id);
-    void search_schedule_rcv_(uint32_t msg_id, std::string operation, AgentSessionContinuation continuation);
-    void search_receive_async(std::function<void(pb::TransportHeader,std::shared_ptr<Buffer>)> continuation);
-    void search_process_message_(pb::TransportHeader header, std::shared_ptr<Buffer> payload);
+    void handle_messages() {
+      logger.debug("::handles_messages listening for messages from Oef Search ...");
+      receive_(
+          [this](std::error_code ec, pb::TransportHeader header, std::shared_ptr<Buffer> payload) {
+            if (ec) {
+              return; // TOFIX how to handle errors?
+            }
+            process_message_(header, payload);
+            handle_messages();
+          });
+    }
     //
     bool msg_handle_save(uint32_t msg_id, MsgHandle handle) {
       std::lock_guard<std::mutex> lock(handles_lock_);

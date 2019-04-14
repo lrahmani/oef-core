@@ -28,7 +28,6 @@
 
 using asio::ip::tcp;
 
-
 namespace fetch {
 namespace oef {
     class AsioAcceptor : public comm_acceptor_t {
@@ -40,8 +39,7 @@ namespace oef {
         acceptor_{io_context, tcp::endpoint(tcp::v4(), port)} {
           acceptor_.listen(backlog); // pending connections
         }
-      void do_accept_async(
-          CommunicatorContinuation continuation) override;
+      void do_accept_async(CommunicatorContinuation continuation) override;
       std::string local_address();
       uint32_t local_port();
       ~AsioAcceptor() {}

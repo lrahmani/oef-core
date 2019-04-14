@@ -33,8 +33,8 @@ namespace oef {
 
     struct OefSearchResponse {
       //union {
-        std::vector<std::string> agents;
-        pb::Server_SearchResultWide search_result_wide;
+      std::vector<std::string> agents;
+      pb::Server_SearchResultWide search_result_wide;
       //}; // TOFIX unmaed union make lambda conversion to std::function fails ...
       
       kOefSearchResponse type;
@@ -44,9 +44,6 @@ namespace oef {
         : agents{agts}, type{kOefSearchResponse::L_SEARCH_AGTS} {}
       explicit OefSearchResponse(pb::Server_SearchResultWide wsr) 
         : search_result_wide{wsr}, type{kOefSearchResponse::W_SEARCH_AGTS} {}
-      
-      OefSearchResponse(OefSearchResponse&) = default;
-      OefSearchResponse(OefSearchResponse&&) = default;
     };
 
 } // oef
