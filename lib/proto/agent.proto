@@ -43,6 +43,7 @@ message Server {
         message Item {
             message AgentInfo {
                 required bytes key = 1;
+                optional double score = 2;
                 //later extra info about the agents (local search)
                 //e.g. score (this would mean search system index dm by agent key)
             }
@@ -50,10 +51,9 @@ message Server {
             optional bytes key = 1;
             optional string ip = 2;
             optional uint32 port = 3;
-            optional double score = 4;
-            optional string info = 5;
-            optional double distance = 6;
-            repeated AgentInfo agents = 7;
+            optional string info = 4;
+            optional double distance = 5;
+            repeated AgentInfo agents = 6;
         }
         repeated Item result = 1;
     }

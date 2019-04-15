@@ -459,7 +459,6 @@ void OefSearchClient::search_process_message_(pb::TransportHeader header, std::s
       auto* aw_item = agents_wide.add_result();
       aw_item->set_key(item.key());
       aw_item->set_ip(item.ip());
-      aw_item->set_score(item.score());
       aw_item->set_info(item.info());
       aw_item->set_distance(item.distance());
       //
@@ -468,6 +467,8 @@ void OefSearchClient::search_process_message_(pb::TransportHeader header, std::s
         //
         auto *aw = aw_item->add_agents();
         aw->set_key(a.key());
+        aw->set_score(a.score());
+
         //
         std::string key{*a.mutable_key()};
         agents.emplace_back(key);

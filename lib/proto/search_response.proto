@@ -19,6 +19,7 @@ message SearchResponse {
 
         message AgentInfo {
             bytes key = 1;
+            double score = 2;
             //later extra info about the agents (local search)
             //e.g. score (this would mean search system index dm by agent key)
         }
@@ -26,10 +27,9 @@ message SearchResponse {
         bytes key = 1;
         string ip = 2;
         uint32 port = 3;
-        double score = 4;
-        string info = 5;
-        double distance = 6;
-        repeated AgentInfo agents = 7;
+        string info = 4;
+        double distance = 5;
+        repeated AgentInfo agents = 6;
     }
 
     repeated Item result = 1;
