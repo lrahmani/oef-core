@@ -37,7 +37,8 @@ std::shared_ptr<Buffer> serialize(const T &t) {
   size_t size = t.ByteSize();
   Buffer data;
   data.resize(size);
-  (void)t.SerializeWithCachedSizesToArray(data.data());
+  auto status = t.SerializeWithCachedSizesToArray(data.data());
+  std::cout << "Serialize size=" << size << ", response: "<<status << std::endl;
   return std::make_shared<Buffer>(data);
 }
 
