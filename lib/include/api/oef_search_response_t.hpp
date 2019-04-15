@@ -17,26 +17,35 @@
 //
 //------------------------------------------------------------------------------
 
-#include "api/continuation_t.hpp"
-#include "api/oef_search_response_t.hpp"
+#include "agent.pb.h" // TOFIX
+
+#include <vector>
+#include <string>
 
 namespace fetch {
 namespace oef {
-  struct MsgHandle {
-    explicit MsgHandle(){}
-    explicit MsgHandle(uint32_t msg_id) 
-      : operation{""}
-      , continuation{[msg_id](std::error_code ec, oef::OefSearchResponse response) -> void {
-                       std::cerr << "No handle registered for message " << msg_id << std::endl;
-                     }}
-    {}
-    explicit MsgHandle(std::string op, AgentSessionContinuation cont)
-      : operation{op}, continuation{cont}
-    {}
-    //
-    std::string operation;
-    AgentSessionContinuation continuation;
-  };
-  
-} //oef
-} //fetch
+    
+    enum class kOefSearchResponse {
+      NOTHING,
+      L_SEARCH_AGTS,
+      W_SEARCH_AGTS
+    };
+
+    struct OefSearchResponse {
+      //union {
+      std::vector<std::string> agents;
+      pb::Server_SearchResultWide search_result_wide;
+      //}; // TOFIX unmaed union make lambda conversion to std::function fails ...
+      
+      kOefSearchResponse type;
+      
+      explicit OefSearchResponse() : type{kOefSearchResponse::NOTHING} {}
+      explicit OefSearchResponse(std::vector<std::string> agts) 
+        : agents{agts}, type{kOefSearchResponse::L_SEARCH_AGTS} {}
+      explicit OefSearchResponse(pb::Server_SearchResultWide wsr) 
+        : search_result_wide{wsr}, type{kOefSearchResponse::W_SEARCH_AGTS} {}
+    };
+
+} // oef
+} // fetch
+

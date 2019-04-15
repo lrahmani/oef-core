@@ -26,7 +26,7 @@ namespace oef {
     
   void AsioAcceptor::do_accept_async(
       CommunicatorContinuation continuation) {
-    acceptor_.async_accept([this,continuation](std::error_code ec, tcp::socket socket) {
+    acceptor_.async_accept([continuation](std::error_code ec, tcp::socket socket) {
                                if (ec) {
                                  std::cerr << "AsioAcceptor::do_accept_async error " 
                                            << ec.value () << std::endl;

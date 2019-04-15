@@ -19,6 +19,7 @@
 
 #include "api/communicator_t.hpp"
 #include "api/buffer_t.hpp"
+#include "api/continuation_t.hpp"
 
 #include "schema.hpp" // TOFIX
 
@@ -41,13 +42,14 @@ namespace oef {
         /* Open a client connection to the OEF Search */
         virtual void connect() = 0;
         
-        /* OEF Search operations, as specified in search.proto */
-        virtual std::error_code register_description_sync(const Instance& service, const std::string& agent, uint32_t msg_id) = 0;
-        virtual std::error_code unregister_description_sync(const Instance& service, const std::string& agent, uint32_t msg_id) = 0;
-        virtual std::error_code register_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) = 0;
-        virtual std::error_code unregister_service_sync(const Instance& service, const std::string& agent, uint32_t msg_id) = 0;
-        virtual std::error_code search_agents_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) = 0;
-        virtual std::error_code search_service_sync(const QueryModel& query, const std::string& agent, uint32_t msg_id, std::vector<agent_t>& agents) = 0;
+        /* OEF Search operations, as specified in search_*.proto files */
+        virtual void register_description(const Instance& desc, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) = 0;
+        virtual void unregister_description(const Instance& desc, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) = 0;
+        virtual void register_service(const Instance& service, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) = 0;
+        virtual void unregister_service(const Instance& service, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) = 0;
+        virtual void search_agents(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) = 0;
+        virtual void search_service(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) = 0;
+        virtual void search_service_wide(const QueryModel& query, const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) = 0;
         
         virtual ~oef_search_client_t() {}
     };

@@ -18,8 +18,7 @@
 //------------------------------------------------------------------------------
 
 #include "api/buffer_t.hpp"
-
-#include "agent.pb.h"
+#include "api/oef_search_response_t.hpp"
 
 #include <functional>
 #include <system_error>
@@ -34,7 +33,7 @@ namespace oef {
     using BufferContinuation = std::function<void(std::error_code,std::shared_ptr<Buffer>)>;
     using VoidBuffContinuation = std::function<void(std::error_code,std::shared_ptr<void>)>;
     using LengthContinuation = std::function<void(std::error_code,std::size_t)>;
-    using AgentSessionContinuation = std::function<void(std::error_code,std::size_t,std::vector<std::string>,pb::Server_SearchResultWide)>;
+    using AgentSessionContinuation = std::function<void(std::error_code,oef::OefSearchResponse)>;
     class communicator_t;
     using CommunicatorContinuation = std::function<void(std::error_code,std::shared_ptr<communicator_t>)>;
 } // oef

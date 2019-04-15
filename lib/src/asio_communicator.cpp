@@ -24,8 +24,9 @@
 namespace fetch {
 namespace oef {
 
-/* TODO add connect operation, that check if already connected */
-AsioComm::AsioComm(asio::io_context& io_context, std::string to_ip_addr, uint32_t to_port) : socket_(io_context) {
+AsioComm::AsioComm(asio::io_context& io_context, std::string to_ip_addr, uint32_t to_port) 
+  : socket_(io_context) 
+{
   tcp::resolver resolver(io_context);
   try {
     asio::connect(socket_, resolver.resolve(to_ip_addr,std::to_string(to_port)));
@@ -39,7 +40,6 @@ AsioComm::AsioComm(asio::io_context& io_context, std::string to_ip_addr, uint32_
 void AsioComm::disconnect() {
   socket_.shutdown(asio::socket_base::shutdown_type::shutdown_both);
   socket_.close();
-  /* TODO add reset, for future reconnections */
 }
 
 void AsioComm::send_async(std::shared_ptr<Buffer> buffer, LengthContinuation continuation) {
@@ -128,16 +128,16 @@ std::error_code AsioComm::receive_sync(std::shared_ptr<Buffer>& buffer) {
   std::error_code ec;
   auto length = asio::read(socket_, asio::buffer(len.get(), sizeof(uint32_t)), ec);
   if (ec || length!=sizeof(uint32_t)) { // TOFIX testing length is not needed
-    // http://charette.no-ip.com:81/programming/doxygen/boost/group__read.html#gab89bd5df06ea19ed5542ebfd514aef30
-    std::cerr << "AsioComm::receive_sync error while receivin lenght of data, got " << length << " : ec " << ec.value() << std::endl;
-    return ec;
+    std::cerr << "AsioComm::receive_sync error while receivin lenght of data, got " << length 
+              << " : ec " << ec.value() << std::endl;
     // TOFIX should connection be closed?
+    return ec;
   }
   buffer = std::make_shared<Buffer>(*len);
   length = asio::read(socket_, asio::buffer(buffer->data(), *len), ec);
   if (ec || length!=*len) { // TOFIX testing length is not needed
     std::cerr << "AsioComm::receive_sync error while receiving data " << ec.value() 
-      << " - got " << length << "expected " << len << std::endl;
+              << " - got " << length << "expected " << len << std::endl;
     // TOFIX should connection be closed?
     return ec;
   }

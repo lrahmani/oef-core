@@ -38,7 +38,7 @@ namespace oef {
     }
 
     void CoreServer::do_accept() {
-      logger.trace("CoreServer::do_accept");
+      logger.trace("CoreServer::do_accept (port {})", core_port_);
       
       do_accept([this](std::error_code ec, std::shared_ptr<communicator_t> comm) {
                                if (!ec) {
