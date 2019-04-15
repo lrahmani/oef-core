@@ -21,6 +21,9 @@
 
 #include <google/protobuf/text_format.h>
 
+#include <iostream>
+#include <sstream>
+
 namespace fetch {
 namespace oef {
 namespace pbs {
@@ -43,6 +46,13 @@ std::shared_ptr<Buffer> serialize(const T &t) {
 }
 
 template <typename T>
+T deserialize(const Buffer &buffer, bool& status) {
+  T t;
+  status = t.ParseFromArray(buffer.data(), buffer.size());
+  return t;
+}
+
+template <typename T>
 T deserialize(const Buffer &buffer) {
   T t;
   t.ParseFromArray(buffer.data(), buffer.size());
@@ -52,11 +62,14 @@ T deserialize(const Buffer &buffer) {
 template <typename T>
 T deserialize(const std::string &buffer) {
   T t;
-  t.ParseFromArray(buffer.data(), buffer.size());
+  if(!t.ParseFromArray(buffer.data(), buffer.size()))
+    std::cerr << "pbs::deserialize ParseFromArray return false" << std::endl;
   return t;
 }
 
 std::string to_string(const google::protobuf::Message &msg);
+
+std::string diagnostic(void *p, size_t sz);
 
 } // pbs 
 

@@ -28,6 +28,39 @@ std::string to_string(const google::protobuf::Message &msg) {
   return output;
 }
 
+std::string diagnostic(void *p, size_t sz)
+{
+  // from oef-search-pluto/cpp-sdk/src/cpp/char_array_buffer.hpp
+  std::stringstream output;
+  for(unsigned int i=0;i<sz;i++)
+  {
+    char c = ((char*)(p))[i];
+
+    switch(c)
+    {
+      case 10:
+        std::cout << "\\n";
+        break;
+      default:
+        if (::isprint(c))
+        {
+          output << c;
+        }
+        else
+        {
+          int cc = (unsigned char)c;
+          output << "\\x";
+          for(int j=0;j<2;j++)
+          {
+            output << "0123456789ABCDEF"[((cc&0xF0) >> 4)];
+            cc <<= 4;
+          }
+        }
+    }
+  }
+  //output << std::endl;
+  return output.str();
+}
 } // pbs 
 
 std::shared_ptr<Buffer> serialize(uint32_t size) {

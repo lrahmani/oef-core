@@ -34,7 +34,7 @@ namespace oef {
       const std::string publicKey_;
       stde::optional<Instance> description_;
       AgentDirectory &agentDirectory_;
-      OefSearchClient& oef_search_; // TOFIX change to oef_search_client_t&
+      OefSearchClient& oef_search_; // could oef_search_client_t&
       std::shared_ptr<communicator_t> comm_;
 
       static fetch::oef::Logger logger;
@@ -51,6 +51,7 @@ namespace oef {
       
       AgentSession(const AgentSession &) = delete;
       AgentSession operator=(const AgentSession &) = delete;
+      
       virtual ~AgentSession() {
         logger.trace("~AgentSession");
       }

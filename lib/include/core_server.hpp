@@ -42,7 +42,7 @@ namespace oef {
       asio::io_context io_context_;
       AsioAcceptor acceptor_;
       AgentDirectory agentDirectory_;
-      std::shared_ptr<OefSearchClient> oef_search_; // TOFIX change to oef_client_t
+      std::shared_ptr<OefSearchClient> oef_search_; 
       std::vector<std::unique_ptr<std::thread>> threads_;
       //
       std::string core_key_;
@@ -69,10 +69,9 @@ namespace oef {
         try {
           auto s_comm = std::make_shared<AsioBasicComm>(io_context_, s_ip_addr, s_port);
           oef_search_ = std::make_shared<OefSearchClient>(s_comm, 
-              core_key, core_ip_addr, core_port, agentDirectory_);
-          logger.debug("CoreServer::CoreServer info connected to OEF Search {}:{} ", s_ip_addr, s_port);
+              core_key, core_ip_addr, core_port);
         } catch (std::exception e) {
-          logger.error("CoreServer::CoreServer error while initializing OefSearchClient {}",e.what());
+          logger.error("CoreServer::CoreServer error while initializing OefSearchClient {}", e.what());
           stop();
         }
       }
