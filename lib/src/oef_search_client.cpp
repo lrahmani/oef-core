@@ -333,10 +333,6 @@ void OefSearchClient::process_message_(pb::TransportHeader header, std::shared_p
         auto *aw = aw_item->add_agents();
         aw->set_key(a.key());
         aw->set_score(a.score());
-
-        //
-        std::string key{*a.mutable_key()};
-        agents.emplace_back(key);
       }
     }
     msg_continuation(ec, OefSearchResponse{agents_wide});
