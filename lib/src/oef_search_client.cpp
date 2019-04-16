@@ -333,6 +333,7 @@ void OefSearchClient::process_message_(pb::TransportHeader header, std::shared_p
       auto* aw_item = agents_wide.add_result();
       aw_item->set_key(item.key());
       aw_item->set_ip(item.ip());
+      aw_item->set_port(item.port());
       aw_item->set_info(item.info());
       aw_item->set_distance(item.distance());
       auto agts = item.agents();
