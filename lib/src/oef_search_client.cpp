@@ -401,10 +401,10 @@ pb::SearchQuery OefSearchClient::generate_search_(const QueryModel& query, const
   pb::SearchQuery search_query;
   search_query.set_source_key(core_id_);
   // remove old core constraints
-  pb::Query_Model query_no_cnstrs;
-  query_no_cnstrs.mutable_model()->CopyFrom(query.handle().model());
+  //pb::Query_Model query_no_cnstrs;
+  //query_no_cnstrs.mutable_model()->CopyFrom(query.handle().model());
   //
-  search_query.mutable_model()->CopyFrom(query_no_cnstrs);
+  search_query.mutable_model()->CopyFrom(query.handle());
   search_query.set_ttl(ttl);
   return search_query;
 }
