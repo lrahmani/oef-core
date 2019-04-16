@@ -75,17 +75,19 @@ namespace oef {
   
   private:
     //
-    pb::TransportHeader generate_header_(const std::string& uri, uint32_t msg_id);
-    pb::Update generate_update_(const Instance& service, const std::string& agent, uint32_t msg_id);
+    std::size_t generate_smsg_id_(const std::string& agent, uint32_t msg_id);
+    pb::TransportHeader generate_header_(const std::string& uri, uint32_t smsg_id);
+    pb::Update generate_update_(const Instance& service, const std::string& agent);
     void generate_update_add_naddr_(fetch::oef::pb::Update &update); // TOFIX to merge in generate_update_()
-    pb::SearchQuery generate_search_(const QueryModel& query, const std::string& agent, uint32_t msg_id, uint32_t ttl);
-    pb::Remove generate_remove_(const Instance& instance, const std::string& agent, uint32_t msg_id);
+    pb::SearchQuery generate_search_(const QueryModel& query, uint32_t ttl);
+    pb::Remove generate_remove_(const Instance& instance);
     //
     /* check lib/proto/search_transport.proto for Oef Search communication protocol */
     void send_(std::shared_ptr<Buffer> header, std::shared_ptr<Buffer> payload, LengthContinuation continuation);
     void receive_(std::function<void(std::error_code,pb::TransportHeader,std::shared_ptr<Buffer>)> continuation); 
     //
-    void schedule_rcv_callback_(uint32_t msg_id, std::string operation, AgentSessionContinuation continuation);
+    void schedule_rcv_callback_(uint32_t smsg_id, std::string operation, AgentSessionContinuation continuation, 
+        uint32_t msg_id, const std::string& agent);
     void process_message_(pb::TransportHeader header, std::shared_ptr<Buffer> payload);
     //
     void handle_messages() {
@@ -100,24 +102,26 @@ namespace oef {
           });
     }
     //
-    bool msg_handle_save(uint32_t msg_id, MsgHandle handle) {
+    bool msg_handle_save(uint32_t smsg_id, MsgHandle handle) {
       std::lock_guard<std::mutex> lock(handles_lock_);
-      if(handles_.find(msg_id) != handles_.end())
+      if(handles_.find(smsg_id) != handles_.end()){
+        logger.error("::msg_handle_save a handle for msg_id {} is already registered. abort", smsg_id);
         return false;
-      handles_[msg_id] = handle;
+      }
+      handles_[smsg_id] = handle;
       return true;
     }
-    bool msg_handle_erase(uint32_t msg_id) {
+    bool msg_handle_erase(uint32_t smsg_id) {
       std::lock_guard<std::mutex> lock(handles_lock_);
-      return handles_.erase(msg_id) == 1;
+      return handles_.erase(smsg_id) == 1;
     }
-    MsgHandle msg_handle_get(uint32_t msg_id) {
+    MsgHandle msg_handle_get(uint32_t smsg_id) {
       std::lock_guard<std::mutex> lock(handles_lock_);
-      auto iter = handles_.find(msg_id);
+      auto iter = handles_.find(smsg_id);
       if(iter != handles_.end()) {
         return iter->second;
       }
-      return MsgHandle{msg_id};
+      return MsgHandle{smsg_id};
     }
   };
   
