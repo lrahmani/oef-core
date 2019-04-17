@@ -38,8 +38,12 @@ AsioComm::AsioComm(asio::io_context& io_context, std::string to_ip_addr, uint32_
 }
 
 void AsioComm::disconnect() {
-  socket_.shutdown(asio::socket_base::shutdown_type::shutdown_both);
-  socket_.close();
+  try {
+    socket_.shutdown(asio::socket_base::shutdown_type::shutdown_both);
+    socket_.close();
+  } catch (std::exception& e) {
+    std::cerr << "Exception during disconnect: " << e.what() << std::endl;
+  }
 }
 
 void AsioComm::send_async(std::shared_ptr<Buffer> buffer, LengthContinuation continuation) {
