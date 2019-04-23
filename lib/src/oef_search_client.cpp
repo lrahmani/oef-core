@@ -264,7 +264,8 @@ void OefSearchClient::receive_(
 void OefSearchClient::process_message_(pb::TransportHeader header, std::shared_ptr<Buffer> payload) 
 {
   // get msg id
-  uint32_t msg_id = header.id()-1;
+  //TODO(AB): Do we need -1 here? In the master it wasn't present, but the header creator had +1
+  uint32_t smsg_id = header.id()-1;
   logger.debug("::search_process_message processing message with header {} ", pbs::to_string(header)); 
   // get msg payload type and continuation
   auto msg_handle = msg_handle_get(smsg_id);
