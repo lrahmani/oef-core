@@ -24,18 +24,27 @@ namespace fetch {
 namespace oef {
   struct MsgHandle {
     explicit MsgHandle(){}
-    explicit MsgHandle(uint32_t msg_id) 
+    explicit MsgHandle(uint32_t smsg_id) 
       : operation{""}
-      , continuation{[msg_id](std::error_code ec, oef::OefSearchResponse response) -> void {
-                       std::cerr << "No handle registered for message " << msg_id << std::endl;
+      , continuation{[smsg_id](std::error_code ec, oef::OefSearchResponse response) -> void {
+                       std::cerr << "No handle registered for message " << smsg_id << std::endl;
                      }}
+      , amsg_id{0}
+      , agent_id{"NoOne"}
     {}
     explicit MsgHandle(std::string op, AgentSessionContinuation cont)
       : operation{op}, continuation{cont}
     {}
+    explicit MsgHandle(std::string op, AgentSessionContinuation cont, 
+        uint32_t amsg_id, const std::string& agent = "")
+      : operation{op}, continuation{cont}, amsg_id{amsg_id}, agent_id{agent}
+    {}
     //
     std::string operation;
     AgentSessionContinuation continuation;
+    // not needed, only for debug
+    uint32_t amsg_id;
+    std::string agent_id;
   };
   
 } //oef

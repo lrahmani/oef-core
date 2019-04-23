@@ -21,6 +21,7 @@
 #include "serialization.hpp"
 
 #include <arpa/inet.h>
+#include <functional>
 
 namespace fetch {
 namespace oef {
@@ -60,11 +61,12 @@ void OefSearchClient::register_service(const Instance& service,
     const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) 
 {
   // prepare header
-  auto header = generate_header_("update", msg_id);
+  size_t smsg_id = generate_smsg_id_(agent, msg_id);
+  auto header = generate_header_("update", smsg_id);
   auto header_buffer = pbs::serialize(header);
 
   // then prepare payload message
-  auto update = generate_update_(service, agent, msg_id);
+  auto update = generate_update_(service, agent);
   auto update_buffer = pbs::serialize(update);
  
   // send message
@@ -72,7 +74,7 @@ void OefSearchClient::register_service(const Instance& service,
         agent, pbs::to_string(header), pbs::to_string(update));
   
   send_(header_buffer, update_buffer, 
-      [this,agent,msg_id,continuation](std::error_code ec, uint32_t length) {
+      [this,agent,smsg_id,msg_id,continuation](std::error_code ec, uint32_t length) {
         if (ec) {
           logger.debug("::register_service error while sending update from agent {} to OefSearch: {}",
               agent, ec.value());
@@ -80,7 +82,7 @@ void OefSearchClient::register_service(const Instance& service,
         } else {
           // schedule reception of answer
           logger.debug("::register_service update message sent to OefSearch");
-          schedule_rcv_callback_(msg_id, "update", continuation);
+          schedule_rcv_callback_(smsg_id, "update", continuation, msg_id, agent);
         }
       });
 }
@@ -89,11 +91,12 @@ void OefSearchClient::unregister_service(const Instance& service,
     const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) 
 {
   // prepare header
-  auto header = generate_header_("remove", msg_id);
+  size_t smsg_id = generate_smsg_id_(agent, msg_id);
+  auto header = generate_header_("remove", smsg_id);
   auto header_buffer = pbs::serialize(header);
 
   // then prepare payload message
-  auto remove = generate_remove_(service, agent, msg_id);
+  auto remove = generate_remove_(service);
   auto remove_buffer = pbs::serialize(remove);
   
   // send message
@@ -101,7 +104,7 @@ void OefSearchClient::unregister_service(const Instance& service,
         agent, pbs::to_string(header), pbs::to_string(remove));
   
   send_(header_buffer, remove_buffer, 
-      [this,agent,msg_id,continuation](std::error_code ec, uint32_t length) {
+      [this,agent,smsg_id,msg_id,continuation](std::error_code ec, uint32_t length) {
         if (ec) {
           logger.debug("::unregister_service error while sending remove from agent {} to OefSearch: {}",
               agent, ec.value());
@@ -109,7 +112,7 @@ void OefSearchClient::unregister_service(const Instance& service,
         } else {
           // schedule reception of answer
           logger.debug("::unregister_service remove message sent to OefSearch");
-          schedule_rcv_callback_(msg_id, "remove", continuation);
+          schedule_rcv_callback_(smsg_id, "remove", continuation, msg_id, agent);
         }
       });
 }
@@ -118,11 +121,12 @@ void OefSearchClient::search_service(const QueryModel& query,
     const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) 
 {
   // prepare header
-  auto header = generate_header_("search", msg_id);
+  size_t smsg_id = generate_smsg_id_(agent, msg_id);
+  auto header = generate_header_("search", smsg_id);
   auto header_buffer = pbs::serialize(header);
 
   // then prepare payload message
-  auto search = generate_search_(query, agent, msg_id, 1);
+  auto search = generate_search_(query, 1);
   auto search_buffer = pbs::serialize(search);
   
   // send message
@@ -130,7 +134,7 @@ void OefSearchClient::search_service(const QueryModel& query,
         agent, pbs::to_string(header), pbs::to_string(search));
   
   send_(header_buffer, search_buffer, 
-      [this,agent,msg_id,continuation](std::error_code ec, uint32_t length) {
+      [this,agent,smsg_id,msg_id,continuation](std::error_code ec, uint32_t length) {
         if (ec) {
           logger.debug("::search_service error while sending search from agent {} to OefSearch: {}",
               agent, ec.value());
@@ -138,7 +142,7 @@ void OefSearchClient::search_service(const QueryModel& query,
         } else {
           // schedule reception of answer
           logger.debug("::search_service search message sent to OefSearch");
-          schedule_rcv_callback_(msg_id, "search-local", continuation);
+          schedule_rcv_callback_(smsg_id, "search-local", continuation, msg_id, agent);
         }
       });
 }
@@ -147,11 +151,12 @@ void OefSearchClient::search_service_wide(const QueryModel& query,
     const std::string& agent, uint32_t msg_id, AgentSessionContinuation continuation) 
 {
   // prepare header
-  auto header = generate_header_("search", msg_id);
+  size_t smsg_id = generate_smsg_id_(agent, msg_id);
+  auto header = generate_header_("search", smsg_id);
   auto header_buffer = pbs::serialize(header);
 
   // then prepare payload message
-  auto search = generate_search_(query, agent, msg_id, 3);
+  auto search = generate_search_(query, 3);
   auto search_buffer = pbs::serialize(search);
   
   // send message
@@ -159,7 +164,7 @@ void OefSearchClient::search_service_wide(const QueryModel& query,
         agent, pbs::to_string(header), pbs::to_string(search));
   
   send_(header_buffer, search_buffer, 
-      [this,agent,msg_id,continuation](std::error_code ec, uint32_t length) {
+      [this,agent,smsg_id,msg_id,continuation](std::error_code ec, uint32_t length) {
         if (ec) {
           logger.debug("::search_service_wide error while sending search from agent {} to OefSearch: {}",
               agent, ec.value());
@@ -167,7 +172,7 @@ void OefSearchClient::search_service_wide(const QueryModel& query,
         } else {
           // schedule reception of answer
           logger.debug("::search_service_wide search message sent to OefSearch");
-          schedule_rcv_callback_(msg_id, "search-wide", continuation);
+          schedule_rcv_callback_(smsg_id, "search-wide", continuation, msg_id, agent);
         }
       });
 }
@@ -204,11 +209,12 @@ void OefSearchClient::send_(std::shared_ptr<Buffer> header, std::shared_ptr<Buff
   comm_->send_async(buffers, nbytes, continuation);
 }
 
-void OefSearchClient::schedule_rcv_callback_(uint32_t msg_id, std::string operation, 
-    AgentSessionContinuation continuation) 
+void OefSearchClient::schedule_rcv_callback_(uint32_t smsg_id, std::string operation, 
+    AgentSessionContinuation continuation, uint32_t amsg_id, const std::string& agent) 
 {
-  msg_handle_save(msg_id, MsgHandle{operation, continuation});
-  logger.debug("schedule_rcv_callback_ scheduled receive for message {}", msg_id);
+  msg_handle_save(smsg_id, MsgHandle{operation, continuation, amsg_id, agent});
+  logger.debug("schedule_rcv_callback_ scheduled receive for message {} (aka {})", 
+      smsg_id, amsg_id);
 }
 
 void OefSearchClient::receive_(
@@ -261,8 +267,9 @@ void OefSearchClient::process_message_(pb::TransportHeader header, std::shared_p
   uint32_t msg_id = header.id()-1;
   logger.debug("::search_process_message processing message with header {} ", pbs::to_string(header)); 
   // get msg payload type and continuation
-  auto msg_handle = msg_handle_get(msg_id);
-  msg_handle_erase(msg_id);
+  auto msg_handle = msg_handle_get(smsg_id);
+  msg_handle_erase(smsg_id);
+  uint32_t amsg_id = msg_handle.amsg_id;
   std::string msg_operation = msg_handle.operation;
   AgentSessionContinuation msg_continuation = msg_handle.continuation;
   
@@ -270,12 +277,12 @@ void OefSearchClient::process_message_(pb::TransportHeader header, std::shared_p
   std::error_code ec{};
 
   if(!header.status().success()) {
-    logger.warn("::process_message_ answer to message {} unsuccessful", msg_id);
+    logger.warn("::process_message_ answer to message {} (aka {}) unsuccessful", smsg_id, amsg_id);
     ec = std::make_error_code(std::errc::no_message_available);
   }
   
   if(!payload) {
-    logger.info("::process_message_ no payload received for message {} answer", msg_id);
+    logger.info("::process_message_ no payload received for message {} (aka {}) answer", smsg_id, amsg_id);
     msg_continuation(ec, OefSearchResponse{});
     return;
   }
@@ -283,24 +290,24 @@ void OefSearchClient::process_message_(pb::TransportHeader header, std::shared_p
   // get payload 
   if(msg_operation == "update") {
     auto update_resp = pbs::deserialize<pb::UpdateResponse>(*payload);
-    logger.debug("::process_message_ received update confirmation for msg {} : {} ",
-        msg_id, pbs::to_string(update_resp));
+    logger.debug("::process_message_ received update confirmation for msg {} (aka {})  : {} ",
+        smsg_id, amsg_id, pbs::to_string(update_resp));
     msg_continuation(ec, OefSearchResponse{});
     return;
   } else
 
   if(msg_operation == "remove") {
     auto remove_resp = pbs::deserialize<pb::RemoveResponse>(*payload);
-    logger.debug("::process_message_ received remove confirmation for msg {} : {} ", 
-        msg_id, pbs::to_string(remove_resp));
+    logger.debug("::process_message_ received remove confirmation for msg {} (aka {}) : {} ", 
+        smsg_id, amsg_id, pbs::to_string(remove_resp));
     msg_continuation(ec, OefSearchResponse{});
     return;
   } else
   
   if(msg_operation == "search-local") {
     auto search_resp = pbs::deserialize<pb::SearchResponse>(*payload);
-    logger.debug("::process_message_ received local search results for msg {} : {} ", 
-        msg_id, pbs::to_string(search_resp));
+    logger.debug("::process_message_ received local search results for msg {} (aka {}) : {} ", 
+        smsg_id, amsg_id, pbs::to_string(search_resp));
     // get agents
     std::vector<std::string> agents{};
     auto items = search_resp.result();
@@ -317,17 +324,17 @@ void OefSearchClient::process_message_(pb::TransportHeader header, std::shared_p
   
   if(msg_operation == "search-wide") {
     auto search_resp = pbs::deserialize<pb::SearchResponse>(*payload);
-    logger.debug("::process_message_ received wide search results for msg {} : {} ", 
-        msg_id, pbs::to_string(search_resp));
+    logger.debug("::process_message_ received wide search results for msg {} (aka {}) : {} ", 
+        smsg_id, amsg_id, pbs::to_string(search_resp));
     // get SearchResultWide
     pb::Server_SearchResultWide agents_wide;
     auto items = search_resp.result();
     for (auto& item : items) {
       auto* aw_item = agents_wide.add_result();
       aw_item->set_key(item.key());
-	      aw_item->set_ip(item.ip());
-	      aw_item->set_port(item.port());
-	      aw_item->set_info(item.info());
+      aw_item->set_ip(item.ip());
+      aw_item->set_port(item.port());
+      aw_item->set_info(item.info());
       aw_item->set_distance(item.distance());
       auto agts = item.agents();
       for (auto& a : agts) {
@@ -341,8 +348,8 @@ void OefSearchClient::process_message_(pb::TransportHeader header, std::shared_p
   } 
   
   else {
-    logger.error("::process_message_ unknown operation '{}' for message {} answer", 
-        msg_operation, msg_id);
+    logger.error("::process_message_ unknown operation '{}' for message {} (aka {}) answer", 
+        msg_operation, smsg_id, amsg_id);
     ec = std::make_error_code(std::errc::no_message_available);
   }
 
@@ -376,6 +383,13 @@ void OefSearchClient::generate_update_add_naddr_(fetch::oef::pb::Update &update)
 
   update.add_attributes()->CopyFrom(attr);
 }
+
+std::size_t OefSearchClient::generate_smsg_id_(const std::string& agent, uint32_t msg_id) {
+  return std::hash<std::string>{}(agent) ^ (msg_id << 1); 
+  // TOFIX what is the best way (less collision) to combine to integers?
+  // cppreference: or use boost::hash_combine (see Discussion)
+  // Discussion: https://en.cppreference.com/w/Talk:cpp/utility/hash
+}
   
 pb::TransportHeader OefSearchClient::generate_header_(const std::string& uri, uint32_t msg_id) {
   pb::TransportHeader header;
@@ -385,7 +399,7 @@ pb::TransportHeader OefSearchClient::generate_header_(const std::string& uri, ui
   return header;
 }
 
-pb::Update OefSearchClient::generate_update_(const Instance& service, const std::string& agent, uint32_t msg_id) {
+pb::Update OefSearchClient::generate_update_(const Instance& service, const std::string& agent) {
   fetch::oef::pb::Update update;
   update.set_key(core_id_);
 
@@ -397,7 +411,7 @@ pb::Update OefSearchClient::generate_update_(const Instance& service, const std:
   return update;
 }
 
-pb::SearchQuery OefSearchClient::generate_search_(const QueryModel& query, const std::string& agent, uint32_t msg_id, uint32_t ttl) {
+pb::SearchQuery OefSearchClient::generate_search_(const QueryModel& query, uint32_t ttl) {
   pb::SearchQuery search_query;
   search_query.set_source_key(core_id_);
   // remove old core constraints
@@ -409,7 +423,7 @@ pb::SearchQuery OefSearchClient::generate_search_(const QueryModel& query, const
   return search_query;
 }
 
-pb::Remove OefSearchClient::generate_remove_(const Instance& instance, const std::string& agent, uint32_t msg_id) {
+pb::Remove OefSearchClient::generate_remove_(const Instance& instance) {
   pb::Remove remove;
   remove.set_key(core_id_);
   remove.set_all(false);

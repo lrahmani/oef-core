@@ -55,7 +55,8 @@ T deserialize(const Buffer &buffer, bool& status) {
 template <typename T>
 T deserialize(const Buffer &buffer) {
   T t;
-  t.ParseFromArray(buffer.data(), buffer.size());
+  if(!t.ParseFromArray(buffer.data(), buffer.size()))
+    std::cerr << "pbs::deserialize ParseFromArray returns false" << std::endl;
   return t;
 }
 
