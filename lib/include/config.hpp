@@ -1,6 +1,7 @@
+#pragma once
 //------------------------------------------------------------------------------
 //
-//   Copyright 2018 Fetch.AI Limited
+//   Copyright 2018-2019 Fetch.AI Limited
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -16,28 +17,25 @@
 //
 //------------------------------------------------------------------------------
 
-#include <iostream>
-#include "server.hpp"
+#include "api/buffer_t.hpp"
 
-int main(int argc, char* argv[])
-{
-  spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [thread %t] [%n] [%l] %v");
-  spdlog::set_level(spdlog::level::level_enum::trace);
-  try
-  {
-    if (argc != 1)
-    {
-      std::cerr << "Usage: node\n";
-      return 1;
-    }
+#include <string>
+#include <cstdint>
 
-    fetch::oef::Server s;
-    s.run_in_thread();
+namespace fetch {
+namespace oef {
+namespace config {
 
-  } catch (std::exception& e)
-  {
-    std::cerr << "Exception: " << e.what() << "\n";
-  }
+constexpr auto default_ip{"127.0.0.1"};
+constexpr uint32_t core_default_backlog{256};
+constexpr uint32_t core_default_nb_threads{4};
 
-  return 0;
-}
+enum class Ports {
+  ServiceDiscovery = 2222, Agents = 3333, Search = 7501
+};
+
+} // config
+} //oef
+} //fetch
+
+
