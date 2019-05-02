@@ -407,6 +407,7 @@ pb::Update OefSearchClient::generate_update_(const Instance& service, const std:
   fetch::oef::pb::Update_DataModelInstance* dm = update.add_data_models();
   dm->set_key(agent.c_str());
   dm->mutable_model()->CopyFrom(service.model());
+  dm->mutable_values()->CopyFrom(service.handle().values());
 
   generate_update_add_naddr_(update);
   return update;
